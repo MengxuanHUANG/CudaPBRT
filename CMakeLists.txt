@@ -30,10 +30,48 @@ if(WIN32)
     set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE FILEPATH "Host side compiler used by NVCC" FORCE)
 endif(WIN32)
 
-set(GLM_ROOT_DIR "external")
-find_package(GLM REQUIRED)
-include_directories(${GLM_INCLUDE_DIRS})
+set(EXTERNAL "external")
 
+set(GLFW_ROOT_DIR ${EXTERNAL})
+set(GLFW_USE_STATIC_LIBS ON)
+find_package(GLFW REQUIRED)
+
+set(GLEW_ROOT_DIR ${EXTERNAL})
+set(GLEW_USE_STATIC_LIBS ON)
+find_package(GLEW REQUIRED)
+
+find_package(OpenGL REQUIRED)
+
+set(GLM_ROOT_DIR ${EXTERNAL})
+find_package(GLM REQUIRED)
+
+set(IMGUI_ROOT_DIR ${EXTERNAL})
+find_package(IMGUI REQUIRED)
+
+message(${IMGUI_INCLUDE_DIRS})
+
+# ImGui Library
+file(GLOB imgui_headers 
+    "${IMGUI_INCLUDE_DIRS}/imgui/*.cpp" 
+    "${IMGUI_INCLUDE_DIRS}/imgui/backends/imgui_impl_glfw.cpp"
+    "${IMGUI_INCLUDE_DIRS}/imgui/backends/imgui_impl_opengl3.cpp"
+)
+
+file(GLOB imgui_sources 
+    "${IMGUI_INCLUDE_DIRS}/imgui/*.h"
+    "${IMGUI_INCLUDE_DIRS}/imgui/backends/imgui_impl_glfw.h"
+    "${IMGUI_INCLUDE_DIRS}/imgui/backends/imgui_impl_opengl3.h"
+)
+
+list(SORT headers)
+list(SORT sources)
+include_directories("${IMGUI_INCLUDE_DIRS}/imgui")
+add_library(ImGui STATIC ${imgui_headers} ${imgui_sources})
+
+# set library
+set(LIBRARIES ImGui ${GLEW_LIBRARY} ${GLFW_LIBRARY} ${OPENGL_LIBRARY})
+
+# CudaPBRT Projects
 file(GLOB headers "src/*.h" "src/*.cuh")
 file(GLOB sources "src/*.cpp" "src/*.cu")
 
@@ -43,7 +81,15 @@ list(SORT sources)
 source_group(Headers FILES ${headers})
 source_group(Sources FILES ${sources})
 
-# Projects
+include_directories(
+    ${GLM_INCLUDE_DIRS} 
+    ${GLEW_INCLUDE_DIR} 
+    ${GLFW_INCLUDE_DIR} 
+    ${IMGUI_INCLUDE_DIRS}
+    "${IMGUI_INCLUDE_DIRS}/imgui/backends"
+)
+
 cuda_add_executable(${CMAKE_PROJECT_NAME} ${headers} ${sources})
 target_link_libraries(${CMAKE_PROJECT_NAME}
+    ${LIBRARIES}
 )

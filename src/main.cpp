@@ -1,36 +1,83 @@
-#include <iostream>
+#include <stdio.h>
+
+#ifndef GLEW_STATIC 
+#define GLEW_STATIC
+#endif // !GLEW_STATIC 
+
+
+#include <GL/glew.h>
+#include <glfw/glfw3.h>
+
+#include <imgui/imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 #include "TestCuda.cuh"
 
+GLFWwindow* window;
+ImGuiIO* io = nullptr;
+
+void errorCallback(int error, const char* description) {
+	fprintf(stderr, "%s\n", description);
+}
+
 int main()
 {
-    std::cout << "Hello CUDA PBRT!" << std::endl;
+	glfwSetErrorCallback(errorCallback);
 
-    glm::mat4 m1{
-        {1, 0, 0, 0},
-        {0, 1, 1, 0},
-        {1, 0, 2, 0},
-        {0, 3, 0, 1}
-    };
+	if (!glfwInit()) {
+		exit(EXIT_FAILURE);
+	}
 
-    glm::mat4 m2{
-        {1, 1, 0, 0},
-        {0, 1, 1, 0},
-        {1, 0, 1, 0},
-        {0, 0, 0, 1}
-    };
+	window = glfwCreateWindow(1920, 1080, "Cuda PBRT", NULL, NULL);
+	if (!window) {
+		glfwTerminate();
+		return 1;
+	}
 
-    glm::mat4 result;
+	glfwMakeContextCurrent(window);
+	
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK) {
+        return false;
+    }
 
-    executeCuda(&m1, &m2, &result);
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	io = &ImGui::GetIO(); (void)io;
+	ImGui::StyleColorsClassic();
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplOpenGL3_Init("#version 450");
 
-    for (int i = 0; i < 4; ++i)
+    while (!glfwWindowShouldClose(window))
     {
-        for (int j = 0; j < 4; ++j)
+        // Poll events
+        glfwPollEvents();
+
+        // Start the ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // Create a window and a button
+        ImGui::Begin("Hello, world!");
+        if (ImGui::Button("Click me!"))
         {
-            std::cout << result[i][j];
+            printf("Button clicked!\n");
         }
-        std::cout << std::endl;
+        ImGui::End();
+
+        // Render the ImGui frame
+        ImGui::Render();
+        int display_w, display_h;
+        glfwGetFramebufferSize(window, &display_w, &display_h);
+        glViewport(0, 0, display_w, display_h);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Swap buffers
+        glfwSwapBuffers(window);
     }
 
     return 0;
