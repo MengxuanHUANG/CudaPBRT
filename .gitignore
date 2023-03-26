@@ -1,1 +1,7 @@
+# directions
 /build
+/out
+/.vs
+
+# files
+CMakeSettings.json

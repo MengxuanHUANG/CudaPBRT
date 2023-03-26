@@ -16,11 +16,11 @@ if (WIN32)
   # Find include files
   find_path(
     IMGUI_INCLUDE_DIR
-    NAMES imgui/imgui.hpp
+    NAMES imgui/imgui.h
     PATHS
-    $ENV{PROGRAMFILES}/include
-    ${IMGUI_ROOT_DIR}/include
-    DOC "The directory where imgui/imgui.hpp resides")
+    $ENV{PROGRAMFILES}
+    ${IMGUI_ROOT_DIR}
+    DOC "The directory where imgui/imgui.h resides")
 endif()
 
 # Handle REQUIRD argument, define *_FOUND variable
