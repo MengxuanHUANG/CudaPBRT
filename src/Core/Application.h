@@ -2,10 +2,12 @@
 
 #include "Core.h"
 #include "Window/Events/Event.h"
+#include "LayerContainer.h"
 
 namespace CudaPBRT
 {
 	class Window;
+	class ImGuiLayer;
 
 	class Application
 	{
@@ -16,16 +18,27 @@ namespace CudaPBRT
 		void Run();
 		void Terminate();
 
+		void PushLayer(Layer* layer);
+		void PopLayer(Layer* layer, bool deleteLayer = false);
+
+		Window* GetWindow() { return m_MainWindow.get(); }
+
 	public:
+		// dispatch event
 		bool OnEvent(Event& event);
 
+		// callback when 'x' is pressed
 		bool OnWindowClose(Event& event);
 
-	public:
+	private:
 		uPtr<Window> m_MainWindow;
 
 		bool b_Running;
 		bool b_Pause;
+
+		ImGuiLayer* m_ImGuiLayer;
+
+		LayerStack m_LayerStack;
 
 	public:
 		static Application& GetApplication()
@@ -34,7 +47,7 @@ namespace CudaPBRT
 			return (*s_Instance);
 		}
 
-	public:
+	private:
 		static Application* s_Instance;
 	};
 }
