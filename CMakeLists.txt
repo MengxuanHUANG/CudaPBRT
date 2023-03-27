@@ -65,23 +65,25 @@ file(GLOB imgui_sources
 
 list(SORT headers)
 list(SORT sources)
-include_directories("${IMGUI_INCLUDE_DIRS}/imgui")
+
 add_library(ImGui STATIC ${imgui_headers} ${imgui_sources})
+target_include_directories(ImGui PUBLIC
+    ${GLFW_INCLUDE_DIR} 
+    "${IMGUI_INCLUDE_DIRS}/imgui"
+)
+
+
+
+# CudaPBRT Projects
+
+# set SRC_ROOT_DIR
+set(SRC_ROOT_DIR "src")
 
 # set library
 set(LIBRARIES ImGui ${GLEW_LIBRARY} ${GLFW_LIBRARY} ${OPENGL_LIBRARY})
-
-# CudaPBRT Projects
-file(GLOB headers "src/*.h" "src/*.cuh")
-file(GLOB sources "src/*.cpp" "src/*.cu")
-
-list(SORT headers)
-list(SORT sources)
-
-source_group(Headers FILES ${headers})
-source_group(Sources FILES ${sources})
-
-include_directories(
+# set library
+set(INCLUDE_DIR
+    ${SRC_ROOT_DIR}
     ${GLM_INCLUDE_DIRS} 
     ${GLEW_INCLUDE_DIR} 
     ${GLFW_INCLUDE_DIR} 
@@ -89,7 +91,39 @@ include_directories(
     "${IMGUI_INCLUDE_DIRS}/imgui/backends"
 )
 
+file(GLOB_RECURSE headers 
+    "${SRC_ROOT_DIR}/*.h" 
+    "${SRC_ROOT_DIR}/*.cuh" 
+    "${SRC_ROOT_DIR}/Core/*.h" 
+    "${SRC_ROOT_DIR}/Window/*.h"
+    "${SRC_ROOT_DIR}/GraphicsContext/*.h"
+    "${SRC_ROOT_DIR}/PBRT/*.h"
+)
+file(GLOB_RECURSE sources 
+    "${SRC_ROOT_DIR}/*.cpp" 
+    "${SRC_ROOT_DIR}/*.cu"
+    "${SRC_ROOT_DIR}/Core/*.cpp" 
+    "${SRC_ROOT_DIR}/Window/*.cpp"
+    "${SRC_ROOT_DIR}/GraphicsContext/*.cpp"
+    "${SRC_ROOT_DIR}/PBRT/*.cpp"
+)
+
+list(SORT headers)
+list(SORT sources)
+
+source_group(Headers FILES ${headers})
+source_group(Sources FILES ${sources})
+
 cuda_add_executable(${CMAKE_PROJECT_NAME} ${headers} ${sources})
+
+target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC
+    ${INCLUDE_DIR}
+)
+
 target_link_libraries(${CMAKE_PROJECT_NAME}
     ${LIBRARIES}
+)
+
+target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC 
+    CUDA_PBRT_DEBUG = 1
 )
