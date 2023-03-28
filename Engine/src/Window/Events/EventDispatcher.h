@@ -8,17 +8,20 @@ namespace CudaPBRT
 	class EventDispatcher
 	{
 	public:
-		typedef std::function<bool(Event&)> EventCallBackFn;
+		template<typename T>
+		using EventCallBackFn = std::function<bool(T&)>;
+
 		EventDispatcher(Event& event)
 			:m_Event(event)
 		{}
 
 		template<typename T>
-		bool Dispatch(EventCallBackFn fn)
+		bool Dispatch(EventCallBackFn<T> fn)
 		{
 			if (T::GetStaticType() == m_Event.GetEventType())
 			{
-				return fn(m_Event);
+				m_Event.m_Handled = fn(*(T*)&m_Event);
+				return true;
 			}
 			else
 			{

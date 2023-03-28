@@ -47,8 +47,6 @@ namespace CudaPBRT
 	// should be editor only function
 	void ImGuiLayer::OnImGuiRendered(float) 
 	{
-		static bool show = true;
-		ImGui::ShowDemoWindow(&show);
 	}
 
 	void ImGuiLayer::Begin()

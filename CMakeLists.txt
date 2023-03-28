@@ -74,16 +74,16 @@ target_include_directories(ImGui PUBLIC
 
 
 
-# CudaPBRT Projects
+# CudaPBRT library Projects
 
-# set SRC_ROOT_DIR
-set(SRC_ROOT_DIR "src")
+# set ENGIN_SRC_ROOT_DIR
+set(ENGIN_SRC_ROOT_DIR "Engine/src")
 
 # set library
-set(LIBRARIES ImGui ${GLEW_LIBRARY} ${GLFW_LIBRARY} ${OPENGL_LIBRARY})
-# set library
-set(INCLUDE_DIR
-    ${SRC_ROOT_DIR}
+set(ENGINE_LIBRARIES ImGui ${GLEW_LIBRARY} ${GLFW_LIBRARY} ${OPENGL_LIBRARY})
+# set include direction
+set(ENGINE_INCLUDE_DIR
+    ${ENGIN_SRC_ROOT_DIR}
     ${GLM_INCLUDE_DIRS} 
     ${GLEW_INCLUDE_DIR} 
     ${GLFW_INCLUDE_DIR} 
@@ -92,20 +92,12 @@ set(INCLUDE_DIR
 )
 
 file(GLOB_RECURSE headers 
-    "${SRC_ROOT_DIR}/*.h" 
-    "${SRC_ROOT_DIR}/*.cuh" 
-    "${SRC_ROOT_DIR}/Core/*.h" 
-    "${SRC_ROOT_DIR}/Window/*.h"
-    "${SRC_ROOT_DIR}/GraphicsContext/*.h"
-    "${SRC_ROOT_DIR}/PBRT/*.h"
+    "${ENGIN_SRC_ROOT_DIR}/*.h" 
+    "${ENGIN_SRC_ROOT_DIR}/*.cuh"
 )
 file(GLOB_RECURSE sources 
-    "${SRC_ROOT_DIR}/*.cpp" 
-    "${SRC_ROOT_DIR}/*.cu"
-    "${SRC_ROOT_DIR}/Core/*.cpp" 
-    "${SRC_ROOT_DIR}/Window/*.cpp"
-    "${SRC_ROOT_DIR}/GraphicsContext/*.cpp"
-    "${SRC_ROOT_DIR}/PBRT/*.cpp"
+    "${ENGIN_SRC_ROOT_DIR}/*.cpp" 
+    "${ENGIN_SRC_ROOT_DIR}/*.cu"
 )
 
 list(SORT headers)
@@ -114,16 +106,57 @@ list(SORT sources)
 source_group(Headers FILES ${headers})
 source_group(Sources FILES ${sources})
 
-cuda_add_executable(${CMAKE_PROJECT_NAME} ${headers} ${sources})
+CUDA_ADD_LIBRARY(${CMAKE_PROJECT_NAME} ${headers} ${sources})
 
 target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC
-    ${INCLUDE_DIR}
+    ${ENGINE_INCLUDE_DIR}
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
-    ${LIBRARIES}
+    ${ENGINE_LIBRARIES}
 )
 
 target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC 
     CUDA_PBRT_DEBUG = 1
+)
+
+# SandBox project
+# set SANDBOX_SRC_ROOT_DIR
+set(SANDBOX_SRC_ROOT_DIR "SandBox/src")
+# set library
+set(SANDBOX_LIBRARIES ImGui ${CMAKE_PROJECT_NAME} ${GLEW_LIBRARY} ${GLFW_LIBRARY} ${OPENGL_LIBRARY})
+# set library
+set(SANDBOX_INCLUDE_DIR
+    ${ENGIN_SRC_ROOT_DIR}
+    ${SANDBOX_SRC_ROOT_DIR}
+    ${GLM_INCLUDE_DIRS} 
+    ${GLEW_INCLUDE_DIR} 
+    ${GLFW_INCLUDE_DIR} 
+    ${IMGUI_INCLUDE_DIRS}
+    "${IMGUI_INCLUDE_DIRS}/imgui/backends"
+)
+
+file(GLOB_RECURSE sandboxHeaders 
+    "${SANDBOX_SRC_ROOT_DIR}/*.h" 
+    "${SANDBOX_SRC_ROOT_DIR}/*.cuh"
+)
+file(GLOB_RECURSE sandboxSources 
+    "${SANDBOX_SRC_ROOT_DIR}/*.cpp" 
+    "${SANDBOX_SRC_ROOT_DIR}/*.cu"
+)
+
+list(SORT sandboxHeaders)
+list(SORT sandboxSources)
+
+source_group(Headers FILES ${sandboxHeaders})
+source_group(Sources FILES ${sandboxSources})
+
+CUDA_ADD_EXECUTABLE(SandBox ${sandboxHeaders} ${sandboxSources})
+
+target_include_directories(SandBox PUBLIC
+    ${SANDBOX_INCLUDE_DIR}
+)
+
+target_link_libraries(SandBox
+    ${SANDBOX_LIBRARIES}
 )

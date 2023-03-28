@@ -17,8 +17,14 @@ namespace CudaPBRT
 
 		virtual void OnUpdate() override;
 
+		virtual int GetMouseButtonState(int button) override;
+		virtual int GetKeyButtonState(int keycode) override;
+		virtual std::pair<double, double> GetCursorPosition() override;
+
 		// Be careful to reinterpret_cast the returned pointer
 		virtual void* GetNativeWindow() const override;
+
+		virtual WindowProps* GetWindowProps() override { return &(m_WindowData.windowProps); }
 
 	private:
 		virtual void Init();

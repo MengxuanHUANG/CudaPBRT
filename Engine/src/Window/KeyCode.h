@@ -1,7 +1,8 @@
 #pragma once
 
 #include <unordered_map>
-
+#ifndef MY_INPUT_CODE
+#define MY_INPUT_CODE
 // From glfw3.h
 #define MY_KEY_SPACE              32
 #define MY_KEY_APOSTROPHE         39  /* ' */
@@ -125,6 +126,14 @@
 #define MY_KEY_RIGHT_ALT          346
 #define MY_KEY_RIGHT_SUPER        347
 #define MY_KEY_MENU               348
+
+#define MY_MOUSE_BN_LEFT          0
+#define MY_MOUSE_BN_RIGHT         1
+#define MY_MOUSE_BN_MIDDLE        2
+#define MY_MOUSE_BN_EXTRA_1       3
+#define MY_MOUSE_BN_EXTRA_2       4
+
+#endif
 
 namespace CudaPBRT
 {

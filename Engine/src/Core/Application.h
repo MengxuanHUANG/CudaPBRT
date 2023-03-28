@@ -28,9 +28,9 @@ namespace CudaPBRT
 		bool OnEvent(Event& event);
 
 		// callback when 'x' is pressed
-		bool OnWindowClose(Event& event);
+		bool OnWindowClose(WindowCloseEvent& event);
 
-	private:
+	protected:
 		uPtr<Window> m_MainWindow;
 
 		bool b_Running;

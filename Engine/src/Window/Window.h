@@ -32,6 +32,12 @@ namespace CudaPBRT
 
 		// Be careful to reinterpret_cast the returned pointer
 		virtual void* GetNativeWindow() const = 0;
+		virtual WindowProps* GetWindowProps() = 0;
+
+		// Get input states
+		virtual int GetMouseButtonState(int button) { return 0; }
+		virtual int GetKeyButtonState(int keycode) { return 0; }
+		virtual std::pair<double, double> GetCursorPosition() { return { 0, 0 }; }
 
 	public:
 		static uPtr<Window> CreateWindow(EventCallbackFn fn, const WindowProps& props = WindowProps());

@@ -70,7 +70,6 @@ namespace CudaPBRT
 			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 			data.eventCallbackFn(event);
 		});
-		
 		glfwSetMouseButtonCallback(m_NativeWindow, [](GLFWwindow* window, int button, int action, int mods)
 		{
 			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
@@ -152,6 +151,23 @@ namespace CudaPBRT
 		m_GraphicsContext->SwapBuffers();
 	}
 
+	int WindowsWindow::GetMouseButtonState(int button)
+	{
+		return glfwGetMouseButton(m_NativeWindow, button);
+	}
+	
+	int WindowsWindow::GetKeyButtonState(int keycode)
+	{
+		return glfwGetKey(m_NativeWindow, keycode);
+	}
+
+	std::pair<double, double> WindowsWindow::GetCursorPosition()
+	{
+		double x, y;
+		glfwGetCursorPos(m_NativeWindow, &x, &y);
+		return { x, y };
+	}
+
 	// Be careful to reinterpret_cast the returned pointer
 	void* WindowsWindow::GetNativeWindow() const
 	{
@@ -161,11 +177,11 @@ namespace CudaPBRT
 	void WindowsWindow::OnWindowResize(GLFWwindow* window, int width, int height)
 	{
 		std::string temp = R"(Window Resize: ({}, {}))";
-		std::cout << std::vformat(temp, std::make_format_args(width, height)) << std::endl;
+		//std::cout << std::vformat(temp, std::make_format_args(width, height)) << std::endl;
 	}
 
 	void WindowsWindow::OnWindowClose(GLFWwindow* window)
 	{
-		std::cout << "Window Closed" << std::endl;
+		//std::cout << "Window Closed" << std::endl;
 	}
 }

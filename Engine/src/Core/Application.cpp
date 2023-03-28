@@ -47,22 +47,23 @@ namespace CudaPBRT
 	{
 		while (b_Running)
 		{
-			if (!b_Pause)
-			{
+            if (!b_Pause)
+            {
                 for (Layer* layer : m_LayerStack)
                 {
                     layer->OnUpdate(0);
                 }
+            }
 
-                m_ImGuiLayer->Begin();
-                for (Layer* layer : m_LayerStack)
-                {
-                    layer->OnImGuiRendered(0);
-                }
-                m_ImGuiLayer->End();
+            // TODO: Run PBRT on CUDA here!
 
-                m_MainWindow->OnUpdate();
-			}
+            m_ImGuiLayer->Begin();
+            for (Layer* layer : m_LayerStack)
+            {
+                layer->OnImGuiRendered(0);
+            }
+            m_ImGuiLayer->End();
+            m_MainWindow->OnUpdate();
 		}
 	}
 
@@ -87,7 +88,7 @@ namespace CudaPBRT
         m_LayerStack.PopLayer(layer, deleteLayer);
     }
 
-    bool Application::OnWindowClose(Event& event)
+    bool Application::OnWindowClose(WindowCloseEvent& event)
     {
         b_Running = false;
         return false;
