@@ -6,7 +6,7 @@ using namespace CudaPBRT;
 
 int main()
 {
-	SandBox app;
+	SandBox app({540, 540, "SandBox"});
 	app.Run();
 
     return 0;

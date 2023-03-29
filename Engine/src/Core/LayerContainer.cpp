@@ -1,4 +1,5 @@
 #include "LayerContainer.h"
+#include "Layer.h"
 
 namespace CudaPBRT
 {

@@ -3,6 +3,7 @@
 #include "Window/Events/Event.h"
 
 #include <string>
+#include <iostream>
 
 namespace CudaPBRT
 {

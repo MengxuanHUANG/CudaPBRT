@@ -8,11 +8,12 @@ namespace CudaPBRT
 {
 	class Window;
 	class ImGuiLayer;
+	class WindowProps;
 
 	class Application
 	{
 	public:
-		Application();
+		Application(const WindowProps& props);
 		~Application();
 
 		void Run();
@@ -35,6 +36,8 @@ namespace CudaPBRT
 
 		bool b_Running;
 		bool b_Pause;
+
+		float m_LastTimeStep;
 
 		ImGuiLayer* m_ImGuiLayer;
 

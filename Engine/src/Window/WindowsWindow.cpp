@@ -151,6 +151,11 @@ namespace CudaPBRT
 		m_GraphicsContext->SwapBuffers();
 	}
 
+	double WindowsWindow::GetTime()
+	{
+		return glfwGetTime();
+	}
+
 	int WindowsWindow::GetMouseButtonState(int button)
 	{
 		return glfwGetMouseButton(m_NativeWindow, button);

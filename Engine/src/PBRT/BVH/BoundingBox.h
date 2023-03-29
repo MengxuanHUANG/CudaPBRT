@@ -1,5 +1,5 @@
 #pragma once
-#include "PBRT/Ray.h"
+#include "PBRT/Ray.cuh"
 
 #include <glm/glm.hpp>
 

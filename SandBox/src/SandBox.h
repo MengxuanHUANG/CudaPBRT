@@ -1,14 +1,15 @@
 #pragma once
 
-#include "CameraLayer.h"
+#include "TestLayer.h"
 
 #include "Core/Application.h"
 
 class SandBox : public Application
 {
 public:
-	SandBox()
+	SandBox(const WindowProps& props)
+		:Application(props)
 	{
-		PushLayer(new CameraLayer("Camera Layer"));
+		PushLayer(new TestLayer("Test Layer"));
 	}
 };

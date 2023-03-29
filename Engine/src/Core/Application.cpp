@@ -10,7 +10,7 @@ namespace CudaPBRT
 {
     Application* Application::s_Instance;
 
-	Application::Application()
+	Application::Application(const WindowProps& props)
         :b_Running(true), b_Pause(false)
 	{
 		ASSERT(!s_Instance);
@@ -18,7 +18,7 @@ namespace CudaPBRT
         s_Instance = this;
 
 		// create main window
-		m_MainWindow = Window::CreateWindow(std::bind(&Application::OnEvent, this, std::placeholders::_1));
+		m_MainWindow = Window::CreateWindow(std::bind(&Application::OnEvent, this, std::placeholders::_1), props);
 
         m_ImGuiLayer = new ImGuiLayer();
         PushLayer(m_ImGuiLayer);
@@ -47,11 +47,13 @@ namespace CudaPBRT
 	{
 		while (b_Running)
 		{
+            float currentTimeStep = m_MainWindow->GetTime();
+
             if (!b_Pause)
             {
                 for (Layer* layer : m_LayerStack)
                 {
-                    layer->OnUpdate(0);
+                    layer->OnUpdate(currentTimeStep);
                 }
             }
 
@@ -60,7 +62,7 @@ namespace CudaPBRT
             m_ImGuiLayer->Begin();
             for (Layer* layer : m_LayerStack)
             {
-                layer->OnImGuiRendered(0);
+                layer->OnImGuiRendered(currentTimeStep);
             }
             m_ImGuiLayer->End();
             m_MainWindow->OnUpdate();

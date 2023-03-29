@@ -19,6 +19,18 @@ namespace CudaPBRT
 	protected:
 		bool OnMouseMoved(MouseMovedEvent&);
 
+		void RotateAboutUp(float deg);
+		void RotateAboutRight(float deg);
+
+		void RotateTheta(float deg);
+		void RotatePhi(float deg);
+
+		void TranslateAlongLook(float amt);
+		void TranslateAlongRight(float amt);
+		void TranslateAlongUp(float amt);
+
+		void Zoom(float amt);
+	
 	public:
 		// camera control parameters
 		float panSpeed;

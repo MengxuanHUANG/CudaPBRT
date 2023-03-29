@@ -13,9 +13,9 @@ namespace CudaPBRT
 		unsigned int height;
 		std::string title;
 
-		WindowProps(const std::string& title = "New Window",
-					unsigned int width = 2048,
-					unsigned height = 1080)
+		WindowProps(unsigned int width = 2048,
+					unsigned height = 1080,
+					const std::string& title = "New Window")
 			: width(width), height(height), title(title)
 		{
 		}
@@ -29,6 +29,7 @@ namespace CudaPBRT
 		virtual ~Window() = default;
 	
 		virtual void OnUpdate() = 0;
+		virtual double GetTime() = 0;
 
 		// Be careful to reinterpret_cast the returned pointer
 		virtual void* GetNativeWindow() const = 0;

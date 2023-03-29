@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <format>
+#include <glm/gtx/transform.hpp>
 
 namespace CudaPBRT
 {
@@ -21,6 +22,78 @@ namespace CudaPBRT
 		return false;
 	}
 
+	void PerspectiveCameraController::RotateAboutUp(float deg)
+	{
+		glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), deg, m_Camera.up);
+
+		glm::vec4 ref = glm::vec4(m_Camera.forward, 1.f);
+		ref = rotation * ref;
+
+		m_Camera.ref -= m_Camera.position;
+		m_Camera.ref = rotation * glm::vec4(m_Camera.ref, 1.f);
+		m_Camera.ref += m_Camera.position;
+
+		m_Camera.RecomputeAttributes();
+	}
+
+	void PerspectiveCameraController::RotateAboutRight(float deg)
+	{
+		glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), deg, m_Camera.right);
+
+		m_Camera.ref -= m_Camera.position;
+		m_Camera.ref = rotation * glm::vec4(m_Camera.ref, 1.f);
+		m_Camera.ref += m_Camera.position;
+
+		m_Camera.RecomputeAttributes();
+	}
+
+	void PerspectiveCameraController::RotateTheta(float deg)
+	{
+		glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), deg, m_Camera.right);
+
+		m_Camera.position -= m_Camera.ref;
+
+		m_Camera.position = glm::vec3(rotation * glm::vec4(m_Camera.position, 1.f));
+		m_Camera.position += m_Camera.ref;
+		m_Camera.RecomputeAttributes();
+	}
+	void PerspectiveCameraController::RotatePhi(float deg)
+	{
+		glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), deg, m_Camera.up);
+
+		m_Camera.position -= m_Camera.ref;
+
+		m_Camera.position = glm::vec3(rotation * glm::vec4(m_Camera.position, 1.f));
+		m_Camera.position += m_Camera.ref;
+		m_Camera.RecomputeAttributes();
+	}
+
+	void PerspectiveCameraController::TranslateAlongLook(float amt)
+	{
+		glm::vec3 trans = m_Camera.forward * amt;
+		m_Camera.position += trans;
+		m_Camera.ref += trans;
+	}
+
+	void PerspectiveCameraController::TranslateAlongRight(float amt)
+	{
+		glm::vec3 trans = m_Camera.right * amt;
+		m_Camera.position += trans;
+		m_Camera.ref += trans;
+	}
+
+	void PerspectiveCameraController::TranslateAlongUp(float amt)
+	{
+		glm::vec3 trans = m_Camera.up * amt;
+		m_Camera.position += trans;
+		m_Camera.ref += trans;
+	}
+
+	void PerspectiveCameraController::Zoom(float amt)
+	{
+		TranslateAlongLook(amt);
+	}
+
 	bool PerspectiveCameraController::OnMouseMoved(MouseMovedEvent& event)
 	{
 		Window* window = Application::GetApplication().GetWindow();
@@ -33,27 +106,29 @@ namespace CudaPBRT
 			{
 				// Rotation
 				glm::vec2 diff = rotateSpeed * offset;
-
+				m_MousePosPre = newPos;
 				// inverse rotation to obtain normal result
-				m_Camera.RotatePhi(-diff.x); 
-				m_Camera.RotateTheta(-diff.y);
+				RotatePhi(-diff.x); 
+				RotateTheta(-diff.y);
 			}
 			else if (window->GetMouseButtonState(MY_MOUSE_BN_MIDDLE))
 			{
 				// Panning
 				glm::vec2 diff = panSpeed * offset;
-				m_Camera.TranslateAlongRight(-diff.x); // inverse x panning to obtain normal result
-				m_Camera.TranslateAlongUp(diff.y);
+				m_MousePosPre = newPos;
+				TranslateAlongRight(-diff.x); // inverse x panning to obtain normal result
+				TranslateAlongUp(diff.y);
 			}
 			else if (window->GetMouseButtonState(MY_MOUSE_BN_RIGHT))
 			{
 				// Zoom
 				glm::vec2 diff = zoomSpeed * offset;
-				m_Camera.Zoom(diff.y);
+				m_MousePosPre = newPos;
+				Zoom(diff.y);
 			}
 		}
 
-		m_MousePosPre = glm::vec2(event.GetX(), event.GetY());
+		
 		return false;
 	}
 }

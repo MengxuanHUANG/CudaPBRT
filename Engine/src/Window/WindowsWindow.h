@@ -16,6 +16,7 @@ namespace CudaPBRT
 		virtual ~WindowsWindow();
 
 		virtual void OnUpdate() override;
+		virtual double GetTime() override;
 
 		virtual int GetMouseButtonState(int button) override;
 		virtual int GetKeyButtonState(int keycode) override;
