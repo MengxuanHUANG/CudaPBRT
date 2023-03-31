@@ -1,20 +1,14 @@
 #pragma once
 
+#include "pbrtDefine.h"
 #include "Camera/Camera.h"
 
-#include <limits>
-#include <cuda_runtime.h>
-
-#ifndef MachineEpsilon
-#define MachineEpsilon 0.5f * std::numeric_limits<float>::epsilon()
-#endif // !MachineEpsilon
+#include <vector>
 
 namespace CudaPBRT
 {
-	inline float gamma(int n)
-	{
-		return n * MachineEpsilon / (1.f - n * MachineEpsilon);
-	}
+	class Shape;
+	struct ShapeData;
 
 	class CudaPathTracer
 	{
@@ -23,6 +17,9 @@ namespace CudaPBRT
 		virtual ~CudaPathTracer();
 
 		virtual void InitCuda(PerspectiveCamera& camera, int device = 0);
+		virtual void CreateShapesOnCuda(std::vector<ShapeData>& shapeData);
+		virtual void FreeShapesOnCuda();
+
 		virtual void FreeCuda();
 		virtual void Run();
 
@@ -41,5 +38,27 @@ namespace CudaPBRT
 		PerspectiveCamera* device_camera;
 		uchar4* device_image;
 		uchar4* host_image;
+		Shape** device_shapes;
+		unsigned int* device_shape_count;
+	};
+
+	class TestCudaVirtual
+	{
+	public:
+		CPU_GPU virtual float GetValue() const = 0;
+	public:
+		glm::vec3 value;
+	};
+
+	class A : public TestCudaVirtual
+	{
+	public:
+		CPU_GPU virtual float GetValue() const override { return value.r; }
+	};
+
+	class B : public TestCudaVirtual
+	{
+	public:
+		CPU_GPU virtual float GetValue() const override { return value.g; }
 	};
 }

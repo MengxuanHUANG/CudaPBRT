@@ -12,12 +12,14 @@
 
 #include <stb_image.h>
 
+#include "PBRT/Shape/sphere.h"
+
 TestLayer::TestLayer(const std::string& name)
 	:Layer(name)
 {
 	window = Application::GetApplication().GetWindow();
 	WindowProps* props = window->GetWindowProps();
-	m_Camera = mkU<PerspectiveCamera>(540, 540);
+	m_Camera = mkU<PerspectiveCamera>(400, 400);
 	m_CamController = mkU<PerspectiveCameraController>(*m_Camera, 0.05f, 0.02f, 0.001f);
 	m_CudaPBRT = mkU<CudaPathTracer>();
 }
@@ -46,9 +48,23 @@ void TestLayer::OnAttach()
 	{
 	}
 	stbi_image_free(image_data);
+
+	std::vector<ShapeData> shapes;
+	ShapeData data;
+	data.type = ShapeType::Sphere;
+	data.translation = glm::vec3(-2.f, 0, 0);
+	data.rotation = glm::vec3(0.f);
+	data.scale = glm::vec3(1.f);
+
+	shapes.push_back(data);
+	data.translation = glm::vec3(2.f, 0, 0);
+	shapes.push_back(data);
+	m_CudaPBRT->CreateShapesOnCuda(shapes);
 }
 void TestLayer::OnDetach()
 {
+	m_CudaPBRT->FreeShapesOnCuda();
+
 	m_CudaPBRT->FreeCuda();
 }
 
@@ -59,27 +75,11 @@ void TestLayer::OnUpdate(float delatTime)
 
 void TestLayer::OnImGuiRendered(float deltaTime)
 {
-	ImGuiWindowFlags window_flags = 0;
-	static bool open = true;
-	ImGui::Begin("Rendered Image", &open, window_flags);
+	ImGui::Begin("Rendered Image");
 	{
-		if (ImGui::BeginMainMenuBar())
-		{
-			if (ImGui::BeginMenu("File"))
-			{
-				if (ImGui::MenuItem("Save", "CTRL+S"))
-				{
-					// TODO: Show a window and save
-					std::cout << "save" << std::endl;
-				}
-				ImGui::EndMenu();
-			}
-			ImGui::EndMainMenuBar();
-		}
 		ImGui::Image((void*)(intptr_t)(m_CudaPBRT->GetDisplayTextureId()), ImVec2(m_Camera->width, m_Camera->height));
-		ImGui::End();
 	}
-
+	ImGui::End();
 
 	ImGui::Begin("Camera Control");
 	if (ImGui::DragFloat3("Ref position", reinterpret_cast<float*>(&(m_Camera->ref)), 0.1f))

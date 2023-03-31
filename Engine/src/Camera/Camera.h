@@ -9,8 +9,8 @@ namespace CudaPBRT
 	public:
 		PerspectiveCamera(unsigned int w, 
 						  unsigned int h, 
-						  const glm::vec3& pos = glm::vec3(0, 5.5, -30),
-						  const glm::vec3& ref = glm::vec3(0, 2.5, 0),
+						  const glm::vec3& pos = glm::vec3(0, 0, 10),
+						  const glm::vec3& ref = glm::vec3(0, 0, 0),
 						  const glm::vec3& worldUp = glm::vec3(0, 1, 0),
 						  float lenRadius = 0.f,
 						  float focalDistance = 0.f);
