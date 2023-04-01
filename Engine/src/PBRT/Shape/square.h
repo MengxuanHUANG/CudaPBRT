@@ -23,7 +23,7 @@ namespace CudaPBRT
 
             Ray localRay(local_origin, local_dir);
 
-            float t = -localRay.O.z / localRay.DIR.z;
+            float t = -localRay.O.z / localRay.DIR.z; // t = -o.z / dir.z
 
             if (t > 0.f) // ray is toward the square
             {
@@ -34,7 +34,7 @@ namespace CudaPBRT
                     local_p.y >= -0.5f &&
                     local_p.y <=  0.5f)
                 {
-                    glm::vec3 normal = m_TransformInvTranspose * glm::vec3(0, 0, 1.f);
+                    glm::vec3 normal = m_TransformInvTranspose * glm::vec3(0.f, 0.f, 1.f);
                     intersection = Intersection(t, ray * t, glm::normalize(normal));
                     return true;
                 }

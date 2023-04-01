@@ -9,6 +9,7 @@ namespace CudaPBRT
 	public:
 		PerspectiveCamera(unsigned int w, 
 						  unsigned int h, 
+						  float fovy = 45.f,
 						  const glm::vec3& pos = glm::vec3(0, 0, 10),
 						  const glm::vec3& ref = glm::vec3(0, 0, 0),
 						  const glm::vec3& worldUp = glm::vec3(0, 1, 0),
@@ -20,8 +21,8 @@ namespace CudaPBRT
 
 	public:
 		// perspective camera parameters
-		float fovy;
 		unsigned int width, height;
+		float fovy;
 
 		float aspect;
 

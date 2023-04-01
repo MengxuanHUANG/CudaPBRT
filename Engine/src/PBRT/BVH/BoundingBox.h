@@ -122,18 +122,18 @@ namespace CudaPBRT
 			radius = Inside(center) ? glm::length(center - m_Max) : 0.f;
 		}
 
-		GPU_ONLY int IntersectP(const Ray& ray, float* hit_t0, float* hit_t1) const
+		GPU_ONLY bool IntersectP(const Ray& ray, float* hit_t0, float* hit_t1) const
 		{
 			float t0 = 0, t1 = ray.tMax;
-			float axis = -1;
 			for (int i = 0; i < 3; ++i) // check x, y, z
 			{
 				float invRayDir = 1.f / ray.DIR[i];
 
+				// solve the equation: min[i] = o[i] + t * d[i]
 				float tNear = (m_Min[i] - ray.O[i]) * invRayDir;
+				// solve the equation: max[i] = o[i] + t * d[i]
 				float tFar = (m_Max[i] - ray.O[i]) * invRayDir;
 
-				// swap near and far based on ray's direction
 				if (tNear > tFar)
 				{
 					float temp = tNear;
@@ -141,21 +141,19 @@ namespace CudaPBRT
 					tFar = temp;
 				}
 
+				// avoid floating point error
 				tFar *= 1 + 2 * gamma(3);
-				if (tNear > t0)
-				{
-					axis = i;
-					t0 = glm::max(tNear, t0);
-				}
+				
+				t0 = glm::max(tNear, t0);
 				t1 = glm::min(tFar, t1);
 
-				if (t0 > t1) return -1;
+				if (t0 > t1) return false;
 			}
 
 			if (hit_t0) *hit_t0 = t0;
 			if (hit_t1) *hit_t1 = t1;
 
-			return axis;
+			return true;
 		}
 	
 protected:

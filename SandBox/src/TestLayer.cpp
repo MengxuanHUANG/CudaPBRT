@@ -19,7 +19,7 @@ TestLayer::TestLayer(const std::string& name)
 {
 	window = Application::GetApplication().GetWindow();
 	WindowProps* props = window->GetWindowProps();
-	m_Camera = mkU<PerspectiveCamera>(400, 400);
+	m_Camera = mkU<PerspectiveCamera>(400, 400, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
 	m_CamController = mkU<PerspectiveCameraController>(*m_Camera);
 	m_CudaPBRT = mkU<CudaPathTracer>();
 }
@@ -56,9 +56,20 @@ void TestLayer::OnAttach()
 	//shapes.emplace_back(ShapeType::Square, glm::vec3(0, 0, -5), glm::vec3(10, 10, 1), glm::vec3(0, 30, 0));
 
 	// Test scene 2
-	shapes.emplace_back(ShapeType::Sphere, glm::vec3(0, 0, 1), 0.5f * glm::vec3(2, 1, 1), glm::vec3(0, 0, 45));
-	shapes.emplace_back(ShapeType::Sphere, glm::vec3(0, 0, 1), 0.5f * glm::vec3(2, 1, 1), glm::vec3(0, 0, 45));
-	shapes.emplace_back(ShapeType::Square, glm::vec3(0, -0.5, 0), glm::vec3(5, 5, 1), glm::vec3(90, 0, 0));
+	//shapes.emplace_back(ShapeType::Sphere, glm::vec3(0, 0, 1), 0.5f * glm::vec3(2, 1, 1), glm::vec3(0, 0, 45));
+	//shapes.emplace_back(ShapeType::Sphere, glm::vec3(0, 0, 1), 0.5f * glm::vec3(2, 1, 1), glm::vec3(0, 0, 45));
+	//shapes.emplace_back(ShapeType::Square, glm::vec3(0, -0.5, 0), glm::vec3(5, 5, 1), glm::vec3(90, 0, 0));
+
+	// Hard-coding Cornell Box Scene
+	shapes.emplace_back(ShapeType::Square, glm::vec3(0, -2.5, 0), glm::vec3(10, 10, 1), glm::vec3(-90, 0, 0)); // Floor
+	shapes.emplace_back(ShapeType::Square, glm::vec3(5, 2.5, 0),  glm::vec3(10, 10, 1), glm::vec3(0, -90, 0)); // Red wall
+	shapes.emplace_back(ShapeType::Square, glm::vec3(-5, 2.5, 0), glm::vec3(10, 10, 1), glm::vec3(0, 90, 0)); // Green Wall
+	shapes.emplace_back(ShapeType::Square, glm::vec3(0, 2.5, 5),  glm::vec3(10, 10, 1), glm::vec3(0, 180, 0)); // Back Wall
+	shapes.emplace_back(ShapeType::Square, glm::vec3(0, 7.5, 0),  glm::vec3(10, 10, 1), glm::vec3(90, 0, 0)); // Ceiling
+
+	shapes.emplace_back(ShapeType::Cube, glm::vec3(2, 0, 3), glm::vec3(3, 6, 3), glm::vec3(0, 27.5, 0)); // Long Cube
+	shapes.emplace_back(ShapeType::Cube, glm::vec3(-2, -1, 0.75), glm::vec3(3, 3, 3), glm::vec3(0, -17.5, 0)); // Short Cube
+
 	m_CudaPBRT->CreateShapesOnCuda(shapes);
 }
 void TestLayer::OnDetach()

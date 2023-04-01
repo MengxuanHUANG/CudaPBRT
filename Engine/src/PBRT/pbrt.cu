@@ -5,6 +5,7 @@
 #include "intersection.h"
 #include "Shape/sphere.h"
 #include "Shape/square.h"
+#include "Shape/cube.h"
 //#include "bsdf.h"
 //#include "bxdfs.h"
 
@@ -41,6 +42,11 @@ namespace CudaPBRT
         case ShapeType::Square:
         {
             device_shapes[id] = new Square(data[id]);
+            break;
+        }
+        case ShapeType::Cube:
+        {
+            device_shapes[id] = new Cube(data[id]);
             break;
         }
         default:
@@ -95,16 +101,17 @@ namespace CudaPBRT
         //    threadIdx.x, threadIdx.y, threadIdx.z,
         //    blockDim.x, blockDim.y, blockDim.z);
 
-        glm::vec2 ndc = 2.f * (glm::vec2(x, y) / glm::vec2(camera->width, camera->height));
+        glm::vec2 ndc = 2.f * glm::vec2(x, y) / glm::vec2(camera->width, camera->height);
         ndc.x = ndc.x - 1.f;
         ndc.y = 1.f - ndc.y;
 
         float aspect = static_cast<float>(camera->width) / static_cast<float>(camera->height);
 
         // point in camera space
+        float radian = glm::radians(camera->fovy * 0.5f);
         glm::vec3 pCamera = glm::vec3(
-            ndc.x * glm::tan(glm::radians(camera->fovy * 0.5f)) * aspect,
-            ndc.y * glm::tan(glm::radians(camera->fovy * 0.5f)),
+            ndc.x * glm::tan(radian) * aspect,
+            ndc.y * glm::tan(radian),
             1.f
         );
 
@@ -141,10 +148,10 @@ namespace CudaPBRT
         }
         
         // tone mapping
-        //color = color / (1.f + color);
+        color = color / (1.f + color);
 
         // gammar correction
-        //color = glm::pow(color, glm::vec3(1.f / 2.2f));
+        color = glm::pow(color, glm::vec3(1.f / 2.2f));
 
         img[y * camera->width + x].x = static_cast<int>(glm::mix(0.f, 255.f, color.x));
         img[y * camera->width + x].y = static_cast<int>(glm::mix(0.f, 255.f, color.y));
@@ -293,8 +300,8 @@ namespace CudaPBRT
     {
         cudaError_t cudaStatus;
 
-        dim3 numBlocks(UpperBinary(width >> 4), UpperBinary(height >> 4), 1);
-        dim3 threadPerBlock(16, 16, 1);
+        dim3 numBlocks(UpperBinary(width >> 5), UpperBinary(height >> 5), 1);
+        dim3 threadPerBlock(32, 32, 1);
 
         // Launch a kernel on the GPU with one thread for each element.
         Draw <<< numBlocks, threadPerBlock >>> (device_camera, device_image, device_shapes, device_shape_count);

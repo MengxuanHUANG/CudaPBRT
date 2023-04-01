@@ -7,14 +7,15 @@ namespace CudaPBRT
 
 	PerspectiveCamera::PerspectiveCamera(unsigned int w,
 										 unsigned int h,
+										 float fovy,
 										 const glm::vec3& pos,
 										 const glm::vec3& ref,
 										 const glm::vec3& worldUp,
 										 float lenRadius,
 										 float focalDistance)
-		:fovy(45.f),
-		 width(w),
+		:width(w),
 		 height(h),
+		 fovy(fovy),
 		 position(pos),
 		 ref(ref),
 		 worldUp(worldUp),
@@ -25,9 +26,9 @@ namespace CudaPBRT
 	}
 
 	PerspectiveCamera::PerspectiveCamera(const PerspectiveCamera& c)
-		:fovy(c.fovy),
-		 width(c.width),
+		:width(c.width),
 		 height(c.height),
+	 	 fovy(c.fovy),
 		 position(c.position),
 		 ref(c.ref),
 		worldUp(c.worldUp)
