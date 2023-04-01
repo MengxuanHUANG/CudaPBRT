@@ -4,6 +4,10 @@
 
 namespace CudaPBRT
 {
+    /**
+    * Default position: (0, 0, 0)
+    * Default radius: 1
+    */
 	class Sphere: public Shape
 	{
 	public:
@@ -31,7 +35,7 @@ namespace CudaPBRT
                 float t2 = 0.5f * (-B - glm::sqrt(delta)) / A;
                 float t = t2 > 0 ? t2 : t1;
 
-                glm::vec3 local_pos = localRay * t;
+                glm::vec3 local_pos = localRay * t; // also the local normal
                 glm::vec3 normal = m_TransformInvTranspose * local_pos;
                 normal = glm::normalize(normal);
 

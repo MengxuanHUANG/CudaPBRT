@@ -4,6 +4,7 @@
 #include "BVH/boundingBox.h"
 #include "intersection.h"
 #include "Shape/sphere.h"
+#include "Shape/square.h"
 //#include "bsdf.h"
 //#include "bxdfs.h"
 
@@ -25,7 +26,28 @@ namespace CudaPBRT
         {
             return;
         }
-        device_shapes[id] = new Sphere(data[id]);
+        
+        //printf("translation [%f, %f, %f].\n", data.translation.x, data.translation.y, data.translation.z);
+        //printf("scale [%f, %f, %f].\n", data.scale.x, data.scale.y, data.scale.z);
+        //printf("rotation [%f, %f, %f].\n", data.rotation.x, data.rotation.y, data.rotation.z);
+
+        switch (data[id].type)
+        {
+        case ShapeType::Sphere:
+        {
+            device_shapes[id] = new Sphere(data[id]);
+            break;
+        }
+        case ShapeType::Square:
+        {
+            device_shapes[id] = new Square(data[id]);
+            break;
+        }
+        default:
+            printf("Unsupprt Type %d!\n", static_cast<int>(data[id].type));
+            break;
+        }
+        
     }
     
     __global__ void FreeShapes(Shape** device_shapes, unsigned int* max_count)
@@ -77,12 +99,12 @@ namespace CudaPBRT
         ndc.x = ndc.x - 1.f;
         ndc.y = 1.f - ndc.y;
 
-        float aspect = camera->width / camera->height;
+        float aspect = static_cast<float>(camera->width) / static_cast<float>(camera->height);
 
         // point in camera space
         glm::vec3 pCamera = glm::vec3(
-            ndc.x * glm::tan(camera->fovy * 0.5f) * aspect,
-            ndc.y * glm::tan(camera->fovy * 0.5f),
+            ndc.x * glm::tan(glm::radians(camera->fovy * 0.5f)) * aspect,
+            ndc.y * glm::tan(glm::radians(camera->fovy * 0.5f)),
             1.f
         );
 

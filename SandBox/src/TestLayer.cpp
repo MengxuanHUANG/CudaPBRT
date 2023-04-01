@@ -50,16 +50,15 @@ void TestLayer::OnAttach()
 	//stbi_image_free(image_data);
 
 	std::vector<ShapeData> shapes;
-	ShapeData data;
-	data.type = ShapeType::Sphere;
-	data.translation = glm::vec3(-4.f, 0, 0);
-	data.rotation = glm::vec3(0.f);
-	data.scale = glm::vec3(2.f);
 
-	shapes.push_back(data);
-	data.scale = glm::vec3(1.f);
-	data.translation = glm::vec3(2.f, 0, 0);
-	shapes.push_back(data);
+	// Test scene 1
+	//shapes.emplace_back(ShapeType::Sphere, glm::vec3(-1, 1, 0), glm::vec3(1, 2, 1), glm::vec3(0, 0, 0));
+	//shapes.emplace_back(ShapeType::Square, glm::vec3(0, 0, -5), glm::vec3(10, 10, 1), glm::vec3(0, 30, 0));
+
+	// Test scene 2
+	shapes.emplace_back(ShapeType::Sphere, glm::vec3(0, 0, 1), 0.5f * glm::vec3(2, 1, 1), glm::vec3(0, 0, 45));
+	shapes.emplace_back(ShapeType::Sphere, glm::vec3(0, 0, 1), 0.5f * glm::vec3(2, 1, 1), glm::vec3(0, 0, 45));
+	shapes.emplace_back(ShapeType::Square, glm::vec3(0, -0.5, 0), glm::vec3(5, 5, 1), glm::vec3(90, 0, 0));
 	m_CudaPBRT->CreateShapesOnCuda(shapes);
 }
 void TestLayer::OnDetach()
@@ -76,6 +75,8 @@ void TestLayer::OnUpdate(float delatTime)
 
 void TestLayer::OnImGuiRendered(float deltaTime)
 {
+	ImGui::StyleColorsLight();
+
 	ImGui::Begin("Rendered Image");
 	{
 		ImGui::Image((void*)(intptr_t)(m_CudaPBRT->GetDisplayTextureId()), ImVec2(m_Camera->width, m_Camera->height));
