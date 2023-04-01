@@ -12,14 +12,16 @@
 namespace CudaPBRT
 {
 	PerspectiveCameraController::PerspectiveCameraController(PerspectiveCamera& camera, float panSpeed, float zoomSpeed, float rotateSpeed)
-		: m_Camera(camera)
+		: m_Camera(camera), 
+		  panSpeed(panSpeed), 
+		  zoomSpeed(zoomSpeed), 
+		  rotateSpeed(rotateSpeed)
 	{}
 
 	bool PerspectiveCameraController::OnEvent(Event& event)
 	{
 		EventDispatcher dispatcher(event);
-		dispatcher.Dispatch<MouseMovedEvent>(std::bind(&PerspectiveCameraController::OnMouseMoved, this, std::placeholders::_1));
-		return false;
+		return dispatcher.Dispatch<MouseMovedEvent>(std::bind(&PerspectiveCameraController::OnMouseMoved, this, std::placeholders::_1));
 	}
 
 	void PerspectiveCameraController::RotateAboutUp(float deg)
@@ -99,6 +101,7 @@ namespace CudaPBRT
 		Window* window = Application::GetApplication().GetWindow();
 		glm::vec2 newPos = glm::vec2(event.GetX(), event.GetY());
 		glm::vec2 offset = newPos - m_MousePosPre;
+		m_MousePosPre = newPos;
 
 		if (window->GetKeyButtonState(MY_KEY_LEFT_ALT))
 		{
@@ -106,29 +109,30 @@ namespace CudaPBRT
 			{
 				// Rotation
 				glm::vec2 diff = rotateSpeed * offset;
-				m_MousePosPre = newPos;
 				// inverse rotation to obtain normal result
 				RotatePhi(-diff.x); 
 				RotateTheta(-diff.y);
+
+				return true;
 			}
 			else if (window->GetMouseButtonState(MY_MOUSE_BN_MIDDLE))
 			{
 				// Panning
 				glm::vec2 diff = panSpeed * offset;
-				m_MousePosPre = newPos;
 				TranslateAlongRight(-diff.x); // inverse x panning to obtain normal result
 				TranslateAlongUp(diff.y);
+
+				return true;
 			}
 			else if (window->GetMouseButtonState(MY_MOUSE_BN_RIGHT))
 			{
 				// Zoom
 				glm::vec2 diff = zoomSpeed * offset;
-				m_MousePosPre = newPos;
 				Zoom(diff.y);
+
+				return true;
 			}
 		}
-
-		
 		return false;
 	}
 }

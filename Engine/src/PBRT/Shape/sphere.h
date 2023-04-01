@@ -2,8 +2,6 @@
 
 #include "shape.h"
 
-#include <glm/glm.hpp>
-
 namespace CudaPBRT
 {
 	class Sphere: public Shape

@@ -20,7 +20,7 @@ TestLayer::TestLayer(const std::string& name)
 	window = Application::GetApplication().GetWindow();
 	WindowProps* props = window->GetWindowProps();
 	m_Camera = mkU<PerspectiveCamera>(400, 400);
-	m_CamController = mkU<PerspectiveCameraController>(*m_Camera, 0.05f, 0.02f, 0.001f);
+	m_CamController = mkU<PerspectiveCameraController>(*m_Camera);
 	m_CudaPBRT = mkU<CudaPathTracer>();
 }
 
@@ -38,25 +38,26 @@ void TestLayer::OnAttach()
 
 	m_CudaPBRT->InitCuda(*m_Camera);
 
-	// load test image
-	std::string filename = "E://Study//Upenn//DSGN5005 3D_Modeling//Adams.jpg";
-	
-	int width, height;
-
-	unsigned char* image_data = stbi_load(filename.c_str(), &width, &height, NULL, 4);
-	if (image_data)
-	{
-	}
-	stbi_image_free(image_data);
+	// load image example
+	//std::string filename = "E://Study//Upenn//DSGN5005 3D_Modeling//Adams.jpg";
+	//
+	//int width, height;
+	//
+	//unsigned char* image_data = stbi_load(filename.c_str(), &width, &height, NULL, 4);
+	//if (image_data)
+	//{
+	//}
+	//stbi_image_free(image_data);
 
 	std::vector<ShapeData> shapes;
 	ShapeData data;
 	data.type = ShapeType::Sphere;
-	data.translation = glm::vec3(-2.f, 0, 0);
+	data.translation = glm::vec3(-4.f, 0, 0);
 	data.rotation = glm::vec3(0.f);
-	data.scale = glm::vec3(1.f);
+	data.scale = glm::vec3(2.f);
 
 	shapes.push_back(data);
+	data.scale = glm::vec3(1.f);
 	data.translation = glm::vec3(2.f, 0, 0);
 	shapes.push_back(data);
 	m_CudaPBRT->CreateShapesOnCuda(shapes);
@@ -98,9 +99,11 @@ bool TestLayer::OnEvent(Event& event)
 {
 	EventDispatcher dispatcher(event);
 	dispatcher.Dispatch<WindowResizeEvent>(std::bind(&TestLayer::OnWindowResize, this, std::placeholders::_1));
-	m_CamController->OnEvent(event);
 
-	m_CudaPBRT->UpdateCamera(*m_Camera);
+	if (m_CamController->OnEvent(event))
+	{
+		m_CudaPBRT->UpdateCamera(*m_Camera);
+	}
 
 	return false;
 }

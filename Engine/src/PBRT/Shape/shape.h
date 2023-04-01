@@ -15,7 +15,7 @@ namespace CudaPBRT
 		Sphere,
 		Cube,
 		Triangle,
-		Rectangle,
+		Square,
 	};
 
 	struct ShapeData
