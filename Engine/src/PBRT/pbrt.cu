@@ -271,7 +271,7 @@ namespace CudaPBRT
     {
         cudaError_t cudaStatus;
 
-        dim3 numBlocks(width / 16, height / 16, 1);
+        dim3 numBlocks(UpperBinary(width >> 4), UpperBinary(height >> 4), 1);
         dim3 threadPerBlock(16, 16, 1);
 
         // Launch a kernel on the GPU with one thread for each element.

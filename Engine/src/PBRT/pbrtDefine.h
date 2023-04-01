@@ -1,7 +1,7 @@
 #pragma once
 
 #include <limits>
-
+#include <cmath>
 #include <cuda_runtime.h>
 
 #ifndef PBRT_DEFINES
@@ -30,6 +30,16 @@ namespace CudaPBRT
 	GPU_ONLY inline float gamma(int n)
 	{
 		return n * MachineEpsilon / (1.f - n * MachineEpsilon);
+	}
+
+	inline int bit_length(int n)
+	{
+		return static_cast<int>(ceil(log2(n)));
+	}
+
+	inline int UpperBinary(int value)
+	{
+		return (1 << bit_length(value));
 	}
 }
 
