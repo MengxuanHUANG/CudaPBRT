@@ -32,33 +32,14 @@ namespace CudaPBRT
 
 		int width, height;
 
-		// device handler
+		// texture handler
 		unsigned int m_DisplayImage = 0;
 
+		// device handler
 		PerspectiveCamera* device_camera;
 		uchar4* device_image;
 		uchar4* host_image;
 		Shape** device_shapes;
 		unsigned int* device_shape_count;
-	};
-
-	class TestCudaVirtual
-	{
-	public:
-		CPU_GPU virtual float GetValue() const = 0;
-	public:
-		glm::vec3 value;
-	};
-
-	class A : public TestCudaVirtual
-	{
-	public:
-		CPU_GPU virtual float GetValue() const override { return value.r; }
-	};
-
-	class B : public TestCudaVirtual
-	{
-	public:
-		CPU_GPU virtual float GetValue() const override { return value.g; }
 	};
 }

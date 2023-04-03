@@ -13,9 +13,9 @@ namespace CudaPBRT
 		glm::vec3 normal = glm::vec3(0.f);
 		glm::vec3 wo = glm::vec3(0.f);
 
-		GPU_ONLY Intersection() = default;
+		CPU_GPU Intersection() = default;
 
-		GPU_ONLY Intersection(const float& t, 
+		CPU_GPU Intersection(const float& t,
 							  const glm::vec3& p, 
 							  const glm::vec3& n)
 			:t(t), p(p), normal(n)

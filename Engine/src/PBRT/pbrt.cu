@@ -6,20 +6,72 @@
 #include "Shape/sphere.h"
 #include "Shape/square.h"
 #include "Shape/cube.h"
+
+#include "Spectrum.h"
 //#include "bsdf.h"
 //#include "bxdfs.h"
 
 #include <GL/glew.h>
 #include <cuda_gl_interop.h>
 
-#ifdef CUDA_PBRT_DEBUG
-#define CUDA_CHECK_ERROR(state, message) if(state != cudaSuccess) fprintf(stderr, message);
-#else
-#define CUDA_CHECK_ERROR(state, message) 
-#endif
-
 namespace CudaPBRT
 {
+    CPU_GPU Shape* CreateShape(const ShapeData& data)
+    {
+        switch (data.type)
+        {
+        case ShapeType::Sphere:
+            return new Sphere(data);
+        case ShapeType::Cube:
+            return new Cube(data);
+        case ShapeType::Square:
+            return new Square(data);
+        default:
+            printf("Unknown ShapeType!\n");
+            return nullptr;
+        }
+    }
+    
+    CPU_GPU Ray CastRay(const PerspectiveCamera& camera, const glm::vec2& p)
+    {
+        glm::vec2 ndc = 2.f * p / glm::vec2(camera.width, camera.height);
+        ndc.x = ndc.x - 1.f;
+        ndc.y = 1.f - ndc.y;
+
+        float aspect = static_cast<float>(camera.width) / static_cast<float>(camera.height);
+
+        // point in camera space
+        float radian = glm::radians(camera.fovy * 0.5f);
+        glm::vec3 pCamera = glm::vec3(
+            ndc.x * glm::tan(radian) * aspect,
+            ndc.y * glm::tan(radian),
+            1.f
+        );
+
+        Ray ray(glm::vec3(0), pCamera);
+
+        ray.O = camera.position + ray.O.x * camera.right + ray.O.y * camera.up;
+        ray.DIR = glm::normalize(ray.DIR.z * camera.forward +
+                                 ray.DIR.y * camera.up +
+                                 ray.DIR.x * camera.right);
+
+        return ray;
+    }
+
+    CPU_GPU void writePixel(uchar4& pixel, const Spectrum& radiance)
+    {
+        // tone mapping
+        Spectrum color = radiance / (1.f + radiance);
+
+        // gammar correction
+        color = glm::pow(color, Spectrum(1.f / 2.2f));
+
+        pixel.x = static_cast<int>(glm::mix(0.f, 255.f, color.x));
+        pixel.y = static_cast<int>(glm::mix(0.f, 255.f, color.y));
+        pixel.z = static_cast<int>(glm::mix(0.f, 255.f, color.z));
+        pixel.w = 255;
+    }
+
     __global__ void CreateShapes(Shape** device_shapes, ShapeData* data, unsigned int* max_count)
     {
         int id = blockIdx.x;
@@ -27,33 +79,8 @@ namespace CudaPBRT
         {
             return;
         }
-        
-        //printf("translation [%f, %f, %f].\n", data.translation.x, data.translation.y, data.translation.z);
-        //printf("scale [%f, %f, %f].\n", data.scale.x, data.scale.y, data.scale.z);
-        //printf("rotation [%f, %f, %f].\n", data.rotation.x, data.rotation.y, data.rotation.z);
 
-        switch (data[id].type)
-        {
-        case ShapeType::Sphere:
-        {
-            device_shapes[id] = new Sphere(data[id]);
-            break;
-        }
-        case ShapeType::Square:
-        {
-            device_shapes[id] = new Square(data[id]);
-            break;
-        }
-        case ShapeType::Cube:
-        {
-            device_shapes[id] = new Cube(data[id]);
-            break;
-        }
-        default:
-            printf("Unsupprt Type %d!\n", static_cast<int>(data[id].type));
-            break;
-        }
-        
+        device_shapes[id] = CreateShape(data[id]);
     }
     
     __global__ void FreeShapes(Shape** device_shapes, unsigned int* max_count)
@@ -68,26 +95,6 @@ namespace CudaPBRT
         }
     }
 
-    __global__ void NewPtr(TestCudaVirtual** tv)
-    {
-        (*tv) = new B();
-        printf("new %X\n", (*tv));
-        (*tv)->value.r = 255.f;
-        (*tv)->value.g = -255.f;
-    }
-
-    __global__ void ReadPtr(TestCudaVirtual** tv)
-    {
-        //printf("read %X : (%f, %f, %f)\n",(*tv), (*tv)->value.x, (*tv)->value.y, (*tv)->value.z);
-        printf("read %X : GetValue() {%f}\n", (*tv), (*tv)->GetValue());
-    }
-
-    __global__ void DeletePtr(TestCudaVirtual** tv)
-    {
-        printf("delete %X\n", (*tv));
-        delete (*tv);
-    }
-
     __global__ void Draw(PerspectiveCamera* camera, uchar4* img, Shape** shapes, unsigned int* shape_count)
     {
         int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -96,41 +103,15 @@ namespace CudaPBRT
         if (x >= camera->width || y >= camera->height) {
             return;
         }
-        //printf("Hello from block (%d, %d, %d), thread (%d, %d, %d), block dim (%d, %d, %d)\n",
-        //    blockIdx.x, blockIdx.y, blockIdx.z,
-        //    threadIdx.x, threadIdx.y, threadIdx.z,
-        //    blockDim.x, blockDim.y, blockDim.z);
 
-        glm::vec2 ndc = 2.f * glm::vec2(x, y) / glm::vec2(camera->width, camera->height);
-        ndc.x = ndc.x - 1.f;
-        ndc.y = 1.f - ndc.y;
+        Ray ray = CastRay(*camera, {x, y});
 
-        float aspect = static_cast<float>(camera->width) / static_cast<float>(camera->height);
+        Spectrum radiance(0.f);
 
-        // point in camera space
-        float radian = glm::radians(camera->fovy * 0.5f);
-        glm::vec3 pCamera = glm::vec3(
-            ndc.x * glm::tan(radian) * aspect,
-            ndc.y * glm::tan(radian),
-            1.f
-        );
-
-        Ray ray(glm::vec3(0), pCamera);
-
-        ray.O = camera->position + ray.O.x * camera->right + ray.O.y * camera->up;
-        ray.DIR = glm::normalize(ray.DIR.z * camera->forward +
-                                 ray.DIR.y * camera->up +
-                                 ray.DIR.x * camera->right);
-
-        glm::vec3 color;
-
-        // display normal
-        //color = 0.5f * (ray.DIR + 1.f);
-
-        color = glm::vec3(0.f);
         Intersection intersection;
         intersection.t = 10000.f;
 
+        // TODO: use BVH for intersection testing
         for (int i = 0; i < *shape_count; ++i)
         {
             Intersection it;
@@ -144,19 +125,10 @@ namespace CudaPBRT
         
         if (intersection.id >= 0)
         {
-            color = 0.5f * (intersection.normal + 1.f);
+            radiance = 0.5f * (intersection.normal + 1.f);
         }
         
-        // tone mapping
-        color = color / (1.f + color);
-
-        // gammar correction
-        color = glm::pow(color, glm::vec3(1.f / 2.2f));
-
-        img[y * camera->width + x].x = static_cast<int>(glm::mix(0.f, 255.f, color.x));
-        img[y * camera->width + x].y = static_cast<int>(glm::mix(0.f, 255.f, color.y));
-        img[y * camera->width + x].z = static_cast<int>(glm::mix(0.f, 255.f, color.z));
-        img[y * camera->width + x].w = 255;
+        writePixel(img[y * camera->width + x], radiance);
     }
 
     CudaPathTracer::CudaPathTracer()
@@ -176,8 +148,8 @@ namespace CudaPBRT
         height = camera.height;
 
         // Choose which GPU to run on, change this on a multi-GPU system.
-        cudaError_t cudaStatus = cudaSetDevice(device);;
-        CUDA_CHECK_ERROR(cudaStatus, "cudaSetDevice failed!");
+        cudaSetDevice(device);;
+        CUDA_CHECK_ERROR();
 
         glGenTextures(1, &m_DisplayImage);
         glBindTexture(GL_TEXTURE_2D, m_DisplayImage);
@@ -192,99 +164,61 @@ namespace CudaPBRT
 
         // Create cuda device pointers
         // Allocate GPU buffers for three vectors (two input, one output).
-        cudaStatus = cudaMalloc((void**)&device_camera, sizeof(PerspectiveCamera));
-        CUDA_CHECK_ERROR(cudaStatus, "cudaMalloc failed!");
+        cudaMalloc((void**)&device_camera, sizeof(PerspectiveCamera));
+        CUDA_CHECK_ERROR();
 
         // Copy input vectors from host memory to GPU buffers.
-        cudaStatus = cudaMemcpy(device_camera, &camera, sizeof(PerspectiveCamera), cudaMemcpyHostToDevice);
-        CUDA_CHECK_ERROR(cudaStatus, "cudaMemcpy host to device failed!");
+        cudaMemcpy(device_camera, &camera, sizeof(PerspectiveCamera), cudaMemcpyHostToDevice);
+        CUDA_CHECK_ERROR();
 
-        cudaStatus = cudaMalloc((void**)&device_image, sizeof(uchar4) * width * height);
-        CUDA_CHECK_ERROR(cudaStatus, "cudaMalloc failed!");
+        cudaMalloc((void**)&device_image, sizeof(uchar4) * width * height);
+        CUDA_CHECK_ERROR();
     }
 
     void CudaPathTracer::CreateShapesOnCuda(std::vector<ShapeData>& shapeData)
     {
-        cudaError_t cudaStatus;
-
         ShapeData* device_shapeData;
         unsigned int max_count = shapeData.size();
 
-        cudaStatus = cudaMalloc((void**)&device_shape_count, sizeof(unsigned int));
-        CUDA_CHECK_ERROR(cudaStatus, "cudaMalloc failed!");
+        cudaMalloc((void**)&device_shape_count, sizeof(unsigned int));
+        CUDA_CHECK_ERROR();
 
-        cudaStatus = cudaMemcpy(device_shape_count, &max_count, sizeof(unsigned int), cudaMemcpyHostToDevice);
-        CUDA_CHECK_ERROR(cudaStatus, "cudaMemcpy host to device failed!");
+        cudaMemcpy(device_shape_count, &max_count, sizeof(unsigned int), cudaMemcpyHostToDevice);
+        CUDA_CHECK_ERROR();
 
-        cudaStatus = cudaMalloc((void**)&device_shapeData, sizeof(ShapeData) * max_count);
-        CUDA_CHECK_ERROR(cudaStatus, "cudaMalloc failed!");
+        cudaMalloc((void**)&device_shapeData, sizeof(ShapeData) * max_count);
+        CUDA_CHECK_ERROR();
 
-        cudaStatus = cudaMemcpy(device_shapeData, shapeData.data(), sizeof(ShapeData) * max_count, cudaMemcpyHostToDevice);
-        CUDA_CHECK_ERROR(cudaStatus, "cudaMemcpy host to device failed!");
+        cudaMemcpy(device_shapeData, shapeData.data(), sizeof(ShapeData) * max_count, cudaMemcpyHostToDevice);
+        CUDA_CHECK_ERROR();
 
-        cudaStatus = cudaMalloc((void**)&device_shapes, sizeof(Shape*) * max_count);
-        CUDA_CHECK_ERROR(cudaStatus, "cudaMalloc failed!");
+        cudaMalloc((void**)&device_shapes, sizeof(Shape*) * max_count);
+        CUDA_CHECK_ERROR();
 
         // Launch a kernel on the GPU with one thread for each element.
-        CreateShapes <<< max_count, 1 >>> (device_shapes, device_shapeData, device_shape_count);
+        CreateShapes<<< max_count, 1 >>> (device_shapes, device_shapeData, device_shape_count);
 
-        // Check for any errors launching the kernel
-        cudaStatus = cudaGetLastError();
-        CUDA_CHECK_ERROR(cudaStatus, "cuda launch failed!");
+        // cudaDeviceSynchronize waits for the kernel to finish
+        cudaDeviceSynchronize();
+        CUDA_CHECK_ERROR();
 
-        // cudaDeviceSynchronize waits for the kernel to finish, and returns
-        // any errors encountered during the launch.
-        cudaStatus = cudaDeviceSynchronize();
-        if (cudaStatus != cudaSuccess) {
-            fprintf(stderr, "cudaDeviceSynchronize returned error %s\n", cudaGetErrorString(cudaStatus));
-        }
-
-        if (device_shapeData != nullptr)
-        {
-            cudaFree(device_shapeData);
-        }
+        CUDA_FREE(device_shapeData);
     }
 
     void CudaPathTracer::FreeShapesOnCuda()
     {
-        cudaError_t cudaStatus;
-
-        // Launch a kernel on the GPU with one thread for each element.
         FreeShapes <<<1, 1>>> (device_shapes, device_shape_count);
-
-        // Check for any errors launching the kernel
-        cudaStatus = cudaGetLastError();
-        CUDA_CHECK_ERROR(cudaStatus, "cuda launch failed!");
-
-        // cudaDeviceSynchronize waits for the kernel to finish, and returns
-        // any errors encountered during the launch.
-        cudaStatus = cudaDeviceSynchronize();
-        if (cudaStatus != cudaSuccess) {
-            fprintf(stderr, "cudaDeviceSynchronize returned error %s\n", cudaGetErrorString(cudaStatus));
-        }
+        CUDA_CHECK_ERROR();
     }
 
     void CudaPathTracer::FreeCuda()
     {
-        if (device_camera != nullptr)
-        {
-            cudaFree(device_camera);
-            device_camera = nullptr;
-        }
-        if (device_image != nullptr)
-        {
-            cudaFree(device_image);
-            device_image = nullptr;
-        }
-        if (device_shapes != nullptr)
-        {
-            cudaFree(device_shapes);
-            device_shapes = nullptr;
-        }
-        if (device_shape_count != nullptr)
-        {
-            cudaFree(device_shape_count);
-        }
+        FreeShapesOnCuda();
+
+        CUDA_FREE(device_camera);
+        CUDA_FREE(device_image);
+        CUDA_FREE(device_shapes);
+        CUDA_FREE(device_shape_count);
 
         if (host_image)
         {
@@ -298,28 +232,22 @@ namespace CudaPBRT
 
     void CudaPathTracer::Run()
     {
-        cudaError_t cudaStatus;
+        KernalConfig drawConfig({width, height, 1}, {4, 4, 0});
 
-        dim3 numBlocks(UpperBinary(width >> 5), UpperBinary(height >> 5), 1);
-        dim3 threadPerBlock(32, 32, 1);
+        //glm::ivec2 blockSize(5, 5);
+        //dim3 numBlocks(UpperBinary(width >> blockSize.x), UpperBinary(height >> blockSize.y), 1);
+        //dim3 threadPerBlock(BIT(blockSize.x), BIT(blockSize.y), 1);
 
-        // Launch a kernel on the GPU with one thread for each element.
-        Draw <<< numBlocks, threadPerBlock >>> (device_camera, device_image, device_shapes, device_shape_count);
+        // draw color to pixels
+        Draw <<< drawConfig.numBlocks, drawConfig.threadPerBlock >>> (device_camera, device_image, device_shapes, device_shape_count);
 
-        // Check for any errors launching the kernel
-        cudaStatus = cudaGetLastError();
-        CUDA_CHECK_ERROR(cudaStatus, "cuda launch failed!");
-
-        // cudaDeviceSynchronize waits for the kernel to finish, and returns
-        // any errors encountered during the launch.
-        cudaStatus = cudaDeviceSynchronize();
-        if (cudaStatus != cudaSuccess) {
-            fprintf(stderr, "cudaDeviceSynchronize returned error %s\n", cudaGetErrorString(cudaStatus));
-        }
+        // wait GPU to finish computation
+        cudaDeviceSynchronize();
+        CUDA_CHECK_ERROR();
 
         // Copy rendered result to CPU.
-        cudaStatus = cudaMemcpy(host_image, device_image, sizeof(uchar4) * width * height, cudaMemcpyDeviceToHost);
-        CUDA_CHECK_ERROR(cudaStatus, "cudaMemcpy from device to host failed!");
+        cudaMemcpy(host_image, device_image, sizeof(uchar4) * width * height, cudaMemcpyDeviceToHost);
+        CUDA_CHECK_ERROR();
 
         // pass render result to glTexture2D
         glBindTexture(GL_TEXTURE_2D, m_DisplayImage);
@@ -330,7 +258,7 @@ namespace CudaPBRT
     void CudaPathTracer::UpdateCamera(PerspectiveCamera& camera)
     {
         // Copy input vectors from host memory to GPU buffers.
-        cudaError_t cudaStatus = cudaMemcpy(device_camera, &camera, sizeof(PerspectiveCamera), cudaMemcpyHostToDevice);
-        CUDA_CHECK_ERROR(cudaStatus, "cudaMemcpy host to device failed!");
+        cudaMemcpy(device_camera, &camera, sizeof(PerspectiveCamera), cudaMemcpyHostToDevice);
+        CUDA_CHECK_ERROR();
     }
 }

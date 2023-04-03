@@ -36,7 +36,7 @@ namespace CudaPBRT
 	class Shape
 	{
 	public:
-		GPU_ONLY Shape(const ShapeData& data)
+		CPU_GPU Shape(const ShapeData& data)
 		{
 			glm::mat4 T = glm::translate(glm::mat4(1.f), data.translation);
 
@@ -51,7 +51,7 @@ namespace CudaPBRT
 			m_TransformInvTranspose = glm::transpose(glm::inverse(glm::mat3(m_Transform)));
 		}
 
-		GPU_ONLY virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const = 0;
+		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const = 0;
 
 	protected:
 		glm::mat4 m_Transform;

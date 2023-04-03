@@ -3,31 +3,31 @@
 #include <limits>
 #include <cmath>
 #include <cuda_runtime.h>
-
-#ifndef PBRT_DEFINES
-#define PBRT_DEFINES
+#include <glm/glm.hpp>
 
 #define GPU_ONLY __device__
 #define CPU_ONLY __host__
 #define CPU_GPU __host__ __device__
-#endif
+
+#define CUDA_FREE(ptr) if(ptr != nullptr) { cudaFree(ptr); ptr = nullptr; }
+#define BIT(x) (1 << (x))
 
 namespace CudaPBRT
 {
-	GPU_ONLY static float ShadowEpsilon = 0.0001f;
-	GPU_ONLY static float Pi = 3.14159265358979323846;
-	GPU_ONLY static float InvPi = 0.31830988618379067154;
-	GPU_ONLY static float Inv2Pi = 0.15915494309189533577;
-	GPU_ONLY static float Inv4Pi = 0.07957747154594766788;
-	GPU_ONLY static float PiOver2 = 1.57079632679489661923;
-	GPU_ONLY static float PiOver4 = 0.78539816339744830961;
-	GPU_ONLY static float Sqrt2 = 1.41421356237309504880;
+	static constexpr float ShadowEpsilon	= 0.0001f;
+	static constexpr float Pi				= 3.1415927f;
+	static constexpr float InvPi			= 0.3183099f;
+	static constexpr float Inv2Pi			= 0.1591549f;
+	static constexpr float Inv4Pi			= 0.0795775f;
+	static constexpr float PiOver2			= 1.5707963f;
+	static constexpr float PiOver4			= 0.7853981f;
+	static constexpr float Sqrt2			= 1.4142136f;
 
-	GPU_ONLY static float FloatMin = std::numeric_limits<float>::min();
-	GPU_ONLY static float FloatMax = std::numeric_limits<float>::max();
-	GPU_ONLY static float MachineEpsilon = 0.5f * std::numeric_limits<float>::epsilon();
+	static constexpr float FloatMin = std::numeric_limits<float>::min();
+	static constexpr float FloatMax = std::numeric_limits<float>::max();
+	static constexpr float MachineEpsilon = 0.5f * std::numeric_limits<float>::epsilon();
 
-	GPU_ONLY inline float gamma(int n)
+	CPU_GPU inline float gamma(int n)
 	{
 		return n * MachineEpsilon / (1.f - n * MachineEpsilon);
 	}
@@ -41,5 +41,34 @@ namespace CudaPBRT
 	{
 		return (1 << bit_length(value));
 	}
+
+	inline void CudaCheckError(const char* file, int line)
+	{
+		cudaDeviceSynchronize();
+		cudaError_t status = cudaGetLastError();
+		if (status != cudaSuccess) 
+		{
+			fprintf(stderr, "(%s:%d): %s\n", file, line, cudaGetErrorString(status));
+		}
+	}
+
+	struct KernalConfig
+	{
+		dim3 numBlocks;
+		dim3 threadPerBlock;
+
+		KernalConfig(const glm::ivec3& blocks, const glm::ivec3& threads)
+			: numBlocks(UpperBinary(blocks.x >> threads.x), 
+						UpperBinary(blocks.y >> threads.y), 
+						UpperBinary(blocks.z >> threads.z)),
+			  threadPerBlock(BIT(threads.x), BIT(threads.y), BIT(threads.z))
+		{}
+	};
 }
+
+#ifdef CUDA_PBRT_DEBUG
+#define CUDA_CHECK_ERROR() CudaPBRT::CudaCheckError(__FILE__, __LINE__)
+#else 
+#define CUDA_CHECK_ERROR()
+#endif
 

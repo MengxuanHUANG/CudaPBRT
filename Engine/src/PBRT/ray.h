@@ -9,12 +9,12 @@ namespace CudaPBRT
 	class Ray
 	{
 	public:
-		GPU_ONLY Ray(const glm::vec3& o, const glm::vec3& dir)
+		CPU_GPU Ray(const glm::vec3& o, const glm::vec3& dir)
 			:O(o), DIR(dir)
 		{
 		}
 
-		GPU_ONLY glm::vec3 operator*(const float& t) const
+		CPU_GPU glm::vec3 operator*(const float& t) const
 		{
 			return O + t * DIR;
 		}
@@ -24,7 +24,7 @@ namespace CudaPBRT
 		glm::vec3 O, DIR;
 
 	public:
-		GPU_ONLY static Ray SpawnRay(const glm::vec3& o, const glm::vec3& dir)
+		CPU_GPU static Ray SpawnRay(const glm::vec3& o, const glm::vec3& dir)
 		{
 			return { o + dir * gamma(3), dir };
 		}
