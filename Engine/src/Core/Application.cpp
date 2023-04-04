@@ -47,7 +47,7 @@ namespace CudaPBRT
 	{
 		while (b_Running)
 		{
-            float currentTimeStep = m_MainWindow->GetTime();
+            float currentTimeStep = static_cast<float>(m_MainWindow->GetTime());
 
             if (!b_Pause)
             {

@@ -14,7 +14,7 @@ namespace CudaPBRT
 			:Material(mData)
 		{}
 
-		CPU_GPU ~DiffuseMaterial() = default;
+		CPU_GPU ~DiffuseMaterial() {}
 
 		CPU_GPU virtual BSDF* GetBSDF() const override
 		{

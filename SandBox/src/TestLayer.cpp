@@ -22,7 +22,7 @@ TestLayer::TestLayer(const std::string& name)
 	WindowProps* props = window->GetWindowProps();
 	m_Camera = mkU<PerspectiveCamera>(400, 400, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
 	m_CamController = mkU<PerspectiveCameraController>(*m_Camera);
-	m_CudaPBRT = mkU<CudaPathTracer>();
+	
 }
 
 TestLayer::~TestLayer()
@@ -37,6 +37,7 @@ void TestLayer::OnAttach()
 	int num_values = num_texels * 4;
 	int size_tex_data = sizeof(GLubyte) * num_values;
 
+	m_CudaPBRT = mkU<CudaPathTracer>();
 	m_CudaPBRT->InitCuda(*m_Camera);
 
 	// load image example
@@ -78,8 +79,7 @@ void TestLayer::OnAttach()
 }
 void TestLayer::OnDetach()
 {
-	m_CudaPBRT->FreeShapesOnCuda();
-	m_CudaPBRT->FreeCuda();
+	m_CudaPBRT.release();
 }
 
 void TestLayer::OnUpdate(float delatTime)

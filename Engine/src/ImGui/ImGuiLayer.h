@@ -2,7 +2,7 @@
 
 #include "Core/Layer.h"
 
-class ImGuiIO;
+struct ImGuiIO;
 
 namespace CudaPBRT
 {

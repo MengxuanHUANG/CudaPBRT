@@ -54,7 +54,7 @@ namespace CudaPBRT
 			:m_MaterialData(mData)
 		{}
 
-		CPU_GPU virtual ~Material() = default;
+		CPU_GPU virtual ~Material() {}
 
 		CPU_GPU virtual BSDF* GetBSDF() const = 0;
 

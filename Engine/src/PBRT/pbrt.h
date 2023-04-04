@@ -48,7 +48,7 @@ namespace CudaPBRT
 		Shape** device_shapes;
 		Material** device_materials;
 
-		unsigned int* device_shape_count;
-		unsigned int* device_material_count;
+		size_t* device_shape_count;
+		size_t* device_material_count;
 	};
 }

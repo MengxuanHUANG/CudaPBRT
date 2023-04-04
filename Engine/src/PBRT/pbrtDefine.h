@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/Core.h"
+
 #include <limits>
 #include <cmath>
 #include <cuda_runtime.h>
@@ -9,8 +11,9 @@
 #define CPU_ONLY __host__
 #define CPU_GPU __host__ __device__
 
+#define INLINE __forceinline__
+
 #define CUDA_FREE(ptr) if(ptr != nullptr) { cudaFree(ptr); ptr = nullptr; }
-#define BIT(x) (1 << (x))
 
 namespace CudaPBRT
 {

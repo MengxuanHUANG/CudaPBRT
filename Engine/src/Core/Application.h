@@ -8,7 +8,7 @@ namespace CudaPBRT
 {
 	class Window;
 	class ImGuiLayer;
-	class WindowProps;
+	struct WindowProps;
 
 	class Application
 	{

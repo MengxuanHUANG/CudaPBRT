@@ -14,7 +14,7 @@ namespace CudaPBRT
 		{
 		}
 
-		CPU_GPU glm::vec3 operator*(const float& t) const
+		INLINE CPU_GPU glm::vec3 operator*(const float& t) const
 		{
 			return O + t * DIR;
 		}
@@ -24,7 +24,7 @@ namespace CudaPBRT
 		glm::vec3 O, DIR;
 
 	public:
-		CPU_GPU static Ray SpawnRay(const glm::vec3& o, const glm::vec3& dir)
+		INLINE CPU_GPU static Ray SpawnRay(const glm::vec3& o, const glm::vec3& dir)
 		{
 			return { o + dir * gamma(3), dir };
 		}

@@ -37,15 +37,11 @@ namespace CudaPBRT
 		bool m_Handled = false;
 	};
 
-#ifndef DECLARE_EVENT(type)
 #define DECLARE_EVENT(type) static EventType GetStaticType() { return EventType::##type; }\
 							virtual EventType GetEventType() const override { return GetStaticType(); }\
 							virtual const char* GetName() const override { return #type; }
-#endif // !DECLARE_EVENT(type)
 
-#ifndef DECLARE_EVENT_FLAG(category)
 #define DECLARE_EVENT_FLAG(category) virtual int GetCategoryFlags() const override { return category; }
-#endif // !DECLARE_EVENT_FLAG(category)
 
 
 	// Application Events begin
