@@ -13,6 +13,7 @@
 #include <stb_image.h>
 
 #include "PBRT/Shape/sphere.h"
+#include "PBRT/Material/material.h"
 
 TestLayer::TestLayer(const std::string& name)
 	:Layer(name)
@@ -49,33 +50,35 @@ void TestLayer::OnAttach()
 	//}
 	//stbi_image_free(image_data);
 
-	std::vector<ShapeData> shapes;
-
-	// Test scene 1
-	//shapes.emplace_back(ShapeType::Sphere, glm::vec3(-1, 1, 0), glm::vec3(1, 2, 1), glm::vec3(0, 0, 0));
-	//shapes.emplace_back(ShapeType::Square, glm::vec3(0, 0, -5), glm::vec3(10, 10, 1), glm::vec3(0, 30, 0));
-
-	// Test scene 2
-	//shapes.emplace_back(ShapeType::Sphere, glm::vec3(0, 0, 1), 0.5f * glm::vec3(2, 1, 1), glm::vec3(0, 0, 45));
-	//shapes.emplace_back(ShapeType::Sphere, glm::vec3(0, 0, 1), 0.5f * glm::vec3(2, 1, 1), glm::vec3(0, 0, 45));
-	//shapes.emplace_back(ShapeType::Square, glm::vec3(0, -0.5, 0), glm::vec3(5, 5, 1), glm::vec3(90, 0, 0));
-
 	// Hard-coding Cornell Box Scene
-	shapes.emplace_back(ShapeType::Square, glm::vec3(0, -2.5, 0), glm::vec3(10, 10, 1), glm::vec3(-90, 0, 0)); // Floor
-	shapes.emplace_back(ShapeType::Square, glm::vec3(5, 2.5, 0),  glm::vec3(10, 10, 1), glm::vec3(0, -90, 0)); // Red wall
-	shapes.emplace_back(ShapeType::Square, glm::vec3(-5, 2.5, 0), glm::vec3(10, 10, 1), glm::vec3(0, 90, 0)); // Green Wall
-	shapes.emplace_back(ShapeType::Square, glm::vec3(0, 2.5, 5),  glm::vec3(10, 10, 1), glm::vec3(0, 180, 0)); // Back Wall
-	shapes.emplace_back(ShapeType::Square, glm::vec3(0, 7.5, 0),  glm::vec3(10, 10, 1), glm::vec3(90, 0, 0)); // Ceiling
+	// shape data
+	std::vector<ShapeData> shapeData;
+	int matteWhiteId = 0;
+	int matteRedId = 1;
+	int matteGreenId = 2;
+	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, -2.5, 0), glm::vec3(10, 10, 1), glm::vec3(-90, 0, 0)); // Floor
+	shapeData.emplace_back(ShapeType::Square, matteRedId,   glm::vec3(5, 2.5, 0),  glm::vec3(10, 10, 1), glm::vec3(0, -90, 0)); // Red wall
+	shapeData.emplace_back(ShapeType::Square, matteGreenId, glm::vec3(-5, 2.5, 0), glm::vec3(10, 10, 1), glm::vec3(0, 90, 0)); // Green Wall
+	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 2.5, 5),  glm::vec3(10, 10, 1), glm::vec3(0, 180, 0)); // Back Wall
+	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 7.5, 0),  glm::vec3(10, 10, 1), glm::vec3(90, 0, 0)); // Ceiling
 
-	shapes.emplace_back(ShapeType::Cube, glm::vec3(2, 0, 3), glm::vec3(3, 6, 3), glm::vec3(0, 27.5, 0)); // Long Cube
-	shapes.emplace_back(ShapeType::Cube, glm::vec3(-2, -1, 0.75), glm::vec3(3, 3, 3), glm::vec3(0, -17.5, 0)); // Short Cube
+	shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(2, 0, 3), glm::vec3(3, 6, 3), glm::vec3(0, 27.5, 0)); // Long Cube
+	shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(-2, -1, 0.75), glm::vec3(3, 3, 3), glm::vec3(0, -17.5, 0)); // Short Cube
+	
+	// material data
+	std::vector<MaterialData> materialData;
+	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.85, 0.81, 0.78)); //matteWhite
+	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.63, 0.065, 0.05)); //matteRed
+	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.14, 0.45, 0.091)); //matteGreen
 
-	m_CudaPBRT->CreateShapesOnCuda(shapes);
+	// TODO: Add light shape and light Material
+
+	m_CudaPBRT->CreateMaterialsOnCuda(materialData);
+	m_CudaPBRT->CreateShapesOnCuda(shapeData);
 }
 void TestLayer::OnDetach()
 {
 	m_CudaPBRT->FreeShapesOnCuda();
-
 	m_CudaPBRT->FreeCuda();
 }
 

@@ -21,15 +21,18 @@ namespace CudaPBRT
 	struct ShapeData
 	{
 		ShapeType type = ShapeType::None;
+		int material_id = -1;
+
 		glm::vec3 translation = glm::vec3(0.f);
 		glm::vec3 scale = glm::vec3(1.f);
 		glm::vec3 rotation = glm::vec3(0.f);
 
-		ShapeData(ShapeType type, 
+		ShapeData(ShapeType type,
+				  const int& material_id,
 				  const glm::vec3& translate = glm::vec3(0.f),
 				  const glm::vec3 scale = glm::vec3(1.f),
 				  const glm::vec3& rotate = glm::vec3(0.f))
-			:type(type), translation(translate), scale(scale), rotation(rotate)
+			:type(type), material_id(material_id), translation(translate), scale(scale), rotation(rotate)
 		{}
 	};
 
@@ -37,6 +40,7 @@ namespace CudaPBRT
 	{
 	public:
 		CPU_GPU Shape(const ShapeData& data)
+			:material_id(data.material_id)
 		{
 			glm::mat4 T = glm::translate(glm::mat4(1.f), data.translation);
 
@@ -52,6 +56,9 @@ namespace CudaPBRT
 		}
 
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const = 0;
+	
+	public:
+		int material_id;
 
 	protected:
 		glm::mat4 m_Transform;

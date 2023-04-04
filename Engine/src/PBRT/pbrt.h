@@ -8,7 +8,10 @@
 namespace CudaPBRT
 {
 	class Shape;
+	class Material;
+	
 	struct ShapeData;
+	struct MaterialData;
 
 	class CudaPathTracer
 	{
@@ -19,6 +22,9 @@ namespace CudaPBRT
 		virtual void InitCuda(PerspectiveCamera& camera, int device = 0);
 		virtual void CreateShapesOnCuda(std::vector<ShapeData>& shapeData);
 		virtual void FreeShapesOnCuda();
+
+		virtual void CreateMaterialsOnCuda(std::vector<MaterialData>& materialData);
+		virtual void FreeMaterialsOnCuda();
 
 		virtual void FreeCuda();
 		virtual void Run();
@@ -40,6 +46,9 @@ namespace CudaPBRT
 		uchar4* device_image;
 		uchar4* host_image;
 		Shape** device_shapes;
+		Material** device_materials;
+
 		unsigned int* device_shape_count;
+		unsigned int* device_material_count;
 	};
 }
