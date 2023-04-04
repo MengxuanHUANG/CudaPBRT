@@ -10,12 +10,15 @@
 #include "spectrum.h"
 #include "Material/diffuseMaterial.h"
 
+#include "Sampler/rng.h"
+#include "Light/light.h"
+
 #include <GL/glew.h>
 #include <cuda_gl_interop.h>
 
 namespace CudaPBRT
 {
-    CPU_GPU Shape* CreateShape(const ShapeData& data)
+    CPU_GPU Shape* Create(const ShapeData& data)
     {
         switch (data.type)
         {
@@ -31,7 +34,7 @@ namespace CudaPBRT
         }
     }
     
-    CPU_GPU Material* CreateMaterial(const MaterialData& data)
+    CPU_GPU Material* Create(const MaterialData& data)
     {
         switch (data.type)
         {
@@ -39,6 +42,18 @@ namespace CudaPBRT
             return new DiffuseMaterial(data);
         default:
             printf("Unknown MaterialType!\n");
+            return nullptr;
+        }
+    }
+
+    CPU_GPU Light* Create(const LightData& data)
+    {
+        switch (data.type)
+        {
+        case LightType::ShapeLight:
+            return new ShapeLight(data);
+        default:
+            printf("Unknown LightType!\n");
             return nullptr;
         }
     }
@@ -83,31 +98,26 @@ namespace CudaPBRT
         pixel.w = 255;
     }
 
-    __global__ void CreateShapes(Shape** device_shapes, ShapeData* data, size_t* max_count)
+    template<typename T, typename DataType>
+    __global__ void CreateArray(T** device_array, DataType* data, size_t* max_count)
     {
         int id = blockIdx.x;
-        if (id >= *max_count)
+        if (id >= (*max_count))
         {
             return;
         }
-
-        device_shapes[id] = CreateShape(data[id]);
-    }
-    
-    __global__ void CreateMaterials(Material** device_materials, MaterialData* data, size_t* max_count)
-    {
-        int id = blockIdx.x;
-        if (id >= *max_count)
-        {
-            return;
-        }
-
-        device_materials[id] = CreateMaterial(data[id]);
+        
+        device_array[id] = Create(data[id]);
     }
 
     template<typename T>
     __global__ void FreeArray(T** device_array, size_t* max_count)
     {
+        if (max_count == nullptr)
+        {
+            return;
+        }
+
         for (int i = 0; i < *max_count; ++i)
         {
             if (device_array[i])
@@ -118,7 +128,7 @@ namespace CudaPBRT
         }
     }
 
-    __global__ void Draw(PerspectiveCamera* camera, uchar4* img, Shape** shapes, size_t* shape_count, Material** materials)
+    __global__ void Draw(PerspectiveCamera* camera, uchar4* img, Shape** shapes, size_t* shape_count, Light** lights, size_t* light_count, Material** materials)
     {
         int x = (blockIdx.x * blockDim.x) + threadIdx.x;
         int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -126,31 +136,51 @@ namespace CudaPBRT
         if (x >= camera->width || y >= camera->height) {
             return;
         }
+        
+        int index = x + (y * camera->width);
+        
+        CudaRNG rng(1, index, 1);
 
-        Ray ray = CastRay(*camera, {x, y});
+        Ray ray = CastRay(*camera, {x + rng.rand(), y + rng.rand() });
 
         Spectrum radiance(0.f);
 
-        Intersection intersection;
-        intersection.t = CudaPBRT::FloatMax;
-
-        // TODO: use BVH for intersection testing
-        for (size_t i = 0; i < (*shape_count); ++i)
+        Intersection shape_intersection, light_intersection;
+        shape_intersection.t = CudaPBRT::FloatMax;
+        light_intersection.t = CudaPBRT::FloatMax;
+        for (int i = 0; i < (*light_count); ++i)
         {
             Intersection it;
-
-            if (shapes[i]->IntersectionP(ray, it) && it.t < intersection.t)
+            if (lights[i]->IntersectionP(ray, it) && it.t < light_intersection.t)
             {
-                intersection = it;
-                intersection.id = i;
-                intersection.material_id = shapes[i]->material_id;
+                light_intersection = it;
+                light_intersection.id = i;
+            }
+        }
+
+        // TODO: use BVH for intersection testing
+        for (int i = 0; i < (*shape_count); ++i)
+        {
+            Intersection it;
+            if (shapes[i]->IntersectionP(ray, it) && it.t < shape_intersection.t)
+            {
+                shape_intersection = it;
+                shape_intersection.id = i;
+                shape_intersection.material_id = shapes[i]->material_id;
             }
         }
         
-        if (intersection.id >= 0)
+        if (light_intersection.id >= 0)
+        {
+            if (shape_intersection.id < 0 || (shape_intersection.id >= 0 && shape_intersection.t > light_intersection.t))
+            {
+                radiance = lights[light_intersection.id]->GetLe();
+            }
+        }
+        else if (shape_intersection.id >= 0)
         {
             //radiance = 0.5f * (intersection.normal + 1.f);
-            radiance = materials[intersection.material_id]->GetAlbedo();
+            radiance = materials[shape_intersection.material_id]->GetAlbedo();
         }
         
         writePixel(img[y * camera->width + x], radiance);
@@ -200,91 +230,71 @@ namespace CudaPBRT
         CUDA_CHECK_ERROR();
     }
 
-    void CudaPathTracer::CreateShapesOnCuda(std::vector<ShapeData>& shapeData)
+    template<typename T, typename DataType>
+    void CreateArrayOnCude<T, DataType>(T**& dev_array, size_t*& dev_count, std::vector<DataType>& host_data)
     {
-        ShapeData* device_shapeData;
-        size_t max_count = shapeData.size();
+        DataType* device_data;
+        size_t max_count = host_data.size();
 
-        cudaMalloc((void**)&device_shape_count, sizeof(size_t));
+        cudaMalloc((void**)&dev_count, sizeof(size_t));
         CUDA_CHECK_ERROR();
 
-        cudaMemcpy(device_shape_count, &max_count, sizeof(size_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(dev_count, &max_count, sizeof(size_t), cudaMemcpyHostToDevice);
         CUDA_CHECK_ERROR();
 
-        cudaMalloc((void**)&device_shapeData, sizeof(ShapeData) * max_count);
+        cudaMalloc((void**)&device_data, sizeof(DataType) * max_count);
         CUDA_CHECK_ERROR();
 
-        cudaMemcpy(device_shapeData, shapeData.data(), sizeof(ShapeData) * max_count, cudaMemcpyHostToDevice);
+        cudaMemcpy(device_data, host_data.data(), sizeof(DataType) * max_count, cudaMemcpyHostToDevice);
         CUDA_CHECK_ERROR();
 
-        cudaMalloc((void**)&device_shapes, sizeof(Shape*) * max_count);
+        cudaMalloc((void**)&dev_array, sizeof(T*) * max_count);
         CUDA_CHECK_ERROR();
 
         // Launch a kernel on the GPU with one thread for each element.
         KernalConfig createConfig({ max_count, 1, 1 }, { 0, 0, 0 });
-        CreateShapes<<< createConfig.numBlocks, createConfig.threadPerBlock >>> (device_shapes, device_shapeData, device_shape_count);
+        CreateArray<T, DataType> << < createConfig.numBlocks, createConfig.threadPerBlock >> > (dev_array, device_data, dev_count);
 
         // cudaDeviceSynchronize waits for the kernel to finish
         cudaDeviceSynchronize();
         CUDA_CHECK_ERROR();
 
-        CUDA_FREE(device_shapeData);
+        CUDA_FREE(device_data);
     }
 
-    void CudaPathTracer::CreateMaterialsOnCuda(std::vector<MaterialData>& materialData)
+    template void CreateArrayOnCude<Light, LightData>(Light**& dev_array, size_t*& dev_count, std::vector<LightData>& data);
+    template void CreateArrayOnCude<Shape, ShapeData>(Shape**& dev_array, size_t*& dev_count, std::vector<ShapeData>& data);
+    template void CreateArrayOnCude<Material, MaterialData>(Material**& dev_array, size_t*& dev_count, std::vector<MaterialData>& data);
+
+    template<typename T>
+    void FreeArrayOnCuda(T**& device_array, size_t*& count)
     {
-        MaterialData* device_materialData;
-        size_t max_count = materialData.size();
+        if (count == nullptr || device_array == nullptr)
+        {
+            return;
+        }
 
-        cudaMalloc((void**)&device_material_count, sizeof(size_t));
-        CUDA_CHECK_ERROR();
-
-        cudaMemcpy(device_material_count, &max_count, sizeof(size_t), cudaMemcpyHostToDevice);
-        CUDA_CHECK_ERROR();
-
-        cudaMalloc((void**)&device_materialData, sizeof(MaterialData) * max_count);
-        CUDA_CHECK_ERROR();
-
-        cudaMemcpy(device_materialData, materialData.data(), sizeof(MaterialData) * max_count, cudaMemcpyHostToDevice);
-        CUDA_CHECK_ERROR();
-
-        cudaMalloc((void**)&device_materials, sizeof(Material*) * max_count);
-        CUDA_CHECK_ERROR();
-
-        // Launch a kernel on the GPU with one thread for each element.
-        KernalConfig createConfig({ max_count, 1, 1 }, { 0, 0, 0 });
-        CreateMaterials <<< createConfig.numBlocks, createConfig.threadPerBlock >> > (device_materials, device_materialData, device_material_count);
-
-        // cudaDeviceSynchronize waits for the kernel to finish
-        cudaDeviceSynchronize();
-        CUDA_CHECK_ERROR();
-
-        CUDA_FREE(device_materialData);
-    }
-
-    void CudaPathTracer::FreeShapesOnCuda()
-    {
         KernalConfig freeConfig({ 1, 1, 1 }, { 0, 0, 0 });
-        FreeArray<Shape> << <freeConfig.numBlocks, freeConfig.threadPerBlock >> > (device_shapes, device_shape_count);
+        FreeArray<T> << <freeConfig.numBlocks, freeConfig.threadPerBlock >> > (device_array, count);
+        CUDA_CHECK_ERROR();
+
+        CUDA_FREE(device_array);
+        CUDA_FREE(count);
         CUDA_CHECK_ERROR();
     }
 
-    void CudaPathTracer::FreeMaterialsOnCuda()
-    {
-        KernalConfig freeConfig({ 1, 1, 1 }, { 0, 0, 0 });
-        FreeArray<Material> << <freeConfig.numBlocks, freeConfig.threadPerBlock >> > (device_materials, device_material_count);
-        CUDA_CHECK_ERROR();
-    }
+    template void FreeArrayOnCuda(Shape**& device_array, size_t*& count);
+    template void FreeArrayOnCuda(Material**& device_array, size_t*& count);
+    template void FreeArrayOnCuda(Light**& device_array, size_t*& count);
 
     void CudaPathTracer::FreeCuda()
     {
-        FreeMaterialsOnCuda();
-        FreeShapesOnCuda();
+        FreeArrayOnCuda<Shape>(device_shapes, device_shape_count);
+        FreeArrayOnCuda<Material>(device_materials, device_material_count);
+        FreeArrayOnCuda<Light>(device_lights, device_light_count);
 
         CUDA_FREE(device_camera);
         CUDA_FREE(device_image);
-        CUDA_FREE(device_shapes);
-        CUDA_FREE(device_shape_count);
 
         if (host_image)
         {
@@ -305,7 +315,10 @@ namespace CudaPBRT
         //dim3 threadPerBlock(BIT(blockSize.x), BIT(blockSize.y), 1);
 
         // draw color to pixels
-        Draw <<< drawConfig.numBlocks, drawConfig.threadPerBlock >>> (device_camera, device_image, device_shapes, device_shape_count, device_materials);
+        Draw <<< drawConfig.numBlocks, drawConfig.threadPerBlock >>> (device_camera, device_image, 
+                                                                      device_shapes, device_shape_count, 
+                                                                      device_lights, device_light_count,
+                                                                      device_materials);
 
         // wait GPU to finish computation
         cudaDeviceSynchronize();

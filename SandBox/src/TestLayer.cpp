@@ -14,6 +14,7 @@
 
 #include "PBRT/Shape/sphere.h"
 #include "PBRT/Material/material.h"
+#include "PBRT/Light/light.h"
 
 TestLayer::TestLayer(const std::string& name)
 	:Layer(name)
@@ -72,10 +73,18 @@ void TestLayer::OnAttach()
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.63, 0.065, 0.05)); //matteRed
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.14, 0.45, 0.091)); //matteGreen
 
-	// TODO: Add light shape and light Material
+	// Light
+	std::vector<LightData> lightData;
+	ShapeData areaLightShape(ShapeType::Square, -1, glm::vec3(0, 7.45, 0), glm::vec3(3, 3, 1), glm::vec3(90, 0, 0));
+	Spectrum Le(40, 40, 40);
+	lightData.emplace_back(LightType::ShapeLight, areaLightShape, Le);
 
-	m_CudaPBRT->CreateMaterialsOnCuda(materialData);
-	m_CudaPBRT->CreateShapesOnCuda(shapeData);
+	//m_CudaPBRT->CreateMaterialsOnCuda(materialData);
+	//m_CudaPBRT->CreateShapesOnCuda(shapeData);
+
+	CreateArrayOnCude<Shape, ShapeData>((m_CudaPBRT->device_shapes), (m_CudaPBRT->device_shape_count), shapeData);
+	CreateArrayOnCude<Material, MaterialData>(m_CudaPBRT->device_materials, m_CudaPBRT->device_material_count, materialData);
+	CreateArrayOnCude<Light, LightData>(m_CudaPBRT->device_lights, m_CudaPBRT->device_light_count, lightData);
 }
 void TestLayer::OnDetach()
 {
