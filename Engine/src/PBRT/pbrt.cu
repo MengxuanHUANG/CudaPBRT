@@ -216,13 +216,14 @@ namespace CudaPBRT
 
         Spectrum radiance(0.f);
         Spectrum throughput(1.f);
+        
+        Intersection shape_intersection, light_intersection;
 
         int depth = 0;
         while (depth++ < MaxDepth)
         {
             // find itersection
             // TODO: use BVH for intersection testing
-            Intersection shape_intersection, light_intersection;
             shape_intersection.t = CudaPBRT::FloatMax;
             light_intersection.t = CudaPBRT::FloatMax;
             shape_intersection.id = -1;
@@ -264,20 +265,19 @@ namespace CudaPBRT
                 //radiance += 0.5f * (shape_intersection.normal + 1.f);
                 //break;
                 glm::vec3 point = ray * shape_intersection.t;
+                BSDF& bsdf = materials[shape_intersection.material_id]->GetBSDF();
 
-                LambertianReflection bxdf = LambertianReflection(materials[shape_intersection.material_id]->GetAlbedo(), 1.f);
                 glm::vec3 normal = glm::normalize(shape_intersection.normal);
-                glm::vec3 wo = WorldToLocal(normal) * (-ray.DIR);
+                normal = materials[shape_intersection.material_id]->GetNormal(normal);
 
-                BSDFSample bsdfSample = bxdf.Sample_f(wo, normal, {rng.rand(), rng.rand()});
+                BSDFSample bsdfSample = bsdf.Sample_f(materials[shape_intersection.material_id]->GetAlbedo(), -ray.DIR, normal, {rng.rand(), rng.rand()});
 
                 if (bsdfSample.pdf == 0.f || glm::length(bsdfSample.f) == 0.f)
                 {
                     break;
                 }
 
-                Spectrum f = bsdfSample.f * glm::abs(glm::dot(bsdfSample.wiW, normal)) / bsdfSample.pdf;
-                throughput *= f;
+                throughput *= bsdfSample.f * glm::abs(glm::dot(bsdfSample.wiW, normal)) / bsdfSample.pdf;
                 
                 ray = Ray::SpawnRay(point, bsdfSample.wiW);
             }
@@ -369,7 +369,7 @@ namespace CudaPBRT
         cudaMemcpy(device_iteration, &m_Iteration, sizeof(int), cudaMemcpyHostToDevice);
         CUDA_CHECK_ERROR();
 
-        KernalConfig drawConfig({width, height, 1}, {4, 4, 0});
+        KernalConfig drawConfig({width, height, 1}, {3, 3, 0});
 
         //glm::ivec2 blockSize(5, 5);
         //dim3 numBlocks(UpperBinary(width >> blockSize.x), UpperBinary(height >> blockSize.y), 1);

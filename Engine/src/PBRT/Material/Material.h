@@ -56,16 +56,16 @@ namespace CudaPBRT
 
 		CPU_GPU virtual ~Material() {}
 
-		CPU_GPU virtual BSDF GetBSDF() const = 0;
+		CPU_GPU virtual BSDF& GetBSDF() = 0;
 
 		CPU_GPU Spectrum GetAlbedo(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
 			return Spectrum(m_MaterialData.albedo);
 		}
 
-		CPU_GPU glm::vec3 GetNormal(const glm::vec2& uv = glm::vec2(0, 0)) const
+		CPU_GPU glm::vec3 GetNormal(const glm::vec3& normal, const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			return Spectrum(0.f);
+			return normal;
 		}
 
 		CPU_GPU float GetMetallic(const glm::vec2& uv = glm::vec2(0, 0)) const

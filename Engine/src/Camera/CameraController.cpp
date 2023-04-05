@@ -112,7 +112,6 @@ namespace CudaPBRT
 				// inverse rotation to obtain normal result
 				RotatePhi(-diff.x); 
 				RotateTheta(-diff.y);
-
 				return true;
 			}
 			else if (window->GetMouseButtonState(MY_MOUSE_BN_MIDDLE))
@@ -121,7 +120,6 @@ namespace CudaPBRT
 				glm::vec2 diff = panSpeed * offset;
 				TranslateAlongRight(-diff.x); // inverse x panning to obtain normal result
 				TranslateAlongUp(diff.y);
-
 				return true;
 			}
 			else if (window->GetMouseButtonState(MY_MOUSE_BN_RIGHT))
@@ -129,7 +127,6 @@ namespace CudaPBRT
 				// Zoom
 				glm::vec2 diff = zoomSpeed * offset;
 				Zoom(diff.y);
-
 				return true;
 			}
 		}

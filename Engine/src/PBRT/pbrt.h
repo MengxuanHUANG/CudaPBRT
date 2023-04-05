@@ -31,8 +31,9 @@ namespace CudaPBRT
 		virtual void UpdateCamera(PerspectiveCamera& camera);
 		virtual unsigned int GetDisplayTextureId() const { return m_DisplayImage; }
 
+		inline void ResetPRBT() { m_Iteration = 1; }
+
 	public:
-		int m_CurrentId; // indicate the idx of current frame in device_image
 		int m_Iteration; // number of iteration
 
 		int width, height;

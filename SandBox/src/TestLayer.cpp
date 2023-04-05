@@ -111,6 +111,7 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 	{
 		m_Camera->RecomputeAttributes();
 		m_CudaPBRT->UpdateCamera(*m_Camera);
+		m_CudaPBRT->ResetPRBT();
 	}
 	ImGui::End();
 
@@ -127,6 +128,7 @@ bool TestLayer::OnEvent(Event& event)
 	if (m_CamController->OnEvent(event))
 	{
 		m_CudaPBRT->UpdateCamera(*m_Camera);
+		m_CudaPBRT->ResetPRBT();
 	}
 
 	return false;

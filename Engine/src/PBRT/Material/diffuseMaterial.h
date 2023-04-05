@@ -11,14 +11,18 @@ namespace CudaPBRT
 	{
 	public:
 		CPU_GPU DiffuseMaterial(const MaterialData& mData)
-			:Material(mData)
-		{}
+			:Material(mData), m_BSDF(new LambertianReflection(m_MaterialData.eta))
+		{
+		}
 
 		CPU_GPU ~DiffuseMaterial() {}
 
-		CPU_GPU virtual BSDF GetBSDF() const override
+		CPU_GPU virtual BSDF& GetBSDF() override
 		{
-			return BSDF(new LambertianReflection(Spectrum(GetAlbedo()), m_MaterialData.eta));
+			return m_BSDF;
 		}
+
+	protected:
+		BSDF m_BSDF;
 	};
 }

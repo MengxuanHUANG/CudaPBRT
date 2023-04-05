@@ -21,7 +21,7 @@ namespace CudaPBRT
 			if (T::GetStaticType() == m_Event.GetEventType())
 			{
 				m_Event.m_Handled = fn(*(T*)&m_Event);
-				return true;
+				return m_Event.m_Handled;
 			}
 			else
 			{
