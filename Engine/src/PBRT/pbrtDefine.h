@@ -17,6 +17,8 @@
 
 namespace CudaPBRT
 {
+	static constexpr int MaxDepth = 5;
+
 	static constexpr float ShadowEpsilon	= 0.0001f;
 	static constexpr float Pi				= 3.1415927f;
 	static constexpr float InvPi			= 0.3183099f;

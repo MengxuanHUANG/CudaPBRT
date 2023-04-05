@@ -26,7 +26,7 @@ namespace CudaPBRT
 	public:
 		INLINE CPU_GPU static Ray SpawnRay(const glm::vec3& o, const glm::vec3& dir)
 		{
-			return { o + dir * gamma(3), dir };
+			return { o + dir * 0.0001f, dir };
 		}
 	};
 }

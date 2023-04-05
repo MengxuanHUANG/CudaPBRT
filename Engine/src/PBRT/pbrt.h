@@ -42,8 +42,11 @@ namespace CudaPBRT
 
 		// device handler
 		int* device_iteration;
+
 		PerspectiveCamera* device_camera;
 		uchar4* device_image;
+		float3* device_hdr_image;
+
 		uchar4* host_image;
 		Shape** device_shapes = nullptr;
 		Material** device_materials = nullptr;

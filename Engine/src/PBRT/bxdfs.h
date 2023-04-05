@@ -4,45 +4,60 @@
 
 #include <glm/glm.hpp>
 
+#include "Sampler/sampler.h"
+
 namespace CudaPBRT
 {
 	struct BSDFSample
 	{
-	public:
 		Spectrum f;
-		glm::vec3 wi;
+		glm::vec3 wiW;
 		float pdf = 0.f;
 		float eta = 1.f;
 
-		int type;
+		CPU_GPU BSDFSample()
+		{}
+
+		CPU_GPU BSDFSample(const Spectrum& f, const glm::vec3& wiW, float pdf, float eta)
+			:f(f), wiW(wiW), pdf(pdf), eta(eta)
+		{
+		}
 	};
 
 	class BxDF
 	{
 	public:
 		CPU_GPU virtual Spectrum f(const glm::vec3& wi, const glm::vec3& wo) const = 0;
-		CPU_GPU virtual BSDFSample Sample_f(const glm::vec3& wo) const = 0;
+		CPU_GPU virtual BSDFSample Sample_f(const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const = 0;
 		CPU_GPU virtual float PDF(const glm::vec3& wi, const glm::vec3& wo) const = 0;
 	};
 
 	class LambertianReflection : public BxDF
 	{
 	public:
+		CPU_GPU LambertianReflection(const Spectrum& R, float eta)
+			:R(R), eta(eta)
+		{}
 		CPU_GPU virtual Spectrum f(const glm::vec3& wi, const glm::vec3& wo) const override
 		{
-			return Spectrum(0) / InvPi;
+			return R *InvPi;
 		}
 
-		CPU_GPU virtual BSDFSample Sample_f(const glm::vec3& wo) const override
+		CPU_GPU virtual BSDFSample Sample_f(const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const override
 		{
-			// TODO: sample the hemisphere
-
-			return BSDFSample();
+			glm::vec3 wi = Sampler::SquareToHemisphereCosine(xi);
+			glm::vec3 wiW = normalize(LocalToWorld(normal) * wi);
+			
+			return BSDFSample(f(wi, wo), wiW, PDF(wi, wo), eta);
 		}
 
 		CPU_GPU virtual float PDF(const glm::vec3& wi, const glm::vec3& wo) const override
 		{
-			return 0.f;
+			return Sampler::SquareToHemisphereCosinePDF(wi);
 		}
+
+	public:
+		float eta;
+		Spectrum R;
 	};
 }

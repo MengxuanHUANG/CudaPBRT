@@ -11,15 +11,15 @@ namespace CudaPBRT
 	{
 	public:
 		CPU_GPU BSDF(BxDF* bxdf, float eta = 1.f)
-			:eta(eta),
-			 m_BxDF(bxdf)
+			:eta(eta), m_BxDF(bxdf)
 		{}
+
 		CPU_GPU ~BSDF()
 		{
-			if (m_BxDF)
-			{
-				delete m_BxDF;
-			}
+			//if (m_BxDF != nullptr)
+			//{
+			//	delete m_BxDF;
+			//}
 		}
 		CPU_GPU Spectrum f(const glm::vec3& wiW, const glm::vec3& woW) const
 		{
@@ -34,20 +34,17 @@ namespace CudaPBRT
 			// TODO: compute f from bxdf
 		}
 
-		CPU_GPU BSDFSample Sample_f(const glm::vec3& woW) const
+		CPU_GPU BSDFSample Sample_f(const glm::vec3& woW, const glm::vec3& normal, const glm::vec2& xi) const
 		{
 			glm::vec3 wi, wo;
-			// TODO: transform wiW, woW from world to local
+			wo = WorldToLocal(normal) * woW;
 
 			if (wo.z == 0.f)
 			{
 				return BSDFSample();
 			}
 
-			// TODO: compute f from bxdf
-			BSDFSample bsdfSample = m_BxDF->Sample_f(wo);
-
-			return bsdfSample;
+			return m_BxDF->Sample_f(wo, normal, xi);
 		}
 
 		CPU_GPU float PDF(const glm::vec3& wiW, const glm::vec3& woW) const
@@ -61,7 +58,7 @@ namespace CudaPBRT
 	public:
 		float eta;
 
-	private:
+	public:
 		BxDF* m_BxDF;
 	};
 }

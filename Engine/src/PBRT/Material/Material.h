@@ -56,7 +56,7 @@ namespace CudaPBRT
 
 		CPU_GPU virtual ~Material() {}
 
-		CPU_GPU virtual BSDF* GetBSDF() const = 0;
+		CPU_GPU virtual BSDF GetBSDF() const = 0;
 
 		CPU_GPU Spectrum GetAlbedo(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{

@@ -16,10 +16,9 @@ namespace CudaPBRT
 
 		CPU_GPU ~DiffuseMaterial() {}
 
-		CPU_GPU virtual BSDF* GetBSDF() const override
+		CPU_GPU virtual BSDF GetBSDF() const override
 		{
-			BxDF* bxdf = new LambertianReflection();
-			return new BSDF(bxdf);
+			return BSDF(new LambertianReflection(Spectrum(GetAlbedo()), m_MaterialData.eta));
 		}
 	};
 }

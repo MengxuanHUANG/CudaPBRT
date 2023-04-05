@@ -76,7 +76,7 @@ void TestLayer::OnAttach()
 	// Light
 	std::vector<LightData> lightData;
 	ShapeData areaLightShape(ShapeType::Square, -1, glm::vec3(0, 7.45, 0), glm::vec3(3, 3, 1), glm::vec3(90, 0, 0));
-	Spectrum Le(40, 40, 40);
+	Spectrum Le(40);
 	lightData.emplace_back(LightType::ShapeLight, areaLightShape, Le);
 
 	//m_CudaPBRT->CreateMaterialsOnCuda(materialData);

@@ -84,17 +84,30 @@ namespace CudaPBRT
         return ray;
     }
 
-    CPU_GPU void writePixel(uchar4& pixel, const Spectrum& radiance)
+    CPU_GPU void writePixel(int iteration, float3& hdr_pixel, uchar4& pixel, const Spectrum& radiance)
     {
+        glm::vec3 color(radiance);
+        glm::vec3 preColor = glm::vec3(hdr_pixel.x, hdr_pixel.y, hdr_pixel.z);
+
+        color = glm::mix(preColor, color, 1.f / float(iteration));
+        
+        hdr_pixel.x = color.x;
+        hdr_pixel.y = color.y;
+        hdr_pixel.z = color.z;
+
         // tone mapping
-        Spectrum color = radiance / (1.f + radiance);
+        color = color / (1.f + color);
 
         // gammar correction
-        color = glm::pow(color, Spectrum(1.f / 2.2f));
+        color = glm::pow(color, glm::vec3(1.f / 2.2f));
 
-        pixel.x = static_cast<int>(glm::mix(0.f, 255.f, color.x));
-        pixel.y = static_cast<int>(glm::mix(0.f, 255.f, color.y));
-        pixel.z = static_cast<int>(glm::mix(0.f, 255.f, color.z));
+        color = glm::mix(glm::vec3(0.f), glm::vec3(255.f), color);
+
+        color = glm::clamp(color, glm::vec3(0), glm::vec3(255));
+
+        pixel.x = static_cast<int>(color.r);
+        pixel.y = static_cast<int>(color.g);
+        pixel.z = static_cast<int>(color.b);
         pixel.w = 255;
     }
 
@@ -127,108 +140,7 @@ namespace CudaPBRT
             }
         }
     }
-
-    __global__ void Draw(PerspectiveCamera* camera, uchar4* img, Shape** shapes, size_t* shape_count, Light** lights, size_t* light_count, Material** materials)
-    {
-        int x = (blockIdx.x * blockDim.x) + threadIdx.x;
-        int y = (blockIdx.y * blockDim.y) + threadIdx.y;
-
-        if (x >= camera->width || y >= camera->height) {
-            return;
-        }
-        
-        int index = x + (y * camera->width);
-        
-        CudaRNG rng(1, index, 1);
-
-        Ray ray = CastRay(*camera, {x + rng.rand(), y + rng.rand() });
-
-        Spectrum radiance(0.f);
-
-        Intersection shape_intersection, light_intersection;
-        shape_intersection.t = CudaPBRT::FloatMax;
-        light_intersection.t = CudaPBRT::FloatMax;
-        for (int i = 0; i < (*light_count); ++i)
-        {
-            Intersection it;
-            if (lights[i]->IntersectionP(ray, it) && it.t < light_intersection.t)
-            {
-                light_intersection = it;
-                light_intersection.id = i;
-            }
-        }
-
-        // TODO: use BVH for intersection testing
-        for (int i = 0; i < (*shape_count); ++i)
-        {
-            Intersection it;
-            if (shapes[i]->IntersectionP(ray, it) && it.t < shape_intersection.t)
-            {
-                shape_intersection = it;
-                shape_intersection.id = i;
-                shape_intersection.material_id = shapes[i]->material_id;
-            }
-        }
-        
-        if (light_intersection.id >= 0)
-        {
-            if (shape_intersection.id < 0 || (shape_intersection.id >= 0 && shape_intersection.t > light_intersection.t))
-            {
-                radiance = lights[light_intersection.id]->GetLe();
-            }
-        }
-        else if (shape_intersection.id >= 0)
-        {
-            //radiance = 0.5f * (intersection.normal + 1.f);
-            radiance = materials[shape_intersection.material_id]->GetAlbedo();
-        }
-        
-        writePixel(img[y * camera->width + x], radiance);
-    }
-
-    CudaPathTracer::CudaPathTracer()
-    {
-
-    }
-
-    CudaPathTracer::~CudaPathTracer()
-    {
-        FreeCuda();
-    }
-
-    void CudaPathTracer::InitCuda(PerspectiveCamera& camera, int device)
-    {
-        // set basic properties
-        width = camera.width;
-        height = camera.height;
-
-        // Choose which GPU to run on, change this on a multi-GPU system.
-        cudaSetDevice(device);;
-        CUDA_CHECK_ERROR();
-
-        glGenTextures(1, &m_DisplayImage);
-        glBindTexture(GL_TEXTURE_2D, m_DisplayImage);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        // create rendered image on cpu
-        host_image = new uchar4[width * height];
-
-        // Create cuda device pointers
-        // Allocate GPU buffers for three vectors (two input, one output).
-        cudaMalloc((void**)&device_camera, sizeof(PerspectiveCamera));
-        CUDA_CHECK_ERROR();
-
-        // Copy input vectors from host memory to GPU buffers.
-        cudaMemcpy(device_camera, &camera, sizeof(PerspectiveCamera), cudaMemcpyHostToDevice);
-        CUDA_CHECK_ERROR();
-
-        cudaMalloc((void**)&device_image, sizeof(uchar4) * width * height);
-        CUDA_CHECK_ERROR();
-    }
+    
 
     template<typename T, typename DataType>
     void CreateArrayOnCude<T, DataType>(T**& dev_array, size_t*& dev_count, std::vector<DataType>& host_data)
@@ -287,6 +199,149 @@ namespace CudaPBRT
     template void FreeArrayOnCuda(Material**& device_array, size_t*& count);
     template void FreeArrayOnCuda(Light**& device_array, size_t*& count);
 
+    __global__ void Draw(int* iteration, PerspectiveCamera* camera, uchar4* img, float3* hdr_img, Shape** shapes, size_t* shape_count, Light** lights, size_t* light_count, Material** materials)
+    {
+        int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+        int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+        if (x >= camera->width || y >= camera->height) {
+            return;
+        }
+        
+        int index = x + (y * camera->width);
+        
+        CudaRNG rng(*iteration, index, 1);
+
+        Ray ray = CastRay(*camera, {x + rng.rand(), y + rng.rand() });
+
+        Spectrum radiance(0.f);
+        Spectrum throughput(1.f);
+
+        int depth = 0;
+        while (depth++ < MaxDepth)
+        {
+            // find itersection
+            // TODO: use BVH for intersection testing
+            Intersection shape_intersection, light_intersection;
+            shape_intersection.t = CudaPBRT::FloatMax;
+            light_intersection.t = CudaPBRT::FloatMax;
+            shape_intersection.id = -1;
+            light_intersection.id = -1;
+
+            for (int i = 0; i < (*light_count); ++i)
+            {
+                Intersection it;
+                if (lights[i]->IntersectionP(ray, it) && it.t > 0.f && it.t < light_intersection.t)
+                {
+                    light_intersection = it;
+                    light_intersection.id = i;
+                }
+            }
+            for (int i = 0; i < (*shape_count); ++i)
+            {
+                Intersection it;
+                if (shapes[i]->IntersectionP(ray, it) && it.t > 0.f && it.t < shape_intersection.t)
+                {
+                    shape_intersection = it;
+                    shape_intersection.id = i;
+                    shape_intersection.material_id = shapes[i]->material_id;
+                }
+            }
+
+            if (light_intersection.id >= 0)
+            {
+                if (shape_intersection.id < 0 || (shape_intersection.id >= 0 && shape_intersection.t > light_intersection.t))
+                {
+                    // hit light source
+                    throughput *= lights[light_intersection.id]->GetLe();
+                    radiance += throughput;
+                    break;
+                }
+            }
+            else if (shape_intersection.id >= 0)
+            {
+                //radiance += materials[shape_intersection.material_id]->GetAlbedo();
+                //radiance += 0.5f * (shape_intersection.normal + 1.f);
+                //break;
+                glm::vec3 point = ray * shape_intersection.t;
+
+                LambertianReflection bxdf = LambertianReflection(materials[shape_intersection.material_id]->GetAlbedo(), 1.f);
+                glm::vec3 normal = glm::normalize(shape_intersection.normal);
+                glm::vec3 wo = WorldToLocal(normal) * (-ray.DIR);
+
+                BSDFSample bsdfSample = bxdf.Sample_f(wo, normal, {rng.rand(), rng.rand()});
+
+                if (bsdfSample.pdf == 0.f || glm::length(bsdfSample.f) == 0.f)
+                {
+                    break;
+                }
+
+                Spectrum f = bsdfSample.f * glm::abs(glm::dot(bsdfSample.wiW, normal)) / bsdfSample.pdf;
+                throughput *= f;
+                
+                ray = Ray::SpawnRay(point, bsdfSample.wiW);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        writePixel(*iteration, hdr_img[y * camera->width + x], img[y * camera->width + x], radiance);
+    }
+
+    CudaPathTracer::CudaPathTracer()
+    {
+
+    }
+
+    CudaPathTracer::~CudaPathTracer()
+    {
+        FreeCuda();
+    }
+
+    void CudaPathTracer::InitCuda(PerspectiveCamera& camera, int device)
+    {
+        // set basic properties
+        width = camera.width;
+        height = camera.height;
+        
+        m_Iteration = 1;
+
+        // Choose which GPU to run on, change this on a multi-GPU system.
+        cudaSetDevice(device);;
+        CUDA_CHECK_ERROR();
+
+        glGenTextures(1, &m_DisplayImage);
+        glBindTexture(GL_TEXTURE_2D, m_DisplayImage);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        // create rendered image on cpu
+        host_image = new uchar4[width * height];
+
+        // Create cuda device pointers
+        // Allocate GPU buffers for three vectors (two input, one output).
+        cudaMalloc((void**)&device_iteration, sizeof(int));
+        CUDA_CHECK_ERROR();     
+
+        cudaMalloc((void**)&device_camera, sizeof(PerspectiveCamera));
+        CUDA_CHECK_ERROR();
+
+        // Copy input vectors from host memory to GPU buffers.
+        cudaMemcpy(device_camera, &camera, sizeof(PerspectiveCamera), cudaMemcpyHostToDevice);
+        CUDA_CHECK_ERROR();
+
+        cudaMalloc((void**)&device_hdr_image, sizeof(float3) * width * height);
+        CUDA_CHECK_ERROR();
+
+        cudaMalloc((void**)&device_image, sizeof(uchar4) * width * height);
+        CUDA_CHECK_ERROR();
+    }
+
     void CudaPathTracer::FreeCuda()
     {
         FreeArrayOnCuda<Shape>(device_shapes, device_shape_count);
@@ -295,6 +350,8 @@ namespace CudaPBRT
 
         CUDA_FREE(device_camera);
         CUDA_FREE(device_image);
+        CUDA_FREE(device_hdr_image);
+        CUDA_FREE(device_iteration);
 
         if (host_image)
         {
@@ -308,6 +365,10 @@ namespace CudaPBRT
 
     void CudaPathTracer::Run()
     {
+
+        cudaMemcpy(device_iteration, &m_Iteration, sizeof(int), cudaMemcpyHostToDevice);
+        CUDA_CHECK_ERROR();
+
         KernalConfig drawConfig({width, height, 1}, {4, 4, 0});
 
         //glm::ivec2 blockSize(5, 5);
@@ -315,10 +376,12 @@ namespace CudaPBRT
         //dim3 threadPerBlock(BIT(blockSize.x), BIT(blockSize.y), 1);
 
         // draw color to pixels
-        Draw <<< drawConfig.numBlocks, drawConfig.threadPerBlock >>> (device_camera, device_image, 
+        Draw <<< drawConfig.numBlocks, drawConfig.threadPerBlock >>> (device_iteration, device_camera, device_image, device_hdr_image,
                                                                       device_shapes, device_shape_count, 
                                                                       device_lights, device_light_count,
                                                                       device_materials);
+
+        ++m_Iteration;
 
         // wait GPU to finish computation
         cudaDeviceSynchronize();
