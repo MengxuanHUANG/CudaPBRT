@@ -17,7 +17,7 @@
 
 namespace CudaPBRT
 {
-	static constexpr int MaxDepth = 10;
+	static constexpr int PathMaxDepth = 10;
 
 	static constexpr float ShadowEpsilon	= 0.0001f;
 	static constexpr float Pi				= 3.1415927f;
@@ -31,6 +31,8 @@ namespace CudaPBRT
 	static constexpr float FloatMin = std::numeric_limits<float>::min();
 	static constexpr float FloatMax = std::numeric_limits<float>::max();
 	static constexpr float MachineEpsilon = 0.5f * std::numeric_limits<float>::epsilon();
+
+	static constexpr float AirETA = 1.000293f;
 
 	CPU_GPU inline float gamma(int n)
 	{

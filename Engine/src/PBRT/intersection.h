@@ -9,18 +9,39 @@ namespace CudaPBRT
 	{
 		int id = -1;;
 		int material_id = -1;
+		bool isLight = false;
 
-		float t = -1.f;
+		float t = CudaPBRT::FloatMax;
 		glm::vec3 p = glm::vec3(0.f);
 		glm::vec3 normal = glm::vec3(0.f);
-		glm::vec3 wo = glm::vec3(0.f);
 
-		CPU_GPU Intersection() {}
+		CPU_GPU Intersection() 
+		{}
 
 		CPU_GPU Intersection(const float& t,
 							 const glm::vec3& p, 
 							 const glm::vec3& n)
 			:t(t), p(p), normal(n)
 		{}
+
+		INLINE CPU_GPU bool operator<(const Intersection& other) const
+		{
+			return t < other.t;
+		}
+
+		INLINE CPU_GPU bool operator<=(const Intersection & other) const
+		{
+			return t <= other.t;
+		}
+
+		INLINE CPU_GPU bool operator>(const Intersection& other) const
+		{
+			return t > other.t;
+		}
+
+		INLINE CPU_GPU bool operator>=(const Intersection& other) const
+		{
+			return t >= other.t;
+		}
 	};
 }

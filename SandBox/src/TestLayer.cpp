@@ -11,6 +11,7 @@
 #include <cuda_gl_interop.h>
 
 #include <stb_image.h>
+#include <stb_image_write.h>
 
 #include "PBRT/Shape/sphere.h"
 #include "PBRT/Material/material.h"
@@ -21,7 +22,7 @@ TestLayer::TestLayer(const std::string& name)
 {
 	window = Application::GetApplication().GetWindow();
 	WindowProps* props = window->GetWindowProps();
-	m_Camera = mkU<PerspectiveCamera>(400, 400, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
+	m_Camera = mkU<PerspectiveCamera>(500, 500, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
 	m_CamController = mkU<PerspectiveCameraController>(*m_Camera);
 	
 }
@@ -102,6 +103,7 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 
 	ImGui::Begin("Rendered Image");
 	{
+		ImGui::Text("Iteration: %d", m_CudaPBRT->m_Iteration);
 		ImGui::Image((void*)(intptr_t)(m_CudaPBRT->GetDisplayTextureId()), ImVec2(m_Camera->width, m_Camera->height));
 	}
 	ImGui::End();
@@ -112,6 +114,10 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 		m_Camera->RecomputeAttributes();
 		m_CudaPBRT->UpdateCamera(*m_Camera);
 		m_CudaPBRT->ResetPRBT();
+	}
+	if (ImGui::Button("Save Image"))
+	{
+		stbi_write_png("C://Users//admas//Downloads//save.png", m_Camera->width, m_Camera->height, 4, m_CudaPBRT->host_image, m_Camera->width * 4);
 	}
 	ImGui::End();
 

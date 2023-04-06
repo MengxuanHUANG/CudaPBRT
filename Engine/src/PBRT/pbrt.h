@@ -3,6 +3,8 @@
 #include "pbrtDefine.h"
 #include "Camera/Camera.h"
 
+#include <thrust/device_ptr.h>
+
 #include <vector>
 
 namespace CudaPBRT
@@ -10,6 +12,8 @@ namespace CudaPBRT
 	class Shape;
 	class Material;
 	class Light;
+
+	struct PathSegment;
 
 	template<typename T, typename DataType>
 	void CreateArrayOnCude(T**& dev_array, size_t*& dev_count, std::vector<DataType>& host_data);
@@ -53,8 +57,14 @@ namespace CudaPBRT
 		Material** device_materials = nullptr;
 		Light** device_lights = nullptr;
 
+		PathSegment* device_pathSegment = nullptr;
+		PathSegment* device_terminatedPathSegment = nullptr;
+
 		size_t* device_shape_count = nullptr;
 		size_t* device_material_count = nullptr;
 		size_t* device_light_count = nullptr;
+
+		thrust::device_ptr<PathSegment> devPathsThr;
+		thrust::device_ptr<PathSegment> devTerminatedPathsThr;
 	};
 }

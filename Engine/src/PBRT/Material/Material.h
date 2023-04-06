@@ -18,7 +18,7 @@ namespace CudaPBRT
 		float metallic = 0.5f;
 		float roughness = 0.5f;
 
-		float eta = 1.000293f; // IOR of air
+		float eta = AirETA; // IOR of air
 
 		int albedoMapId		= -1;
 		int normalMapId		= -1;

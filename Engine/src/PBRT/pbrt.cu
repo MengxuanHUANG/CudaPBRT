@@ -1,23 +1,38 @@
 #include "pbrt.h"
 
+#include "spectrum.h"
 #include "ray.h"
+#include "pathSegment.h"
+
 #include "BVH/boundingBox.h"
 #include "intersection.h"
 #include "Shape/sphere.h"
 #include "Shape/square.h"
 #include "Shape/cube.h"
 
-#include "spectrum.h"
 #include "Material/diffuseMaterial.h"
-
 #include "Sampler/rng.h"
 #include "Light/light.h"
 
 #include <GL/glew.h>
 #include <cuda_gl_interop.h>
 
+#include <thrust/remove.h>
+
 namespace CudaPBRT
 {
+    struct CompactTerminatedPaths {
+        CPU_GPU bool operator() (const PathSegment& segment) {
+            return !(segment.pixelId >= 0 && segment.IsEnd());
+        }
+    };
+
+    struct RemoveInvalidPaths {
+        CPU_GPU bool operator() (const PathSegment& segment) {
+            return segment.pixelId < 0 || segment.IsEnd();
+        }
+    };
+
     CPU_GPU Shape* Create(const ShapeData& data)
     {
         switch (data.type)
@@ -84,7 +99,7 @@ namespace CudaPBRT
         return ray;
     }
 
-    CPU_GPU void writePixel(int iteration, float3& hdr_pixel, uchar4& pixel, const Spectrum& radiance)
+    INLINE CPU_GPU void writePixel(int iteration, float3& hdr_pixel, uchar4& pixel, const Spectrum& radiance)
     {
         glm::vec3 color(radiance);
         glm::vec3 preColor = glm::vec3(hdr_pixel.x, hdr_pixel.y, hdr_pixel.z);
@@ -141,7 +156,6 @@ namespace CudaPBRT
         }
     }
     
-
     template<typename T, typename DataType>
     void CreateArrayOnCude<T, DataType>(T**& dev_array, size_t*& dev_count, std::vector<DataType>& host_data)
     {
@@ -199,7 +213,7 @@ namespace CudaPBRT
     template void FreeArrayOnCuda(Material**& device_array, size_t*& count);
     template void FreeArrayOnCuda(Light**& device_array, size_t*& count);
 
-    __global__ void Draw(int* iteration, PerspectiveCamera* camera, uchar4* img, float3* hdr_img, Shape** shapes, size_t* shape_count, Light** lights, size_t* light_count, Material** materials)
+    __global__ void GlobalCastRayFromCamera(int* iteration, PerspectiveCamera* camera, PathSegment* pathSegment)
     {
         int x = (blockIdx.x * blockDim.x) + threadIdx.x;
         int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -207,87 +221,122 @@ namespace CudaPBRT
         if (x >= camera->width || y >= camera->height) {
             return;
         }
-        
-        int index = x + (y * camera->width);
-        
+
+        int index = (y * camera->width) + x;
+
+        PathSegment& segment = pathSegment[index];
+
+        segment.Reset();
+
         CudaRNG rng(*iteration, index, 1);
+        segment.ray = CastRay(*camera, { x + rng.rand(), y + rng.rand() });
+        segment.pixelId = index;
+    }
 
-        Ray ray = CastRay(*camera, {x + rng.rand(), y + rng.rand() });
-
-        Spectrum radiance(0.f);
-        Spectrum throughput(1.f);
-        
-        Intersection shape_intersection, light_intersection;
-
-        int depth = 0;
-        while (depth++ < MaxDepth)
+    __global__ void GlobalSceneIntersection(int max_index, PathSegment* pathSegment, Shape** shapes, size_t* shape_count, Light** lights, size_t* light_count)
+    {
+        int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+        if (index >= max_index)
         {
-            // find itersection
-            // TODO: use BVH for intersection testing
-            shape_intersection.t = CudaPBRT::FloatMax;
-            light_intersection.t = CudaPBRT::FloatMax;
-            shape_intersection.id = -1;
-            light_intersection.id = -1;
+            return;
+        }
+        PathSegment& segment = pathSegment[index];
 
-            for (int i = 0; i < (*light_count); ++i)
+        // find itersection
+        // TODO: use BVH for intersection testing
+        Ray& ray = segment.ray;
+
+        Intersection smallest;
+
+        for (int i = 0; i < (*light_count); ++i)
+        {
+            Intersection it;
+            if (lights[i]->IntersectionP(ray, it) && it.t < smallest.t)
             {
-                Intersection it;
-                if (lights[i]->IntersectionP(ray, it) && it.t > 0.f && it.t < light_intersection.t)
-                {
-                    light_intersection = it;
-                    light_intersection.id = i;
-                }
-            }
-            for (int i = 0; i < (*shape_count); ++i)
-            {
-                Intersection it;
-                if (shapes[i]->IntersectionP(ray, it) && it.t > 0.f && it.t < shape_intersection.t)
-                {
-                    shape_intersection = it;
-                    shape_intersection.id = i;
-                    shape_intersection.material_id = shapes[i]->material_id;
-                }
-            }
-
-            if (light_intersection.id >= 0)
-            {
-                if (shape_intersection.id < 0 || (shape_intersection.id >= 0 && shape_intersection.t > light_intersection.t))
-                {
-                    // hit light source
-                    throughput *= lights[light_intersection.id]->GetLe();
-                    radiance += throughput;
-                    break;
-                }
-            }
-            else if (shape_intersection.id >= 0)
-            {
-                //radiance += materials[shape_intersection.material_id]->GetAlbedo();
-                //radiance += 0.5f * (shape_intersection.normal + 1.f);
-                //break;
-                glm::vec3 point = ray * shape_intersection.t;
-                BSDF& bsdf = materials[shape_intersection.material_id]->GetBSDF();
-
-                glm::vec3 normal = glm::normalize(shape_intersection.normal);
-                normal = materials[shape_intersection.material_id]->GetNormal(normal);
-
-                BSDFSample bsdfSample = bsdf.Sample_f(materials[shape_intersection.material_id]->GetAlbedo(), -ray.DIR, normal, {rng.rand(), rng.rand()});
-
-                if (bsdfSample.pdf == 0.f || glm::length(bsdfSample.f) == 0.f)
-                {
-                    break;
-                }
-
-                throughput *= bsdfSample.f * glm::abs(glm::dot(bsdfSample.wiW, normal)) / bsdfSample.pdf;
-                
-                ray = Ray::SpawnRay(point, bsdfSample.wiW);
-            }
-            else
-            {
-                break;
+                smallest = it;
+                smallest.isLight = true;
+                smallest.id = i;
             }
         }
 
-        writePixel(*iteration, hdr_img[y * camera->width + x], img[y * camera->width + x], radiance);
+        for (int i = 0; i < (*shape_count); ++i)
+        {
+            Intersection it;
+            if (shapes[i]->IntersectionP(ray, it) && it.t < smallest.t)
+            {
+                smallest = it;
+                smallest.id = i;
+                smallest.material_id = shapes[i]->material_id;
+            }
+        }
+        
+        if (smallest.id < 0)
+        {
+            segment.End();
+        }
+        else
+        {
+            segment.intersection = smallest;
+        }
+    }
+
+    __global__ void GlobalComputeThroughput(int* iteration, int max_index, PathSegment* pathSegment, Material** materials, Light** lights)
+    {
+        int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+        if (index >= max_index)
+        {
+            return;
+        }
+
+        PathSegment& segment = pathSegment[index];
+        Intersection& intersection = segment.intersection;
+        Ray& ray = segment.ray;
+        
+        if (intersection.isLight)
+        {
+            // hit light source
+            segment.throughput *= lights[intersection.id]->GetLe();
+            segment.radiance += segment.throughput;
+            segment.End();
+        }
+        else
+        {
+            Material* material = materials[intersection.material_id];
+            CudaRNG rng(*iteration, index, 4 + segment.depth * 7);
+
+            BSDF& bsdf = material->GetBSDF();
+
+            glm::vec3 normal = glm::normalize(intersection.normal);
+            normal = material->GetNormal(normal);
+
+            BSDFSample bsdfSample = bsdf.Sample_f(material->GetAlbedo(), -ray.DIR, normal, { rng.rand(), rng.rand() });
+
+            if (bsdfSample.pdf == 0.f || glm::length(bsdfSample.f) == 0.f)
+            {
+                segment.End();
+            }
+            else
+            {
+                segment.throughput *= bsdfSample.f * glm::abs(glm::dot(bsdfSample.wiW, normal)) / bsdfSample.pdf;
+                segment.ray = Ray::SpawnRay(ray * intersection.t, bsdfSample.wiW);
+                segment.depth += 1;
+            }
+        }
+    }
+
+    __global__ void GlobalWritePixel(int* iteration, int max_index, PathSegment* pathSegment, uchar4* img, float3* hdr_img)
+    {
+        int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+        
+        if (index >= max_index)
+        {
+            return;
+        }
+        PathSegment& segment = pathSegment[index];
+        int& pixelId = segment.pixelId;
+
+        writePixel(*iteration, hdr_img[pixelId], img[pixelId], segment.radiance);
     }
 
     CudaPathTracer::CudaPathTracer()
@@ -331,14 +380,23 @@ namespace CudaPBRT
         cudaMalloc((void**)&device_camera, sizeof(PerspectiveCamera));
         CUDA_CHECK_ERROR();
 
-        // Copy input vectors from host memory to GPU buffers.
-        cudaMemcpy(device_camera, &camera, sizeof(PerspectiveCamera), cudaMemcpyHostToDevice);
+        cudaMalloc((void**)&device_image, sizeof(uchar4) * width * height);
         CUDA_CHECK_ERROR();
 
         cudaMalloc((void**)&device_hdr_image, sizeof(float3) * width * height);
         CUDA_CHECK_ERROR();
 
-        cudaMalloc((void**)&device_image, sizeof(uchar4) * width * height);
+        cudaMalloc((void**)&device_pathSegment, sizeof(PathSegment) * width * height);
+        CUDA_CHECK_ERROR();
+        
+        cudaMalloc((void**)&device_terminatedPathSegment, sizeof(PathSegment) * width * height);
+        CUDA_CHECK_ERROR();
+
+        devPathsThr = thrust::device_ptr<PathSegment>(device_pathSegment);
+        devTerminatedPathsThr = thrust::device_ptr<PathSegment>(device_terminatedPathSegment);
+
+        // Copy input vectors from host memory to GPU buffers.
+        cudaMemcpy(device_camera, &camera, sizeof(PerspectiveCamera), cudaMemcpyHostToDevice);
         CUDA_CHECK_ERROR();
     }
 
@@ -352,6 +410,11 @@ namespace CudaPBRT
         CUDA_FREE(device_image);
         CUDA_FREE(device_hdr_image);
         CUDA_FREE(device_iteration);
+        CUDA_FREE(device_pathSegment);
+        CUDA_FREE(device_terminatedPathSegment);
+        CUDA_FREE(device_shape_count);
+        CUDA_FREE(device_material_count);
+        CUDA_FREE(device_light_count);
 
         if (host_image)
         {
@@ -365,25 +428,50 @@ namespace CudaPBRT
 
     void CudaPathTracer::Run()
     {
+        int it = m_Iteration++;
+        int max_count = width * height;
+        
+        auto devTerminatedThr = devTerminatedPathsThr;
 
-        cudaMemcpy(device_iteration, &m_Iteration, sizeof(int), cudaMemcpyHostToDevice);
+        cudaMemcpy(device_iteration, &it, sizeof(int), cudaMemcpyHostToDevice);
+        CUDA_CHECK_ERROR();
+        
+        // cast ray from camera
+        KernalConfig CamConfig({ width, height, 1 }, { 3, 3, 0 });
+        GlobalCastRayFromCamera << < CamConfig.numBlocks, CamConfig.threadPerBlock >> > (device_iteration, device_camera, device_pathSegment);
+        cudaDeviceSynchronize();
         CUDA_CHECK_ERROR();
 
-        KernalConfig drawConfig({width, height, 1}, {3, 3, 0});
+        KernalConfig intersectionConfig({ max_count, 1, 1 }, { 6, 0, 0 });
+        KernalConfig throughputConfig({ max_count, 1, 1 }, { 6, 0, 0 });
 
-        //glm::ivec2 blockSize(5, 5);
-        //dim3 numBlocks(UpperBinary(width >> blockSize.x), UpperBinary(height >> blockSize.y), 1);
-        //dim3 threadPerBlock(BIT(blockSize.x), BIT(blockSize.y), 1);
+        int depth = 0;
+        while (depth++ < CudaPBRT::PathMaxDepth && max_count > 0)
+        {
+            // intersection
+            GlobalSceneIntersection << < intersectionConfig.numBlocks, intersectionConfig.threadPerBlock >> > (max_count, device_pathSegment,
+                                                                                                               device_shapes, device_shape_count,
+                                                                                                               device_lights, device_light_count);
+            cudaDeviceSynchronize();
+            CUDA_CHECK_ERROR();
 
-        // draw color to pixels
-        Draw <<< drawConfig.numBlocks, drawConfig.threadPerBlock >>> (device_iteration, device_camera, device_image, device_hdr_image,
-                                                                      device_shapes, device_shape_count, 
-                                                                      device_lights, device_light_count,
-                                                                      device_materials);
+            GlobalComputeThroughput << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (device_iteration, max_count, device_pathSegment,
+                                                                                                          device_materials, device_lights);
+            
+            cudaDeviceSynchronize();
+            CUDA_CHECK_ERROR();
 
-        ++m_Iteration;
+            devTerminatedThr = thrust::remove_copy_if(devPathsThr, devPathsThr + max_count, devTerminatedThr, CompactTerminatedPaths());
+            auto end = thrust::remove_if(devPathsThr, devPathsThr + max_count, RemoveInvalidPaths());
 
-        // wait GPU to finish computation
+            max_count = end - devPathsThr;
+        }
+        int numContributing = devTerminatedThr.get() - device_terminatedPathSegment;
+        KernalConfig pixelConfig({ width * height, 1, 1 }, { 6, 0, 0 });
+        
+        GlobalWritePixel << <pixelConfig.numBlocks, pixelConfig.threadPerBlock >> > (device_iteration, numContributing, device_terminatedPathSegment,
+                                                                                     device_image, device_hdr_image);
+        
         cudaDeviceSynchronize();
         CUDA_CHECK_ERROR();
 

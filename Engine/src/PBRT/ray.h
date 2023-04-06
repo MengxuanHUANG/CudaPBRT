@@ -9,6 +9,10 @@ namespace CudaPBRT
 	class Ray
 	{
 	public:
+		CPU_GPU Ray()
+			:O(0.f), DIR(0.f)
+		{}
+
 		CPU_GPU Ray(const glm::vec3& o, const glm::vec3& dir)
 			:O(o), DIR(dir)
 		{
