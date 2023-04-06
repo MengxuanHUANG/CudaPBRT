@@ -24,6 +24,17 @@ namespace CudaPBRT
 			:t(t), p(p), normal(n)
 		{}
 
+		INLINE CPU_GPU void Reset()
+		{
+			id = -1;;
+			material_id = -1;
+			isLight = false;
+
+			t = CudaPBRT::FloatMax;
+			p = glm::vec3(0.f);
+			normal = glm::vec3(0.f);
+		}
+
 		INLINE CPU_GPU bool operator<(const Intersection& other) const
 		{
 			return t < other.t;

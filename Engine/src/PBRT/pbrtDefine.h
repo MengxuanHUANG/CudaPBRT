@@ -17,7 +17,7 @@
 
 namespace CudaPBRT
 {
-	static constexpr int PathMaxDepth = 10;
+	static constexpr int PathMaxDepth = 5;
 
 	static constexpr float ShadowEpsilon	= 0.0001f;
 	static constexpr float Pi				= 3.1415927f;
@@ -64,12 +64,14 @@ namespace CudaPBRT
 		dim3 numBlocks;
 		dim3 threadPerBlock;
 
-		KernalConfig(const glm::ivec3& blocks, const glm::ivec3& threads)
-			: numBlocks(UpperBinary(blocks.x >> threads.x), 
-						UpperBinary(blocks.y >> threads.y), 
-						UpperBinary(blocks.z >> threads.z)),
-			  threadPerBlock(BIT(threads.x), BIT(threads.y), BIT(threads.z))
-		{}
+		KernalConfig(const glm::vec3& blocks, const glm::ivec3& threads)
+		{
+			threadPerBlock = dim3(BIT(threads.x), BIT(threads.y), BIT(threads.z));
+
+			numBlocks = dim3(glm::ceil(blocks.x / static_cast<float>(threadPerBlock.x)),
+							 glm::ceil(blocks.y / static_cast<float>(threadPerBlock.y)),
+							 glm::ceil(blocks.z / static_cast<float>(threadPerBlock.z)));
+		}
 	};
 }
 

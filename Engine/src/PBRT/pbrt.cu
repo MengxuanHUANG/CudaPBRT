@@ -18,6 +18,7 @@
 #include <cuda_gl_interop.h>
 
 #include <thrust/remove.h>
+#include <thrust/sort.h>
 
 namespace CudaPBRT
 {
@@ -246,37 +247,35 @@ namespace CudaPBRT
         // TODO: use BVH for intersection testing
         Ray& ray = segment.ray;
 
-        Intersection smallest;
+        Intersection& seg_int = segment.intersection;
+        
+        seg_int.Reset();
 
         for (int i = 0; i < (*light_count); ++i)
         {
             Intersection it;
-            if (lights[i]->IntersectionP(ray, it) && it.t < smallest.t)
+            if (lights[i]->IntersectionP(ray, it) && it < seg_int)
             {
-                smallest = it;
-                smallest.isLight = true;
-                smallest.id = i;
+                seg_int = it;
+                seg_int.isLight = true;
+                seg_int.id = i;
             }
         }
 
         for (int i = 0; i < (*shape_count); ++i)
         {
             Intersection it;
-            if (shapes[i]->IntersectionP(ray, it) && it.t < smallest.t)
+            if (shapes[i]->IntersectionP(ray, it) && it < seg_int)
             {
-                smallest = it;
-                smallest.id = i;
-                smallest.material_id = shapes[i]->material_id;
+                seg_int = it;
+                seg_int.id = i;
+                seg_int.material_id = shapes[i]->material_id;
             }
         }
         
-        if (smallest.id < 0)
+        if (seg_int.id < 0)
         {
             segment.End();
-        }
-        else
-        {
-            segment.intersection = smallest;
         }
     }
 
@@ -284,7 +283,7 @@ namespace CudaPBRT
     {
         int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
-        if (index >= max_index)
+        if (index >= max_index || pathSegment[index].IsEnd())
         {
             return;
         }
@@ -442,12 +441,11 @@ namespace CudaPBRT
         cudaDeviceSynchronize();
         CUDA_CHECK_ERROR();
 
-        KernalConfig intersectionConfig({ max_count, 1, 1 }, { 6, 0, 0 });
-        KernalConfig throughputConfig({ max_count, 1, 1 }, { 6, 0, 0 });
-
         int depth = 0;
-        while (depth++ < CudaPBRT::PathMaxDepth && max_count > 0)
+        while (max_count > 0 && depth++ < CudaPBRT::PathMaxDepth)
         {
+            KernalConfig intersectionConfig({ max_count, 1, 1 }, { 7, 0, 0 });
+
             // intersection
             GlobalSceneIntersection << < intersectionConfig.numBlocks, intersectionConfig.threadPerBlock >> > (max_count, device_pathSegment,
                                                                                                                device_shapes, device_shape_count,
@@ -455,6 +453,9 @@ namespace CudaPBRT
             cudaDeviceSynchronize();
             CUDA_CHECK_ERROR();
 
+            //thrust::sort(devPathsThr, devPathsThr + max_count);
+
+            KernalConfig throughputConfig({ max_count, 1, 1 }, { 7, 0, 0 });
             GlobalComputeThroughput << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (device_iteration, max_count, device_pathSegment,
                                                                                                           device_materials, device_lights);
             
@@ -463,11 +464,11 @@ namespace CudaPBRT
 
             devTerminatedThr = thrust::remove_copy_if(devPathsThr, devPathsThr + max_count, devTerminatedThr, CompactTerminatedPaths());
             auto end = thrust::remove_if(devPathsThr, devPathsThr + max_count, RemoveInvalidPaths());
-
+            
             max_count = end - devPathsThr;
         }
         int numContributing = devTerminatedThr.get() - device_terminatedPathSegment;
-        KernalConfig pixelConfig({ width * height, 1, 1 }, { 6, 0, 0 });
+        KernalConfig pixelConfig({ numContributing, 1, 1 }, { 7, 0, 0 });
         
         GlobalWritePixel << <pixelConfig.numBlocks, pixelConfig.threadPerBlock >> > (device_iteration, numContributing, device_terminatedPathSegment,
                                                                                      device_image, device_hdr_image);

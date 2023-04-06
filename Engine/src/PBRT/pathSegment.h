@@ -20,6 +20,11 @@ namespace CudaPBRT
 
 		 float eta = AirETA;
 
+		 INLINE CPU_GPU bool operator<(const PathSegment& other) const
+		 {
+			 return intersection.material_id < other.intersection.material_id;
+		 }
+
 		 INLINE CPU_GPU void Reset()
 		 {
 			 depth = 0;
