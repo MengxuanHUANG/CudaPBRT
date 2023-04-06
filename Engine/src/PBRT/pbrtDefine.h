@@ -17,7 +17,7 @@
 
 namespace CudaPBRT
 {
-	static constexpr int PathMaxDepth = 5;
+	static constexpr int PathMaxDepth = 10;
 
 	static constexpr float ShadowEpsilon	= 0.0001f;
 	static constexpr float Pi				= 3.1415927f;

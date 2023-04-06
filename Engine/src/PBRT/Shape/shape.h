@@ -40,7 +40,7 @@ namespace CudaPBRT
 	{
 	public:
 		CPU_GPU Shape(const ShapeData& data)
-			:material_id(data.material_id)
+			:material_id(data.material_id), shapeData(data)
 		{
 			glm::mat4 T = glm::translate(glm::mat4(1.f), data.translation);
 
@@ -56,13 +56,16 @@ namespace CudaPBRT
 		}
 
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const = 0;
-	
+		CPU_GPU virtual float Area() const { return 0.f; }
+		CPU_GPU virtual glm::vec3 Sample(const glm::vec2& xi) const { return glm::vec3(0.f); }
+
 	public:
 		int material_id;
-
-	protected:
 		glm::mat4 m_Transform;
 		glm::mat4 m_TransformInv;
 		glm::mat3 m_TransformInvTranspose;
+
+	protected:
+		ShapeData shapeData;
 	};
 }

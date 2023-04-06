@@ -4,6 +4,7 @@
 #include "Window/Events/EventDispatcher.h"
 #include "Camera/Camera.h"
 #include "PBRT/pbrt.h"
+#include "PBRT/scene.h"
 
 #include <GL/glew.h>
 #include <imgui/imgui.h>
@@ -24,7 +25,7 @@ TestLayer::TestLayer(const std::string& name)
 	WindowProps* props = window->GetWindowProps();
 	m_Camera = mkU<PerspectiveCamera>(500, 500, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
 	m_CamController = mkU<PerspectiveCameraController>(*m_Camera);
-	
+	m_Scene = mkU<Scene>();
 }
 
 TestLayer::~TestLayer()
@@ -80,21 +81,19 @@ void TestLayer::OnAttach()
 	Spectrum Le(40);
 	lightData.emplace_back(LightType::ShapeLight, areaLightShape, Le);
 
-	//m_CudaPBRT->CreateMaterialsOnCuda(materialData);
-	//m_CudaPBRT->CreateShapesOnCuda(shapeData);
-
-	CreateArrayOnCude<Shape, ShapeData>((m_CudaPBRT->device_shapes), (m_CudaPBRT->device_shape_count), shapeData);
-	CreateArrayOnCude<Material, MaterialData>(m_CudaPBRT->device_materials, m_CudaPBRT->device_material_count, materialData);
-	CreateArrayOnCude<Light, LightData>(m_CudaPBRT->device_lights, m_CudaPBRT->device_light_count, lightData);
+	CreateArrayOnCude<Shape, ShapeData>(m_Scene->shapes, m_Scene->shape_count, shapeData);
+	CreateArrayOnCude<Material, MaterialData>(m_Scene->materials, m_Scene->material_count, materialData);
+	CreateArrayOnCude<Light, LightData>(m_Scene->lights, m_Scene->light_count, lightData);
 }
 void TestLayer::OnDetach()
 {
+	m_Scene->FreeDataOnCuda();
 	m_CudaPBRT.release();
 }
 
 void TestLayer::OnUpdate(float delatTime)
 {
-	m_CudaPBRT->Run();
+	m_CudaPBRT->Run(m_Scene.get());
 }
 
 void TestLayer::OnImGuiRendered(float deltaTime)

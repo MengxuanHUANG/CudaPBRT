@@ -7,12 +7,12 @@
 
 #include <cuda_runtime.h>
 
-
 using namespace CudaPBRT;
 
 namespace CudaPBRT
 {
 	class CudaPathTracer;
+	class Scene;
 }
 
 class TestLayer : public Layer
@@ -38,6 +38,6 @@ public:
 
 protected:
 	Window* window;
-
+	uPtr<Scene> m_Scene;
 	uPtr<CudaPathTracer> m_CudaPBRT;
 };
