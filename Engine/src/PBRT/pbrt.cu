@@ -203,7 +203,7 @@ namespace CudaPBRT
 	template void FreeArrayOnCuda(Material**& device_array, size_t count);
 	template void FreeArrayOnCuda(Light**& device_array, size_t count);
 
-	__global__ void GlobalCastRayFromCamera(int* iteration, PerspectiveCamera* camera, PathSegment* pathSegment)
+	__global__ void GlobalCastRayFromCamera(int iteration, PerspectiveCamera* camera, PathSegment* pathSegment)
 	{
 		int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 		int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -218,7 +218,7 @@ namespace CudaPBRT
 
 		segment.Reset();
 
-		CudaRNG rng(*iteration, index, 1);
+		CudaRNG rng(iteration, index, 1);
 		segment.ray = CastRay(*camera, { x + rng.rand(), y + rng.rand() });
 		segment.pixelId = index;
 	}
@@ -232,18 +232,12 @@ namespace CudaPBRT
 		}
 		
 		PathSegment& segment = pathSegment[index];
-		Ray& ray = segment.ray;
-		Intersection& seg_int = segment.intersection;
-		
-		seg_int.Reset();
+		segment.intersection.Reset();
 
-		if (!scene.IntersectionNaive(ray, seg_int))
-		{
-			segment.End();
-		}
+		scene.IntersectionNaive(segment.ray, segment.intersection);
 	}
 
-	__global__ void GlobalNaiveLi(int* iteration, int max_index, PathSegment* pathSegment, Scene scene)
+	__global__ void GlobalNaiveLi(int iteration, int max_index, PathSegment* pathSegment, Scene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -266,7 +260,7 @@ namespace CudaPBRT
 		else
 		{
 			Material* material = scene.materials[intersection.material_id];
-			CudaRNG rng(*iteration, index, 4 + segment.depth * 7);
+			CudaRNG rng(iteration, index, 4 + segment.depth * 7);
 
 			BSDF& bsdf = material->GetBSDF();
 
@@ -281,14 +275,15 @@ namespace CudaPBRT
 			}
 			else
 			{
+				segment.bsdfPdf = bsdfSample.pdf;
 				segment.throughput *= bsdfSample.f * glm::abs(glm::dot(bsdfSample.wiW, normal)) / bsdfSample.pdf;
 				segment.ray = Ray::SpawnRay(ray * intersection.t, bsdfSample.wiW);
-				segment.depth += 1;
+				++segment.depth;
 			}
 		}
 	}
 	
-	__global__ void GlobalDirectLi(int* iteration, int max_index, PathSegment* pathSegment, Scene scene)
+	__global__ void GlobalDirectLi(int iteration, int max_index, PathSegment* pathSegment, Scene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -314,11 +309,11 @@ namespace CudaPBRT
 			glm::vec3 normal = glm::normalize(intersection.normal);
 			normal = material->GetNormal(normal);
 
-			CudaRNG rng(*iteration, index, 4 + segment.depth * 7);
+			CudaRNG rng(iteration, index, 4 + segment.depth * 7);
 			LightSample sample;
 			if (scene.Sample_Li(rng.rand(), {rng.rand(), rng.rand()}, ray * intersection.t, normal, sample))
 			{
-				segment.throughput *= material->GetAlbedo() * sample.Le * glm::abs(glm::dot(sample.wiW, normal)) / sample.pdf;
+				segment.throughput *= material->GetAlbedo() * sample.Le * AbsDot(sample.wiW, normal) / sample.pdf;
 
 				segment.radiance += segment.throughput;
 			}
@@ -326,7 +321,75 @@ namespace CudaPBRT
 		}
 	}
 
-	__global__ void GlobalWritePixel(int* iteration, int max_index, PathSegment* pathSegment, uchar4* img, float3* hdr_img)
+	__global__ void GlobalMIS_Li(int iteration, int max_index, PathSegment* pathSegment, Scene scene)
+	{
+		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+		if (index >= max_index || pathSegment[index].IsEnd())
+		{
+			return;
+		}
+
+		PathSegment& segment = pathSegment[index];
+		Intersection& intersection = segment.intersection;
+		Ray& ray = segment.ray;
+		if (intersection.id < 0)
+		{
+			segment.End();
+		}
+		else if (intersection.isLight)
+		{			
+			segment.throughput *= scene.lights[intersection.id]->GetLe();
+			
+			if (segment.depth > 0)
+			{
+				float light_pdf = scene.PDF_Li(intersection.id, ray * intersection.t, -ray.DIR, intersection.t, segment.surfaceNormal);
+				//float ph = CudaPBRT::PowerHeuristic(1, segment.bsdfPdf, 1, light_pdf);
+				segment.throughput *= CudaPBRT::PowerHeuristic(1, segment.bsdfPdf, 1, light_pdf);
+			}
+			segment.radiance += segment.throughput;
+		}
+		else
+		{
+			Material* material = scene.materials[intersection.material_id];
+			Spectrum albedo = material->GetAlbedo();
+			BSDF& bsdf = material->GetBSDF();
+
+			segment.surfaceNormal = material->GetNormal(glm::normalize(intersection.normal));
+			const glm::vec3 surface_point = ray * intersection.t;
+
+			const glm::vec3& normal = segment.surfaceNormal;
+
+			// estimate direct light sample
+			CudaRNG rng(iteration, index, 4 + segment.depth * 7);
+			LightSample light_sample;
+			if (scene.Sample_Li(rng.rand(), { rng.rand(), rng.rand() }, surface_point, normal, light_sample))
+			{
+				Spectrum scattering_f = bsdf.f(albedo, -ray.DIR, light_sample.wiW, normal);
+				float scattering_pdf = bsdf.PDF(-ray.DIR, light_sample.wiW, normal);
+				if (scattering_pdf > 0.f)
+				{	
+					segment.radiance += light_sample.Le * scattering_f * segment.throughput * 
+										CudaPBRT::PowerHeuristic(1, light_sample.pdf, 1, scattering_pdf) * AbsDot(light_sample.wiW, normal) / light_sample.pdf;
+				}
+			}
+
+			// compute throughput
+			BSDFSample bsdf_sample = bsdf.Sample_f(albedo, -ray.DIR, normal, { rng.rand(), rng.rand() });
+
+			if (bsdf_sample.pdf > 0.f)
+			{
+				segment.bsdfPdf = bsdf_sample.pdf;
+				segment.throughput *= bsdf_sample.f * AbsDot(bsdf_sample.wiW, normal) / segment.bsdfPdf;
+				segment.ray = Ray::SpawnRay(surface_point, bsdf_sample.wiW);
+				++segment.depth;
+				return;
+			}
+		}
+		segment.End();
+	}
+
+	__global__ void GlobalWritePixel(int iteration, int max_index, PathSegment* pathSegment, uchar4* img, float3* hdr_img)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 		
@@ -337,7 +400,7 @@ namespace CudaPBRT
 		PathSegment& segment = pathSegment[index];
 		int& pixelId = segment.pixelId;
 
-		writePixel(*iteration, hdr_img[pixelId], img[pixelId], segment.radiance);
+		writePixel(iteration, hdr_img[pixelId], img[pixelId], segment.radiance);
 	}
 
 	CudaPathTracer::CudaPathTracer()
@@ -375,9 +438,6 @@ namespace CudaPBRT
 
 		// Create cuda device pointers
 		// Allocate GPU buffers for three vectors (two input, one output).
-		cudaMalloc((void**)&device_iteration, sizeof(int));
-		CUDA_CHECK_ERROR();     
-
 		cudaMalloc((void**)&device_camera, sizeof(PerspectiveCamera));
 		CUDA_CHECK_ERROR();
 
@@ -406,7 +466,6 @@ namespace CudaPBRT
 		CUDA_FREE(device_camera);
 		CUDA_FREE(device_image);
 		CUDA_FREE(device_hdr_image);
-		CUDA_FREE(device_iteration);
 		CUDA_FREE(device_pathSegment);
 		CUDA_FREE(device_terminatedPathSegment);
 
@@ -422,17 +481,13 @@ namespace CudaPBRT
 
 	void CudaPathTracer::Run(Scene* scene)
 	{
-		int it = m_Iteration++;
 		int max_count = width * height;
 		
 		auto devTerminatedThr = devTerminatedPathsThr;
-
-		cudaMemcpy(device_iteration, &it, sizeof(int), cudaMemcpyHostToDevice);
-		CUDA_CHECK_ERROR();
 		
 		// cast ray from camera
 		KernalConfig CamConfig({ width, height, 1 }, { 3, 3, 0 });
-		GlobalCastRayFromCamera << < CamConfig.numBlocks, CamConfig.threadPerBlock >> > (device_iteration, device_camera, device_pathSegment);
+		GlobalCastRayFromCamera << < CamConfig.numBlocks, CamConfig.threadPerBlock >> > (m_Iteration, device_camera, device_pathSegment);
 		cudaDeviceSynchronize();
 		CUDA_CHECK_ERROR();
 
@@ -450,9 +505,9 @@ namespace CudaPBRT
 
 			KernalConfig throughputConfig({ max_count, 1, 1 }, { 7, 0, 0 });
 			
-			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (device_iteration, max_count, device_pathSegment, *scene);
-			
-			GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (device_iteration, max_count, device_pathSegment, *scene);
+			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			//GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
 
 			cudaDeviceSynchronize();
 			CUDA_CHECK_ERROR();
@@ -465,7 +520,7 @@ namespace CudaPBRT
 		int numContributing = devTerminatedThr.get() - device_terminatedPathSegment;
 		KernalConfig pixelConfig({ numContributing, 1, 1 }, { 7, 0, 0 });
 		
-		GlobalWritePixel << <pixelConfig.numBlocks, pixelConfig.threadPerBlock >> > (device_iteration, numContributing, device_terminatedPathSegment,
+		GlobalWritePixel << <pixelConfig.numBlocks, pixelConfig.threadPerBlock >> > (m_Iteration, numContributing, device_terminatedPathSegment,
 																					 device_image, device_hdr_image);
 		
 		cudaDeviceSynchronize();
@@ -479,6 +534,8 @@ namespace CudaPBRT
 		glBindTexture(GL_TEXTURE_2D, m_DisplayImage);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void*)host_image);
 		glBindTexture(GL_TEXTURE_2D, 0);
+
+		++m_Iteration;
 	}
 
 	void CudaPathTracer::UpdateCamera(PerspectiveCamera& camera)

@@ -84,6 +84,8 @@ void TestLayer::OnAttach()
 	CreateArrayOnCude<Shape, ShapeData>(m_Scene->shapes, m_Scene->shape_count, shapeData);
 	CreateArrayOnCude<Material, MaterialData>(m_Scene->materials, m_Scene->material_count, materialData);
 	CreateArrayOnCude<Light, LightData>(m_Scene->lights, m_Scene->light_count, lightData);
+
+	
 }
 void TestLayer::OnDetach()
 {
@@ -99,8 +101,9 @@ void TestLayer::OnUpdate(float delatTime)
 void TestLayer::OnImGuiRendered(float deltaTime)
 {
 	ImGui::StyleColorsLight();
-
-	ImGui::Begin("Rendered Image");
+	bool open = true;
+	ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoMove;
+	ImGui::Begin("Rendered Image", &open, window_flags);
 	{
 		ImGui::Text("Iteration: %d", m_CudaPBRT->m_Iteration);
 		ImGui::Image((void*)(intptr_t)(m_CudaPBRT->GetDisplayTextureId()), ImVec2(m_Camera->width, m_Camera->height));
@@ -120,9 +123,9 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 	}
 	ImGui::End();
 
-	bool show = true;
-
-	ImGui::ShowDemoWindow(&show);
+	//bool show = true;
+	//
+	//ImGui::ShowDemoWindow(&show);
 }
 
 bool TestLayer::OnEvent(Event& event)

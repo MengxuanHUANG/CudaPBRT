@@ -49,6 +49,15 @@ namespace CudaPBRT
 		return (1 << bit_length(value));
 	}
 
+	INLINE CPU_GPU float AbsDot(const glm::vec3& wi, const glm::vec3& nor) { return glm::abs(glm::dot(wi, nor)); }
+
+	INLINE CPU_GPU  float PowerHeuristic(int nf, float fPdf, int ng, float gPdf) 
+	{
+		float f = static_cast<float>(nf) * fPdf;
+		float g = static_cast<float>(ng) * gPdf;
+
+		return (f * f) / (f * f + g * g);
+	}
 	inline void CudaCheckError(const char* file, int line)
 	{
 		cudaDeviceSynchronize();

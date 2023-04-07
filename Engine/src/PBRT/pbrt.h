@@ -43,14 +43,11 @@ namespace CudaPBRT
 		// texture handler
 		unsigned int m_DisplayImage = 0;
 
-		// device handler
-		int* device_iteration;
+		PerspectiveCamera* device_camera = nullptr;
+		uchar4* device_image = nullptr;
+		float3* device_hdr_image = nullptr;
 
-		PerspectiveCamera* device_camera;
-		uchar4* device_image;
-		float3* device_hdr_image;
-
-		uchar4* host_image;
+		uchar4* host_image = nullptr;
 
 		PathSegment* device_pathSegment = nullptr;
 		PathSegment* device_terminatedPathSegment = nullptr;

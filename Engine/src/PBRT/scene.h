@@ -25,17 +25,15 @@ namespace CudaPBRT
             int light_id = static_cast<int>(glm::floor(rand * 10.f)) % light_count;
             sample = lights[light_id]->Sample_Li(p, normal, xi);
             
-            sample.Le *= light_count; // equivalent to divide by pdf 
+            sample.pdf /= light_count; // equivalent to divide by pdf 
 
             Intersection shadow_intersect;
-            if (IntersectionNaive(sample.shadowRay, shadow_intersect) && shadow_intersect.isLight && shadow_intersect.id == light_id)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return (IntersectionNaive(sample.shadowRay, shadow_intersect) && shadow_intersect.isLight && shadow_intersect.id == light_id);
+        }
+
+        INLINE CPU_GPU float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)
+        {
+            return (lights[light_id]->PDF(p, wiW, t, normal) / static_cast<float>(light_count));
         }
 
         void FreeDataOnCuda()

@@ -12,6 +12,11 @@ namespace CudaPBRT
 	{
 		 int depth = 0;
 		 int pixelId = -1;
+
+		 glm::vec3 surfaceNormal = glm::vec3(0);
+
+		 float bsdfPdf = 0.f;
+
 		 Spectrum throughput = Spectrum(1.f);
 		 Spectrum radiance = Spectrum(0.f);
 
@@ -29,6 +34,10 @@ namespace CudaPBRT
 		 {
 			 depth = 0;
 			 pixelId = -1;
+			 
+			 surfaceNormal = glm::vec3(0.f);
+			 bsdfPdf = 0.f;
+
 			 throughput = Spectrum(1.f);
 			 radiance = Spectrum(0.f);
 			 ray = Ray();

@@ -24,7 +24,6 @@ namespace CudaPBRT
 		Spectrum Le;
 		glm::vec3 wiW;
 		float pdf;
-
 		Ray shadowRay;
 	};
 
@@ -47,6 +46,7 @@ namespace CudaPBRT
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const { return false; }
 
 		CPU_GPU virtual LightSample Sample_Li(const glm::vec3& p, const glm::vec3& normal, const glm::vec2& xi) const = 0;
+		CPU_GPU virtual float PDF(const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal) const = 0;
 	};
 
 	class ShapeLight : public Light {
@@ -86,16 +86,26 @@ namespace CudaPBRT
 			p_normal = m_Shape->m_TransformInvTranspose * p_normal;
 
 			// set wiW and pdf
-			sample.wiW = normalize(r);
+			sample.wiW = glm::normalize(r);
 			float cosTheta = glm::dot(-sample.wiW, p_normal);
-			sample.pdf = glm::dot(r, r) / (cosTheta * area);
 
+			sample.pdf = glm::dot(r, r) / (cosTheta * area);
 			sample.Le = Le;
 
 			// spawn ray & check whether it can reach the light
 			sample.shadowRay = Ray::SpawnRay(p, sample.wiW);
 
 			return sample;
+		}
+
+		CPU_GPU virtual float PDF(const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal) const override
+		{
+			glm::vec3 p_normal = glm::vec3(0, 0, 1);
+			p_normal = m_Shape->m_TransformInvTranspose * p_normal;
+
+			float area = m_Shape->Area();
+			float cosTheta = glm::dot(wiW, p_normal);
+			return (t * t / (cosTheta * area));
 		}
 
 	protected:

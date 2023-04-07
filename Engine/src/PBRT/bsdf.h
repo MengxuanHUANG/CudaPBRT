@@ -21,37 +21,52 @@ namespace CudaPBRT
 				delete m_BxDF;
 			}
 		}
-		CPU_GPU Spectrum f(const Spectrum& R, const glm::vec3& wiW, const glm::vec3& woW, const glm::vec3& normal) const
+		INLINE CPU_GPU Spectrum f(const Spectrum& R, const glm::vec3& woW, const glm::vec3& wiW, const glm::vec3& normal) const
 		{
-			glm::vec3 wo = WorldToLocal(normal) * woW;
-			glm::vec3 wi = WorldToLocal(normal) * wiW;
+			glm::mat3 toLocal = WorldToLocal(normal);
 
-			if (wo.z == 0.f)
+			glm::vec3 wo = toLocal * woW;
+			glm::vec3 wi = toLocal * wiW;
+
+			if (wo.z > 0.f)
+			{
+				return m_BxDF->f(R, wo, wi);
+				
+			}
+			else
 			{
 				return Spectrum(0.f);
 			}
-
-			return m_BxDF->f(R, wo, wi);
 		}
 
-		CPU_GPU BSDFSample Sample_f(const Spectrum& R, const glm::vec3& woW, const glm::vec3& normal, const glm::vec2& xi) const
+		INLINE CPU_GPU BSDFSample Sample_f(const Spectrum& R, const glm::vec3& woW, const glm::vec3& normal, const glm::vec2& xi) const
 		{
 			glm::vec3 wo = WorldToLocal(normal) * woW;
 
-			if (wo.z == 0.f)
+			if (wo.z > 0.f)
+			{
+				return m_BxDF->Sample_f(R, wo, normal, xi);
+			}
+			else
 			{
 				return BSDFSample();
 			}
-
-			return m_BxDF->Sample_f(R, wo, normal, xi);
 		}
 
-		CPU_GPU float PDF(const glm::vec3& wiW, const glm::vec3& woW, const glm::vec3& normal) const
+		INLINE CPU_GPU float PDF(const glm::vec3& woW, const glm::vec3& wiW, const glm::vec3& normal) const
 		{
-			glm::vec3 wo = WorldToLocal(normal) * woW;
-			glm::vec3 wi = WorldToLocal(normal) * wiW;
+			glm::mat3 toLocal = WorldToLocal(normal);
+			glm::vec3 wo = toLocal * woW;
+			glm::vec3 wi = toLocal * wiW;
 
-			return m_BxDF->PDF(wi, wo);
+			if (wo.z > 0.f)
+			{
+				return m_BxDF->PDF(wo, wi);
+			}
+			else
+			{
+				return 0.f;
+			}
 		}
 
 	public:
