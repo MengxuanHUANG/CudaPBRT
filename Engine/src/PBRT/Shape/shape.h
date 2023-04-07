@@ -55,6 +55,7 @@ namespace CudaPBRT
 			m_TransformInvTranspose = glm::transpose(glm::inverse(glm::mat3(m_Transform)));
 		}
 
+		CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const = 0;
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const = 0;
 		CPU_GPU virtual float Area() const { return 0.f; }
 		CPU_GPU virtual glm::vec3 Sample(const glm::vec2& xi) const { return glm::vec3(0.f); }

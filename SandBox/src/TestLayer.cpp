@@ -23,7 +23,7 @@ TestLayer::TestLayer(const std::string& name)
 {
 	window = Application::GetApplication().GetWindow();
 	WindowProps* props = window->GetWindowProps();
-	m_Camera = mkU<PerspectiveCamera>(500, 500, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
+	m_Camera = mkU<PerspectiveCamera>(680, 680, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
 	m_CamController = mkU<PerspectiveCameraController>(*m_Camera);
 	m_Scene = mkU<Scene>();
 }
@@ -65,6 +65,8 @@ void TestLayer::OnAttach()
 	shapeData.emplace_back(ShapeType::Square, matteGreenId, glm::vec3(-5, 2.5, 0), glm::vec3(10, 10, 1), glm::vec3(0, 90, 0)); // Green Wall
 	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 2.5, 5),  glm::vec3(10, 10, 1), glm::vec3(0, 180, 0)); // Back Wall
 	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 7.5, 0),  glm::vec3(10, 10, 1), glm::vec3(90, 0, 0)); // Ceiling
+
+	//shapeData.emplace_back(ShapeType::Sphere, matteWhiteId, glm::vec3(0, 1.25, 0), glm::vec3(3, 3, 3), glm::vec3(0, 0, 0));
 
 	shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(2, 0, 3), glm::vec3(3, 6, 3), glm::vec3(0, 27.5, 0)); // Long Cube
 	shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(-2, -1, 0.75), glm::vec3(3, 3, 3), glm::vec3(0, -17.5, 0)); // Short Cube

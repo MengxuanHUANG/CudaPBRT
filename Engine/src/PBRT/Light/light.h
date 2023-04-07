@@ -21,10 +21,17 @@ namespace CudaPBRT
 
 	struct LightSample 
 	{
-		Spectrum Le;
-		glm::vec3 wiW;
-		float pdf;
-		Ray shadowRay;
+		Spectrum Le = Spectrum(0.f);
+		glm::vec3 wiW = glm::vec3(0.f);
+		float pdf = 0.f;
+		Ray shadowRay = Ray();
+		
+		CPU_GPU LightSample()
+		{}
+
+		CPU_GPU LightSample(const Spectrum& Le, const glm::vec3& wiW, float pdf, const Ray& ray)
+			: Le(Le), wiW(wiW), pdf(pdf), shadowRay(ray)
+		{}
 	};
 
 	struct LightData
@@ -74,40 +81,29 @@ namespace CudaPBRT
 	
 		CPU_GPU virtual LightSample Sample_Li(const glm::vec3& p, const glm::vec3& normal, const glm::vec2& xi) const override
 		{
-			LightSample sample;
-
 			glm::vec3 sampled_point = m_Shape->Sample(xi);
-			float area = m_Shape->Area();
 
-			// compute r, r*r and cosTheta
+			// compute r, wiW
 			glm::vec3 r = sampled_point - p;
+			glm::vec3 wiW = glm::normalize(r);
 
-			glm::vec3 p_normal = glm::vec3(0, 0, 1);
-			p_normal = m_Shape->m_TransformInvTranspose * p_normal;
-
-			// set wiW and pdf
-			sample.wiW = glm::normalize(r);
-			float cosTheta = glm::dot(-sample.wiW, p_normal);
-
-			sample.pdf = glm::dot(r, r) / (cosTheta * area);
-			sample.Le = Le;
-
-			// spawn ray & check whether it can reach the light
-			sample.shadowRay = Ray::SpawnRay(p, sample.wiW);
-
-			return sample;
+			return { Le , wiW, ComputePDF(p, wiW, glm::length(r)), Ray::SpawnRay(p, wiW) };
 		}
 
 		CPU_GPU virtual float PDF(const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal) const override
 		{
-			glm::vec3 p_normal = glm::vec3(0, 0, 1);
-			p_normal = m_Shape->m_TransformInvTranspose * p_normal;
-
+			return ComputePDF(p, wiW, t);
+		}
+	protected:
+		INLINE CPU_GPU float ComputePDF(const glm::vec3& p, const glm::vec3& wiW, float t) const
+		{
 			float area = m_Shape->Area();
-			float cosTheta = glm::dot(wiW, p_normal);
+			
+			glm::vec3 p_normal = m_Shape->GetNormal(p);
+
+			float cosTheta = glm::dot(-wiW, p_normal);
 			return (t * t / (cosTheta * area));
 		}
-
 	protected:
 		Spectrum Le;
 		Shape* m_Shape;

@@ -249,38 +249,41 @@ namespace CudaPBRT
 		PathSegment& segment = pathSegment[index];
 		Intersection& intersection = segment.intersection;
 		Ray& ray = segment.ray;
-		
-		if (intersection.isLight)
+		if (intersection.id >= 0)
 		{
-			// hit light source
-			segment.throughput *= scene.lights[intersection.id]->GetLe();
-			segment.radiance += segment.throughput;
-			segment.End();
-		}
-		else
-		{
-			Material* material = scene.materials[intersection.material_id];
-			CudaRNG rng(iteration, index, 4 + segment.depth * 7);
-
-			BSDF& bsdf = material->GetBSDF();
-
-			glm::vec3 normal = glm::normalize(intersection.normal);
-			normal = material->GetNormal(normal);
-
-			BSDFSample bsdfSample = bsdf.Sample_f(material->GetAlbedo(), -ray.DIR, normal, { rng.rand(), rng.rand() });
-
-			if (bsdfSample.pdf == 0.f || glm::length(bsdfSample.f) == 0.f)
+			if (intersection.isLight)
 			{
-				segment.End();
+				// hit light source
+				segment.throughput *= scene.lights[intersection.id]->GetLe();
+				segment.radiance += segment.throughput;
 			}
 			else
 			{
-				segment.bsdfPdf = bsdfSample.pdf;
-				segment.throughput *= bsdfSample.f * glm::abs(glm::dot(bsdfSample.wiW, normal)) / bsdfSample.pdf;
-				segment.ray = Ray::SpawnRay(ray * intersection.t, bsdfSample.wiW);
-				++segment.depth;
+				Material* material = scene.materials[intersection.material_id];
+				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
+
+				BSDF& bsdf = material->GetBSDF();
+
+				segment.surfaceNormal = material->GetNormal(glm::normalize(intersection.normal));
+				const glm::vec3& normal = segment.surfaceNormal;
+
+				BSDFSample bsdfSample = bsdf.Sample_f(material->GetAlbedo(), -ray.DIR, normal, { rng.rand(), rng.rand() });
+
+				if (bsdfSample.pdf == 0.f && glm::length(bsdfSample.f) == 0.f)
+				{
+					segment.End();
+				}
+				else
+				{
+					segment.bsdfPdf = bsdfSample.pdf;
+					segment.throughput *= bsdfSample.f * glm::abs(glm::dot(bsdfSample.wiW, normal)) / bsdfSample.pdf;
+					segment.ray = Ray::SpawnRay(ray * intersection.t, bsdfSample.wiW);
+					++segment.depth;
+					return;
+				}
 			}
 		}
+		segment.End();
 	}
 	
 	__global__ void GlobalDirectLi(int iteration, int max_index, PathSegment* pathSegment, Scene scene)
@@ -333,59 +336,59 @@ namespace CudaPBRT
 		PathSegment& segment = pathSegment[index];
 		Intersection& intersection = segment.intersection;
 		Ray& ray = segment.ray;
-		if (intersection.id < 0)
+
+		if (intersection.id >= 0)
 		{
-			segment.End();
-		}
-		else if (intersection.isLight)
-		{			
-			segment.throughput *= scene.lights[intersection.id]->GetLe();
-			
-			if (segment.depth > 0)
+			if (intersection.isLight)
 			{
-				float light_pdf = scene.PDF_Li(intersection.id, ray * intersection.t, -ray.DIR, intersection.t, segment.surfaceNormal);
-				//float ph = CudaPBRT::PowerHeuristic(1, segment.bsdfPdf, 1, light_pdf);
-				segment.throughput *= CudaPBRT::PowerHeuristic(1, segment.bsdfPdf, 1, light_pdf);
+				segment.throughput *= scene.lights[intersection.id]->GetLe();
+
+				if (segment.depth > 0)
+				{
+					float light_pdf = scene.PDF_Li(intersection.id, ray * intersection.t, ray.DIR, intersection.t, segment.surfaceNormal);
+					segment.throughput *= CudaPBRT::PowerHeuristic(1, segment.bsdfPdf, 1, light_pdf);
+				}
+				segment.radiance += segment.throughput;
 			}
-			segment.radiance += segment.throughput;
-		}
-		else
-		{
-			Material* material = scene.materials[intersection.material_id];
-			Spectrum albedo = material->GetAlbedo();
-			BSDF& bsdf = material->GetBSDF();
-
-			segment.surfaceNormal = material->GetNormal(glm::normalize(intersection.normal));
-			const glm::vec3 surface_point = ray * intersection.t;
-
-			const glm::vec3& normal = segment.surfaceNormal;
-
-			// estimate direct light sample
-			CudaRNG rng(iteration, index, 4 + segment.depth * 7);
-			LightSample light_sample;
-			if (scene.Sample_Li(rng.rand(), { rng.rand(), rng.rand() }, surface_point, normal, light_sample))
+			else
 			{
-				Spectrum scattering_f = bsdf.f(albedo, -ray.DIR, light_sample.wiW, normal);
-				float scattering_pdf = bsdf.PDF(-ray.DIR, light_sample.wiW, normal);
-				if (scattering_pdf > 0.f)
-				{	
-					segment.radiance += light_sample.Le * scattering_f * segment.throughput * 
-										CudaPBRT::PowerHeuristic(1, light_sample.pdf, 1, scattering_pdf) * AbsDot(light_sample.wiW, normal) / light_sample.pdf;
+				Material* material = scene.materials[intersection.material_id];
+				Spectrum albedo = material->GetAlbedo();
+				BSDF& bsdf = material->GetBSDF();
+
+				segment.surfaceNormal = material->GetNormal(glm::normalize(intersection.normal));
+				const glm::vec3 surface_point = ray * intersection.t;
+
+				const glm::vec3& normal = segment.surfaceNormal;
+
+				// estimate direct light sample
+				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
+				LightSample light_sample;
+				if (scene.Sample_Li(rng.rand(), { rng.rand(), rng.rand() }, surface_point, normal, light_sample))
+				{
+					Spectrum scattering_f = bsdf.f(albedo, -ray.DIR, light_sample.wiW, normal);
+					float scattering_pdf = bsdf.PDF(-ray.DIR, light_sample.wiW, normal);
+					if (scattering_pdf > 0.f)
+					{
+						segment.radiance += light_sample.Le * scattering_f * segment.throughput *
+							CudaPBRT::PowerHeuristic(1, light_sample.pdf, 1, scattering_pdf) * AbsDot(light_sample.wiW, normal) / light_sample.pdf;
+					}
+				}
+
+				// compute throughput
+				BSDFSample bsdf_sample = bsdf.Sample_f(albedo, -ray.DIR, normal, { rng.rand(), rng.rand() });
+
+				if (bsdf_sample.pdf > 0.f)
+				{
+					segment.bsdfPdf = bsdf_sample.pdf;
+					segment.throughput *= bsdf_sample.f * AbsDot(bsdf_sample.wiW, normal) / segment.bsdfPdf;
+					segment.ray = Ray::SpawnRay(surface_point, bsdf_sample.wiW);
+					++segment.depth;
+					return;
 				}
 			}
-
-			// compute throughput
-			BSDFSample bsdf_sample = bsdf.Sample_f(albedo, -ray.DIR, normal, { rng.rand(), rng.rand() });
-
-			if (bsdf_sample.pdf > 0.f)
-			{
-				segment.bsdfPdf = bsdf_sample.pdf;
-				segment.throughput *= bsdf_sample.f * AbsDot(bsdf_sample.wiW, normal) / segment.bsdfPdf;
-				segment.ray = Ray::SpawnRay(surface_point, bsdf_sample.wiW);
-				++segment.depth;
-				return;
-			}
 		}
+		
 		segment.End();
 	}
 
@@ -492,9 +495,9 @@ namespace CudaPBRT
 		CUDA_CHECK_ERROR();
 
 		int depth = 0;
-		while (max_count > 0 && depth++ < CudaPBRT::PathMaxDepth)
+		while (max_count > 0 && ++depth < CudaPBRT::PathMaxDepth)
 		{
-			KernalConfig intersectionConfig({ max_count, 1, 1 }, { 7, 0, 0 });
+			KernalConfig intersectionConfig({ max_count, 1, 1 }, { 8, 0, 0 });
 
 			// intersection
 			GlobalSceneIntersection << < intersectionConfig.numBlocks, intersectionConfig.threadPerBlock >> > (max_count, device_pathSegment, *scene);
@@ -503,7 +506,7 @@ namespace CudaPBRT
 
 			//thrust::sort(devPathsThr, devPathsThr + max_count);
 
-			KernalConfig throughputConfig({ max_count, 1, 1 }, { 7, 0, 0 });
+			KernalConfig throughputConfig({ max_count, 1, 1 }, { 8, 0, 0 });
 			
 			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
 			//GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
@@ -518,7 +521,7 @@ namespace CudaPBRT
 			max_count = end - devPathsThr;
 		}
 		int numContributing = devTerminatedThr.get() - device_terminatedPathSegment;
-		KernalConfig pixelConfig({ numContributing, 1, 1 }, { 7, 0, 0 });
+		KernalConfig pixelConfig({ numContributing, 1, 1 }, { 8, 0, 0 });
 		
 		GlobalWritePixel << <pixelConfig.numBlocks, pixelConfig.threadPerBlock >> > (m_Iteration, numContributing, device_terminatedPathSegment,
 																					 device_image, device_hdr_image);

@@ -25,8 +25,8 @@ namespace CudaPBRT
             int light_id = static_cast<int>(glm::floor(rand * 10.f)) % light_count;
             sample = lights[light_id]->Sample_Li(p, normal, xi);
             
-            sample.pdf /= light_count; // equivalent to divide by pdf 
-
+            //sample.pdf;// /= light_count; // equivalent to divide by pdf 
+            //printf("arae: %f\n", sample.pdf);
             Intersection shadow_intersect;
             return (IntersectionNaive(sample.shadowRay, shadow_intersect) && shadow_intersect.isLight && shadow_intersect.id == light_id);
         }

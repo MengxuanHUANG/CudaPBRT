@@ -55,11 +55,30 @@ namespace CudaPBRT
 
                 glm::vec3 normal = -glm::sign(localRay.DIR) * glm::step(tmax, v1) * glm::step(tmax, v2);
                 normal = glm::normalize(m_TransformInvTranspose * normal);
+
                 intersection = Intersection(t1, ray * t1, normal);
                 return true;
             }
 
             return false;
+        }
+    
+        CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const
+        {
+            return ComputeNormal(p);
+        }
+
+    protected:
+        INLINE CPU_GPU glm::vec3 ComputeNormal(const glm::vec3& p) const
+        {
+            glm::vec3 local_p = glm::vec3(m_TransformInv * glm::vec4(p, 1.0f));
+            glm::vec3 normal(0.f);
+            int max_axis = 0;
+            if (glm::abs(local_p[max_axis]) < glm::abs(local_p[1])) max_axis = 1;
+            if (glm::abs(local_p[max_axis]) < glm::abs(local_p[2])) max_axis = 2;
+            normal[max_axis] = glm::sign(local_p[max_axis]);
+
+            return normal;
         }
     };
 }

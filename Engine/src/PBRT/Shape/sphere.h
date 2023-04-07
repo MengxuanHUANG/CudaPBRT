@@ -46,5 +46,17 @@ namespace CudaPBRT
 
             return false;
 		}
+
+        CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const override
+        {
+            return ComputeNormal(p);
+        }
+
+    protected:
+        INLINE CPU_GPU glm::vec3 ComputeNormal(const glm::vec3& p) const
+        {
+            return glm::normalize(p - shapeData.translation);
+        }
 	};
+
 }
