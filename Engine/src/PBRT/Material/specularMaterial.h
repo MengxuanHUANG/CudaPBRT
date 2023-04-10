@@ -7,15 +7,15 @@
 namespace CudaPBRT
 {
 	// GPU side object
-	class DiffuseMaterial : public Material
+	class SpecularMaterial : public Material
 	{
 	public:
-		CPU_GPU DiffuseMaterial(const MaterialData& mData)
-			:Material(mData), m_BSDF(new LambertianReflection())
+		CPU_GPU SpecularMaterial(const MaterialData& mData)
+			:Material(mData), m_BSDF(new SpecularReflection())
 		{
 		}
 
-		CPU_GPU ~DiffuseMaterial() {}
+		CPU_GPU ~SpecularMaterial() {}
 
 		CPU_GPU virtual BSDF& GetBSDF() override
 		{

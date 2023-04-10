@@ -9,7 +9,7 @@
 
 namespace CudaPBRT
 {
-	enum class ShapeType
+	enum class ShapeType : unsigned char
 	{
 		None = 0,
 		Sphere,

@@ -5,11 +5,18 @@
 namespace CudaPBRT
 {
 	class BSDF;
-	enum class MaterialType
+	enum class MaterialType : unsigned char
 	{
 		None = 0,
-		DiffuseReflection
+		DiffuseReflection,
+		Specular = BIT(7),
+		SpecularReflection
 	};
+
+	INLINE CPU_GPU bool IsSpecular(MaterialType type)
+	{
+		return static_cast<int>(type) & static_cast<int>(MaterialType::Specular);
+	}
 
 	struct MaterialData
 	{

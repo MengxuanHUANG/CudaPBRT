@@ -39,13 +39,13 @@ namespace CudaPBRT
 			}
 		}
 
-		INLINE CPU_GPU BSDFSample Sample_f(const Spectrum& R, const glm::vec3& woW, const glm::vec3& normal, const glm::vec2& xi) const
+		INLINE CPU_GPU BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& woW, const glm::vec3& normal, const glm::vec2& xi) const
 		{
 			glm::vec3 wo = WorldToLocal(normal) * woW;
 
 			if (wo.z > 0.f)
 			{
-				return m_BxDF->Sample_f(R, wo, normal, xi);
+				return m_BxDF->Sample_f(R, etaA, wo, normal, xi);
 			}
 			else
 			{

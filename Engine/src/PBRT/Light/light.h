@@ -11,7 +11,7 @@ namespace CudaPBRT
 {
 	CPU_GPU Shape* Create(const ShapeData& data);
 
-	enum class LightType
+	enum class LightType : unsigned char
 	{
 		None = 0,
 		ShapeLight,

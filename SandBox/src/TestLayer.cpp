@@ -60,10 +60,11 @@ void TestLayer::OnAttach()
 	int matteWhiteId = 0;
 	int matteRedId = 1;
 	int matteGreenId = 2;
+	int mirrorId = 3;
 	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, -2.5, 0), glm::vec3(10, 10, 1), glm::vec3(-90, 0, 0)); // Floor
 	shapeData.emplace_back(ShapeType::Square, matteRedId,   glm::vec3(5, 2.5, 0),  glm::vec3(10, 10, 1), glm::vec3(0, -90, 0)); // Red wall
 	shapeData.emplace_back(ShapeType::Square, matteGreenId, glm::vec3(-5, 2.5, 0), glm::vec3(10, 10, 1), glm::vec3(0, 90, 0)); // Green Wall
-	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 2.5, 5),  glm::vec3(10, 10, 1), glm::vec3(0, 180, 0)); // Back Wall
+	shapeData.emplace_back(ShapeType::Square, mirrorId, glm::vec3(0, 2.5, 5),  glm::vec3(10, 10, 1), glm::vec3(0, 180, 0)); // Back Wall
 	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 7.5, 0),  glm::vec3(10, 10, 1), glm::vec3(90, 0, 0)); // Ceiling
 
 	//shapeData.emplace_back(ShapeType::Sphere, matteWhiteId, glm::vec3(0, 1.25, 0), glm::vec3(3, 3, 3), glm::vec3(0, 0, 0));
@@ -76,6 +77,7 @@ void TestLayer::OnAttach()
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.85, 0.81, 0.78)); //matteWhite
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.63, 0.065, 0.05)); //matteRed
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.14, 0.45, 0.091)); //matteGreen
+	materialData.emplace_back(MaterialType::SpecularReflection, glm::vec3(1.f, 1.f, 1.f)); // mirror
 
 	// Light
 	std::vector<LightData> lightData;

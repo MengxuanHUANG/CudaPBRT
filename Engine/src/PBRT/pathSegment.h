@@ -5,6 +5,7 @@
 #include "spectrum.h"
 #include "ray.h"
 #include "intersection.h"
+#include "Material/material.h"
 
 namespace CudaPBRT
 {
@@ -12,6 +13,7 @@ namespace CudaPBRT
 	{
 		 int depth = 0;
 		 int pixelId = -1;
+		 MaterialType materialType = MaterialType::None;
 
 		 glm::vec3 surfaceNormal = glm::vec3(0);
 
