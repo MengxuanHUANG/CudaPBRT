@@ -1,8 +1,6 @@
 #pragma once
 #include "PBRT/pbrtDefine.h"
 #include "material.h"
-#include "PBRT/spectrum.h"
-#include "PBRT/bsdf.h"
 
 namespace CudaPBRT
 {
@@ -11,18 +9,8 @@ namespace CudaPBRT
 	{
 	public:
 		CPU_GPU SpecularMaterial(const MaterialData& mData)
-			:Material(mData), m_BSDF(new SpecularReflection())
+			:Material(mData, new SpecularReflection())
 		{
 		}
-
-		CPU_GPU ~SpecularMaterial() {}
-
-		CPU_GPU virtual BSDF& GetBSDF() override
-		{
-			return m_BSDF;
-		}
-
-	protected:
-		BSDF m_BSDF;
 	};
 }

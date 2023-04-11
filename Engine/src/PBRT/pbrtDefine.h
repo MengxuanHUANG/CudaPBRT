@@ -51,6 +51,8 @@ namespace CudaPBRT
 
 	INLINE CPU_GPU float AbsDot(const glm::vec3& wi, const glm::vec3& nor) { return glm::abs(glm::dot(wi, nor)); }
 
+	INLINE CPU_GPU float CosTheta(const glm::vec3& w) { return w.z; }
+
 	INLINE CPU_GPU  float PowerHeuristic(int nf, float fPdf, int ng, float gPdf) 
 	{
 		float f = static_cast<float>(nf) * fPdf;

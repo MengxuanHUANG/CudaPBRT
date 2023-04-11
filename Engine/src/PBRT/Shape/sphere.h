@@ -26,21 +26,17 @@ namespace CudaPBRT
             float A = glm::dot(localRay.DIR, localRay.DIR);
             float B = 2.f * glm::dot(localRay.DIR, localRay.O);
             float C = glm::dot(localRay.O, localRay.O) - 1.f;
+            float t0 = 0.f, t1 = 0.f;
 
-            float delta = B * B - 4.f * A * C;
-            
-            if (delta >= 0)
+            SolveQuadratic(A, B, C, t0, t1);
+
+            float t = (t0 > 0.f ? t0 : t1 > 0.f ? t1 : -1.f);
+
+            if (t > 0.f)
             {
-                float t1 = 0.5f * (-B + glm::sqrt(delta)) / A;
-                float t2 = 0.5f * (-B - glm::sqrt(delta)) / A;
-                float t = t2 > 0 ? t2 : t1;
-
-                glm::vec3 local_pos = localRay * t; // also the local normal
-                glm::vec3 normal = m_TransformInvTranspose * local_pos;
-                normal = glm::normalize(normal);
+                glm::vec3 normal = glm::normalize(m_TransformInvTranspose * (localRay * t));
 
                 intersection = Intersection(t, ray * t, normal);
-
                 return true;
             }
 
@@ -53,6 +49,17 @@ namespace CudaPBRT
         }
 
     protected:
+        INLINE CPU_GPU static void SolveQuadratic(float A, float B, float C, float& t0, float& t1) 
+        {
+            float invA = 1.f / A;
+            B *= invA;
+            C *= invA;
+            float neg_halfB = -B * 0.5f;
+            float u2 = neg_halfB * neg_halfB - C;
+            float u = u2 < 0.f ? (neg_halfB = 0.f) : glm::sqrt(u2);
+            t0 = neg_halfB - u;
+            t1 = neg_halfB + u;
+        }
         INLINE CPU_GPU glm::vec3 ComputeNormal(const glm::vec3& p) const
         {
             return glm::normalize(p - shapeData.translation);

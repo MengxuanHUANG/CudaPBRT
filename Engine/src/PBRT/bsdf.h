@@ -1,6 +1,6 @@
 #pragma once
 #include "PBRT/pbrtDefine.h"
-#include "PBRT/Spectrum.h"
+#include "PBRT/spectrum.h"
 #include "PBRT/bxdfs.h"
 
 #include <glm/glm.hpp>
@@ -28,29 +28,14 @@ namespace CudaPBRT
 			glm::vec3 wo = toLocal * woW;
 			glm::vec3 wi = toLocal * wiW;
 
-			if (wo.z > 0.f)
-			{
-				return m_BxDF->f(R, wo, wi);
-				
-			}
-			else
-			{
-				return Spectrum(0.f);
-			}
+			return m_BxDF->f(R, wo, wi);
 		}
 
 		INLINE CPU_GPU BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& woW, const glm::vec3& normal, const glm::vec2& xi) const
 		{
 			glm::vec3 wo = WorldToLocal(normal) * woW;
 
-			if (wo.z > 0.f)
-			{
-				return m_BxDF->Sample_f(R, etaA, wo, normal, xi);
-			}
-			else
-			{
-				return BSDFSample();
-			}
+			return m_BxDF->Sample_f(R, etaA, wo, normal, xi);
 		}
 
 		INLINE CPU_GPU float PDF(const glm::vec3& woW, const glm::vec3& wiW, const glm::vec3& normal) const
@@ -59,14 +44,7 @@ namespace CudaPBRT
 			glm::vec3 wo = toLocal * woW;
 			glm::vec3 wi = toLocal * wiW;
 
-			if (wo.z > 0.f)
-			{
-				return m_BxDF->PDF(wo, wi);
-			}
-			else
-			{
-				return 0.f;
-			}
+			return m_BxDF->PDF(wo, wi);
 		}
 
 	public:

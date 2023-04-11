@@ -13,6 +13,7 @@
 
 #include "Material/diffuseMaterial.h"
 #include "Material/specularMaterial.h"
+#include "Material/glass.h"
 #include "Sampler/rng.h"
 #include "Light/light.h"
 
@@ -60,6 +61,8 @@ namespace CudaPBRT
 			return new DiffuseMaterial(data);
 		case MaterialType::SpecularReflection:
 			return new SpecularMaterial(data);
+		case MaterialType::SpecularTransmission:
+			return new Glass(data);
 		default:
 			printf("Unknown MaterialType!\n");
 			return nullptr;
@@ -240,6 +243,26 @@ namespace CudaPBRT
 		scene.IntersectionNaive(segment.ray, segment.intersection);
 	}
 
+	__global__ void GlobalDisplayNormal(int max_index, PathSegment* pathSegment, Scene scene)
+	{
+		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+		if (index >= max_index || pathSegment[index].IsEnd())
+		{
+			return;
+		}
+
+		PathSegment& segment = pathSegment[index];
+		Intersection& intersection = segment.intersection;
+		if (intersection.id >= 0)
+		{
+			Material* material = scene.materials[intersection.material_id];
+			segment.surfaceNormal = material->GetNormal(intersection.normal);
+			segment.radiance = 0.5f * (segment.surfaceNormal + 1.f);
+		}
+		segment.End();
+	}
+
 	__global__ void GlobalNaiveLi(int iteration, int max_index, PathSegment* pathSegment, Scene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -268,8 +291,7 @@ namespace CudaPBRT
 
 				BSDF& bsdf = material->GetBSDF();
 
-				segment.surfaceNormal = material->GetNormal(glm::normalize(intersection.normal));
-				const glm::vec3& normal = segment.surfaceNormal;
+				const glm::vec3& normal = material->GetNormal(intersection.normal);
 
 				BSDFSample bsdf_sample = bsdf.Sample_f(material->GetAlbedo(), segment.eta, -ray.DIR, normal, { rng.rand(), rng.rand() });
 
@@ -281,7 +303,7 @@ namespace CudaPBRT
 				{
 					segment.bsdfPdf = bsdf_sample.pdf;
 					segment.throughput *= bsdf_sample.f / bsdf_sample.pdf;
-					if (!IsSpecular(material->m_MaterialData.type))
+					if (!MaterialIs(segment.materialType, MaterialType::Specular))
 					{
 						segment.throughput *= AbsDot(bsdf_sample.wiW, normal);
 					}
@@ -318,15 +340,16 @@ namespace CudaPBRT
 			else
 			{
 				Material* material = scene.materials[intersection.material_id];
-				glm::vec3 normal = glm::normalize(intersection.normal);
+				glm::vec3 normal = intersection.normal;
 				normal = material->GetNormal(normal);
 
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
 				LightSample sample;
+
 				if (scene.Sample_Li(rng.rand(), { rng.rand(), rng.rand() }, ray * intersection.t, normal, sample))
 				{
 					segment.throughput *= material->GetAlbedo() * sample.Le * AbsDot(sample.wiW, normal) / sample.pdf;
-
+					
 					segment.radiance += segment.throughput;
 				}
 			}
@@ -353,7 +376,7 @@ namespace CudaPBRT
 			{
 				segment.throughput *= scene.lights[intersection.id]->GetLe();
 
-				if (segment.depth > 0 && !IsSpecular(segment.materialType))
+				if (segment.depth > 0 && !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
 					float light_pdf = scene.PDF_Li(intersection.id, ray * intersection.t, ray.DIR, intersection.t, segment.surfaceNormal);
 					segment.throughput *= CudaPBRT::PowerHeuristic(1, segment.bsdfPdf, 1, light_pdf);
@@ -367,20 +390,20 @@ namespace CudaPBRT
 				BSDF& bsdf = material->GetBSDF();
 				segment.materialType = material->m_MaterialData.type;
 
-				segment.surfaceNormal = material->GetNormal(glm::normalize(intersection.normal));
+				segment.surfaceNormal = material->GetNormal(intersection.normal);
 				const glm::vec3 surface_point = ray * intersection.t;
 
 				const glm::vec3& normal = segment.surfaceNormal;
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
 
 				// estimate direct light sample
-				if (!IsSpecular(material->m_MaterialData.type))
+				if (!MaterialIs(segment.materialType, MaterialType::Specular))
 				{
 					LightSample light_sample;
 					if (scene.Sample_Li(rng.rand(), { rng.rand(), rng.rand() }, surface_point, normal, light_sample))
 					{
-						Spectrum scattering_f = bsdf.f(albedo, -ray.DIR, light_sample.wiW, normal);
-						float scattering_pdf = bsdf.PDF(-ray.DIR, light_sample.wiW, normal);
+						Spectrum scattering_f = bsdf.f(albedo, -ray.DIR, light_sample.wiW, normal); // evaluate scattering bsdf
+						float scattering_pdf = bsdf.PDF(-ray.DIR, light_sample.wiW, normal);// evaluate scattering pdf
 						if (scattering_pdf > 0.f)
 						{
 							segment.radiance += light_sample.Le * scattering_f * segment.throughput *
@@ -396,7 +419,7 @@ namespace CudaPBRT
 				{
 					segment.bsdfPdf = bsdf_sample.pdf;
 					segment.throughput *= bsdf_sample.f / segment.bsdfPdf;
-					if (!IsSpecular(material->m_MaterialData.type))
+					if (!MaterialIs(segment.materialType, MaterialType::Specular))
 					{
 						segment.throughput *= AbsDot(bsdf_sample.wiW, normal);
 					}
@@ -526,6 +549,8 @@ namespace CudaPBRT
 
 			KernalConfig throughputConfig({ max_count, 1, 1 }, { 8, 0, 0 });
 			
+			//GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, *scene);
+
 			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
 			//GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
 			GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);

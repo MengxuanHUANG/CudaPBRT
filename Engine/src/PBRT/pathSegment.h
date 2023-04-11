@@ -13,11 +13,10 @@ namespace CudaPBRT
 	{
 		 int depth = 0;
 		 int pixelId = -1;
-		 MaterialType materialType = MaterialType::None;
-
+		 
 		 glm::vec3 surfaceNormal = glm::vec3(0);
-
 		 float bsdfPdf = 0.f;
+		 MaterialType materialType = MaterialType::None;
 
 		 Spectrum throughput = Spectrum(1.f);
 		 Spectrum radiance = Spectrum(0.f);
@@ -39,6 +38,7 @@ namespace CudaPBRT
 			 
 			 surfaceNormal = glm::vec3(0.f);
 			 bsdfPdf = 0.f;
+			 materialType = MaterialType::None;
 
 			 throughput = Spectrum(1.f);
 			 radiance = Spectrum(0.f);
