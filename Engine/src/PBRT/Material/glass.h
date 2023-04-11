@@ -9,7 +9,7 @@ namespace CudaPBRT
 	{
 	public:
 		CPU_GPU Glass(const MaterialData& mData)
-			:Material(mData, new SpecularTransmission(mData.eta))
+			:Material(mData, new GlassBxDF(mData.eta))
 		{
 		}
 	};

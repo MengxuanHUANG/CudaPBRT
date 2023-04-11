@@ -79,7 +79,7 @@ void TestLayer::OnAttach()
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.63, 0.065, 0.05)); //matteRed
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.14, 0.45, 0.091)); //matteGreen
 	materialData.emplace_back(MaterialType::SpecularReflection, glm::vec3(1.f, 1.f, 1.f)); // mirror
-	materialData.emplace_back(MaterialType::SpecularTransmission, glm::vec3(.7f, 1.f, .7f), 0.f, 0.f, 1.55f); // glass
+	materialData.emplace_back(MaterialType::SpecularTransmission, glm::vec3(0.9f, 0.9f, 1.f), 0.f, 0.f, 1.55f); // glass
 
 	// Light
 	std::vector<LightData> lightData;

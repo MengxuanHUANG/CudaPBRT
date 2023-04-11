@@ -9,7 +9,37 @@
 namespace CudaPBRT
 {
 	// bsdf help functions
-	CPU_GPU float FresnelDielectric(float etaI, float etaT, float cosThetaI);
+	INLINE CPU_GPU float FresnelDielectric(float etaI, float etaT, float cosThetaI)
+	{
+		cosThetaI = glm::clamp(cosThetaI, -1.f, 1.f);
+
+		if (cosThetaI < 0.f)
+		{
+			float temp = etaI;
+			etaI = etaT;
+			etaT = temp;
+			cosThetaI = -cosThetaI;
+		}
+
+		float sinThetaI = glm::sqrt(glm::max(0.f, 1.f - cosThetaI * cosThetaI));
+		float sinThetaT = etaI / etaT * sinThetaI;
+
+		if (sinThetaT >= 1.f)
+		{
+			return 1.f;
+		}
+
+		float cosThetaT = glm::sqrt(glm::max(0.f, 1.f - sinThetaT * sinThetaT));
+		float Rparl = ((etaT * cosThetaI) - (etaI * cosThetaT)) / ((etaT * cosThetaI) + (etaI * cosThetaT));
+		float Rperp = ((etaI * cosThetaI) - (etaT * cosThetaT)) / ((etaI * cosThetaI) + (etaT * cosThetaT));
+
+		return (Rparl * Rparl + Rperp * Rperp) / 2.f;
+	}
+
+	INLINE CPU_GPU glm::vec3 Reflect(const glm::vec3& wo)
+	{
+		return { -wo.x, -wo.y, wo.z };
+	}
 
 	INLINE CPU_GPU bool Refract(const glm::vec3& wi, const glm::vec3& n, float eta, glm::vec3& wt)
 	{
@@ -88,8 +118,7 @@ namespace CudaPBRT
 
 		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const override
 		{
-			glm::vec3 wi = -wo;
-			wi.z *= -1.f;
+			glm::vec3 wi = Reflect(wo);
 
 			glm::vec3 wiW = normalize(LocalToWorld(normal) * wi);
 
@@ -131,6 +160,60 @@ namespace CudaPBRT
 			glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
 
 			return BSDFSample(ft, wiW, 1.f, etaB);
+		}
+
+		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const override
+		{
+			return 0.f;
+		}
+
+	public:
+		float etaB;
+	};
+
+	class GlassBxDF : public BxDF
+	{
+	public:
+		CPU_GPU GlassBxDF(float eta)
+			:etaB(eta)
+		{}
+		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& wo, const glm::vec3& wi) const override
+		{
+			return Spectrum(0.f);
+		}
+
+		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& T, float etaA, const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const override
+		{
+			bool entering = CosTheta(wo) > 0.f;
+			float etaI = entering ? etaA : etaB;
+			float etaT = entering ? etaB : etaA;
+
+			float F = FresnelDielectric(etaA, etaB, CosTheta(wo));
+			if (xi.x < F)
+			{
+				// reflection
+				glm::vec3 wi = Reflect(wo);
+				glm::vec3 wiW = normalize(LocalToWorld(normal) * wi);
+
+				return BSDFSample(T / AbsCosTheta(wi), wiW, 1.f, etaA);
+			}
+			else
+			{
+				// transimission
+				glm::vec3 wi;
+
+				if (!Refract(wo, Faceforward(glm::vec3(0, 0, 1), wo), etaI / etaT, wi))
+				{
+					// pure reflection
+					return BSDFSample();
+				}
+
+				Spectrum ft = T;
+				ft *= (etaI * etaI) / (etaT * etaT);
+				glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
+
+				return BSDFSample(ft / AbsCosTheta(wi), wiW, 1.f, etaB);
+			}
 		}
 
 		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const override
