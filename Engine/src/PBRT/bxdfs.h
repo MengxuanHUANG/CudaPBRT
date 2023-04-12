@@ -122,7 +122,7 @@ namespace CudaPBRT
 
 			glm::vec3 wiW = normalize(LocalToWorld(normal) * wi);
 
-			return BSDFSample(R, wiW, 1.f, etaA);
+			return BSDFSample(R / AbsCosTheta(wi), wiW, 1.f, etaA);
 		}
 
 		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const override
@@ -159,7 +159,7 @@ namespace CudaPBRT
 
 			glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
 
-			return BSDFSample(ft, wiW, 1.f, etaB);
+			return BSDFSample(ft / AbsCosTheta(wi), wiW, 1.f, etaB);
 		}
 
 		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const override

@@ -302,11 +302,7 @@ namespace CudaPBRT
 				else
 				{
 					segment.bsdfPdf = bsdf_sample.pdf;
-					segment.throughput *= bsdf_sample.f / bsdf_sample.pdf;
-					if (!MaterialIs(segment.materialType, MaterialType::Specular))
-					{
-						segment.throughput *= AbsDot(bsdf_sample.wiW, normal);
-					}
+					segment.throughput *= bsdf_sample.f * AbsDot(bsdf_sample.wiW, normal) / bsdf_sample.pdf;
 					segment.ray = Ray::SpawnRay(ray * intersection.t, bsdf_sample.wiW);
 					++segment.depth;
 					return;
@@ -418,11 +414,7 @@ namespace CudaPBRT
 				if (bsdf_sample.pdf > 0.f)
 				{
 					segment.bsdfPdf = bsdf_sample.pdf;
-					segment.throughput *= bsdf_sample.f / segment.bsdfPdf;
-					if (!MaterialIs(segment.materialType, MaterialType::Specular))
-					{
-						segment.throughput *= AbsDot(bsdf_sample.wiW, normal);
-					}
+					segment.throughput *= bsdf_sample.f * AbsDot(bsdf_sample.wiW, normal) / segment.bsdfPdf;
 					segment.ray = Ray::SpawnRay(surface_point, bsdf_sample.wiW);
 					++segment.depth;
 					return;

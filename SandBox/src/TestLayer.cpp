@@ -90,8 +90,6 @@ void TestLayer::OnAttach()
 	CreateArrayOnCude<Shape, ShapeData>(m_Scene->shapes, m_Scene->shape_count, shapeData);
 	CreateArrayOnCude<Material, MaterialData>(m_Scene->materials, m_Scene->material_count, materialData);
 	CreateArrayOnCude<Light, LightData>(m_Scene->lights, m_Scene->light_count, lightData);
-
-	
 }
 void TestLayer::OnDetach()
 {
