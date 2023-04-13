@@ -30,6 +30,8 @@ namespace CudaPBRT
 
 	static constexpr float FloatMin = std::numeric_limits<float>::min();
 	static constexpr float FloatMax = std::numeric_limits<float>::max();
+	static constexpr float FloatEpsilon = std::numeric_limits<float>::epsilon();
+
 	static constexpr float MachineEpsilon = 0.5f * std::numeric_limits<float>::epsilon();
 
 	static constexpr float AirETA = 1.000293f;

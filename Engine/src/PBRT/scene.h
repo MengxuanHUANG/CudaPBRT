@@ -14,7 +14,7 @@ namespace CudaPBRT
 	{
 	public:
         Scene()
-            : shapes(nullptr), materials(nullptr), lights(nullptr),
+            : shapes(nullptr), materials(nullptr), lights(nullptr), vertices(nullptr),
               shape_count(0), material_count(0), light_count(0)
         {
         }
@@ -41,6 +41,7 @@ namespace CudaPBRT
             FreeArrayOnCuda<Shape>(shapes, shape_count);
             FreeArrayOnCuda<Material>(materials, material_count);
             FreeArrayOnCuda<Light>(lights, light_count);
+            CUDA_FREE(vertices);
         }
 
 		CPU_GPU bool IntersectionNaive(const Ray& ray, Intersection& intersection)
@@ -73,6 +74,7 @@ namespace CudaPBRT
         Shape** shapes; // shapes on device
         Material** materials; // materials on device
 		Light** lights; // lights on device
+        glm::vec3* vertices;
 
         size_t shape_count;
         size_t material_count;

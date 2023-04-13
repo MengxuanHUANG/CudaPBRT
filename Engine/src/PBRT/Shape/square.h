@@ -13,8 +13,10 @@ namespace CudaPBRT
     {
     public:
         CPU_GPU Square(const ShapeData& data)
-            : Shape(data)
-        {}
+            : Shape(data), shapeData(data)
+        {
+            Shape::ComputeTransforms(data.translation, data.rotation, data.scale, m_Transform, m_TransformInv, m_TransformInvTranspose);
+        }
 
         CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const override
         {
@@ -63,5 +65,12 @@ namespace CudaPBRT
         {
             return glm::normalize(m_TransformInvTranspose * glm::vec3(0.f, 0.f, 1.f));
         }
+
+    protected:
+        glm::mat4 m_Transform;
+        glm::mat4 m_TransformInv;
+        glm::mat3 m_TransformInvTranspose;
+
+        ShapeData shapeData;
     };
 }

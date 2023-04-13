@@ -5,14 +5,13 @@
 #include "Camera/Camera.h"
 #include "Camera/CameraController.h"
 
-#include <cuda_runtime.h>
+#include "PBRT/scene.h"
 
 using namespace CudaPBRT;
 
 namespace CudaPBRT
 {
 	class CudaPathTracer;
-	class Scene;
 }
 
 class TestLayer : public Layer
@@ -31,6 +30,8 @@ public:
 
 protected:
 	bool OnWindowResize(WindowResizeEvent& event);
+
+	void AddCornellBox_Triangles(std::vector<ShapeData>& shapeData, int material_a, int material_b);
 
 public:
 	uPtr<PerspectiveCamera> m_Camera;

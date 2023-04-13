@@ -10,6 +10,7 @@
 #include "Shape/sphere.h"
 #include "Shape/square.h"
 #include "Shape/cube.h"
+#include "Shape/triangle.h"
 
 #include "Material/diffuseMaterial.h"
 #include "Material/specularMaterial.h"
@@ -47,6 +48,8 @@ namespace CudaPBRT
 			return new Cube(data);
 		case ShapeType::Square:
 			return new Square(data);
+		case ShapeType::Triangle:
+			return new Triangle(data);
 		default:
 			printf("Unknown ShapeType!\n");
 			return nullptr;
@@ -162,27 +165,29 @@ namespace CudaPBRT
 	template<typename T, typename DataType>
 	void CreateArrayOnCude<T, DataType>(T**& dev_array, size_t& count, std::vector<DataType>& host_data)
 	{
-		DataType* device_data;
 		count = host_data.size();
+		if (count > 0)
+		{
+			DataType* device_data;
+			cudaMalloc((void**)&device_data, sizeof(DataType) * count);
+			CUDA_CHECK_ERROR();
 
-		cudaMalloc((void**)&device_data, sizeof(DataType) * count);
-		CUDA_CHECK_ERROR();
+			cudaMemcpy(device_data, host_data.data(), sizeof(DataType) * count, cudaMemcpyHostToDevice);
+			CUDA_CHECK_ERROR();
 
-		cudaMemcpy(device_data, host_data.data(), sizeof(DataType) * count, cudaMemcpyHostToDevice);
-		CUDA_CHECK_ERROR();
+			cudaMalloc((void**)&dev_array, sizeof(T*) * count);
+			CUDA_CHECK_ERROR();
 
-		cudaMalloc((void**)&dev_array, sizeof(T*) * count);
-		CUDA_CHECK_ERROR();
+			// Launch a kernel on the GPU with one thread for each element.
+			KernalConfig createConfig({ count, 1, 1 }, { 0, 0, 0 });
+			CreateArray<T, DataType> << < createConfig.numBlocks, createConfig.threadPerBlock >> > (dev_array, device_data, count);
 
-		// Launch a kernel on the GPU with one thread for each element.
-		KernalConfig createConfig({ count, 1, 1 }, { 0, 0, 0 });
-		CreateArray<T, DataType> << < createConfig.numBlocks, createConfig.threadPerBlock >> > (dev_array, device_data, count);
+			// cudaDeviceSynchronize waits for the kernel to finish
+			cudaDeviceSynchronize();
+			CUDA_CHECK_ERROR();
 
-		// cudaDeviceSynchronize waits for the kernel to finish
-		cudaDeviceSynchronize();
-		CUDA_CHECK_ERROR();
-
-		CUDA_FREE(device_data);
+			CUDA_FREE(device_data);
+		}
 	}
 
 	template void CreateArrayOnCude<Light, LightData>(Light**& dev_array, size_t& dev_count, std::vector<LightData>& data);

@@ -97,6 +97,10 @@ namespace CudaPBRT
 
 		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const override
 		{
+			if (wo.z <= 0.f)
+			{
+				return BSDFSample();
+			}
 			glm::vec3 wi = Sampler::SquareToHemisphereCosine(xi);
 			glm::vec3 wiW = normalize(LocalToWorld(normal) * wi);
 			

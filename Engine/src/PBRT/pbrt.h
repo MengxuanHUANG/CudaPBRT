@@ -12,6 +12,20 @@ namespace CudaPBRT
 	class Scene;
 
 	struct PathSegment;
+	template<typename T>
+	void BufferData(T*& device_ptr, T* host_ptr, size_t size)
+	{
+		ASSERT(device_ptr == nullptr);
+		ASSERT(host_ptr != nullptr);
+		if (size > 0)
+		{
+			cudaMalloc((void**)&device_ptr, sizeof(T) * size);
+			CUDA_CHECK_ERROR();
+
+			cudaMemcpy(device_ptr, host_ptr, sizeof(T) * size, cudaMemcpyHostToDevice);
+			CUDA_CHECK_ERROR();
+		}
+	}
 
 	template<typename T, typename DataType>
 	void CreateArrayOnCude(T**& dev_array, size_t& dev_count, std::vector<DataType>& host_data);
