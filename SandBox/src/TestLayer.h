@@ -28,10 +28,16 @@ public:
 
 	virtual bool OnEvent(Event& event) override;
 
+	void LoadScene();
+
 protected:
 	bool OnWindowResize(WindowResizeEvent& event);
 
+	void TestSingleTriangle(std::vector<ShapeData>& shapeData);
+
 	void AddCornellBox_Triangles(std::vector<ShapeData>& shapeData, int material_a, int material_b);
+
+	void TestBoundingBox(std::vector<ShapeData>& shapeData);
 
 public:
 	uPtr<PerspectiveCamera> m_Camera;

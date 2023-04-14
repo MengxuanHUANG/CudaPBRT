@@ -3,6 +3,7 @@
 #include "PBRT/pbrtDefine.h"
 #include "PBRT/intersection.h"
 #include "PBRT/ray.h"
+#include "PBRT/BVH/boundingBox.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>

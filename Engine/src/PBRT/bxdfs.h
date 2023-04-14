@@ -68,7 +68,7 @@ namespace CudaPBRT
 		Spectrum f;
 		glm::vec3 wiW;
 		float pdf = 0.f;
-		float eta = 1.f;
+		float eta = AirETA;
 
 		CPU_GPU BSDFSample()
 		{}

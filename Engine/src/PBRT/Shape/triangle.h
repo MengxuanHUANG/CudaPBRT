@@ -74,6 +74,11 @@ namespace CudaPBRT
 
             return glm::normalize(glm::cross(v1 - v0, v2 - v0));
         }
+
+        INLINE CPU_ONLY static BoundingBox GetWorldBounding(const std::array<glm::vec3, 3>& v)
+        { 
+            return { glm::min(glm::min(v[0], v[1]), v[2]), glm::max(glm::max(v[0], v[1]), v[2]) };
+        }
     protected:
         glm::vec3* m_Vertices;
         glm::ivec3 m_VerticesId;

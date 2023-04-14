@@ -263,7 +263,15 @@ namespace CudaPBRT
 		{
 			Material* material = scene.materials[intersection.material_id];
 			segment.surfaceNormal = material->GetNormal(intersection.normal);
-			segment.radiance = 0.5f * (segment.surfaceNormal + 1.f);
+			glm::vec3 wo = WorldToLocal(segment.surfaceNormal) * (-segment.ray.DIR);
+			if (wo.z > 0.f)
+			{
+				segment.radiance = 0.5f * (segment.surfaceNormal + 1.f);
+			}
+			else
+			{
+				//segment.radiance = 0.f;
+			}
 		}
 		segment.End();
 	}
@@ -546,11 +554,11 @@ namespace CudaPBRT
 
 			KernalConfig throughputConfig({ max_count, 1, 1 }, { 8, 0, 0 });
 			
-			//GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, *scene);
+			GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, *scene);
 
 			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
 			//GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			//GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
 
 			cudaDeviceSynchronize();
 			CUDA_CHECK_ERROR();
