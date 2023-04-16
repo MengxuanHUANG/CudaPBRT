@@ -35,9 +35,11 @@ protected:
 
 	void TestSingleTriangle(std::vector<ShapeData>& shapeData);
 
-	void AddCornellBox_Triangles(std::vector<ShapeData>& shapeData, int material_a, int material_b);
+	void AddCornellBox_Triangles(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices, int material_a, int material_b);
+	
+	void AddTwoBox_Triangles(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices, int material_a, int material_b);
 
-	void TestBoundingBox(std::vector<ShapeData>& shapeData);
+	void TestBoundingBox(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices);
 
 public:
 	uPtr<PerspectiveCamera> m_Camera;

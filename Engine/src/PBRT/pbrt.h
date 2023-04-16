@@ -2,6 +2,7 @@
 
 #include "pbrtDefine.h"
 #include "Camera/Camera.h"
+#include "ray.h"
 
 #include <thrust/device_ptr.h>
 
@@ -10,6 +11,8 @@
 namespace CudaPBRT
 {
 	class Scene;
+
+	CPU_GPU Ray CastRay(const PerspectiveCamera& camera, const glm::vec2& p);
 
 	struct PathSegment;
 	template<typename T>

@@ -9,11 +9,11 @@ namespace CudaPBRT
 	class BoundingBox
 	{
 	public:
-		CPU_ONLY BoundingBox()
-			: m_Min(FloatMin),
-			  m_Max(FloatMax)
+		CPU_GPU BoundingBox()
+			: m_Min(FloatMax),
+			  m_Max(FloatMin)
 		{}
-		CPU_ONLY BoundingBox(const glm::vec3& pMin, const glm::vec3& pMax)
+		CPU_GPU BoundingBox(const glm::vec3& pMin, const glm::vec3& pMax)
 			: m_Min(pMin), m_Max(pMax)
 		{}
 
@@ -22,6 +22,8 @@ namespace CudaPBRT
 			ASSERT(i == 0 || i == 1);
 			return (i == 0 ? m_Min : m_Max);
 		}
+
+		CPU_GPU inline glm::vec3 Centroid() const { return .5f * m_Min + .5f * m_Max; }
 
 		CPU_GPU inline glm::vec3 Diagonal() const { return m_Max - m_Min; }
 
@@ -44,6 +46,20 @@ namespace CudaPBRT
 						glm::max(m_Max.y, bBox.m_Max.y),
 						glm::max(m_Max.z, bBox.m_Max.z)
 					)};
+		}
+
+		CPU_GPU inline BoundingBox Union(const glm::vec3& p) const
+		{
+			return { glm::vec3(
+						glm::min(m_Min.x, p.x),
+						glm::min(m_Min.y, p.y),
+						glm::min(m_Min.z, p.z)
+					),
+					glm::vec3(
+						glm::max(m_Max.x, p.x),
+						glm::max(m_Max.y, p.y),
+						glm::max(m_Max.z, p.z)
+					) };
 		}
 
 		CPU_GPU inline BoundingBox Intersect(const BoundingBox& bBox) const
@@ -121,36 +137,20 @@ namespace CudaPBRT
 			radius = Inside(center) ? glm::length(center - m_Max) : 0.f;
 		}
 
-		CPU_GPU bool IntersectP(const Ray& ray, float* hit_t0, float* hit_t1) const
+		CPU_GPU bool IntersectP(const Ray& ray, const glm::vec3& inv_dir, float& t) const
 		{
-			float t0 = 0, t1 = ray.tMax;
-			for (int i = 0; i < 3; ++i) // check x, y, z
-			{
-				float invRayDir = 1.f / ray.DIR[i];
+			glm::vec3 tNear = (m_Min - ray.O) * inv_dir;
+			glm::vec3 tFar = (m_Max - ray.O) * inv_dir;
 
-				// solve the equation: min[i] = o[i] + t * d[i]
-				float tNear = (m_Min[i] - ray.O[i]) * invRayDir;
-				// solve the equation: max[i] = o[i] + t * d[i]
-				float tFar = (m_Max[i] - ray.O[i]) * invRayDir;
+			glm::vec3 tmin = glm::min(tNear, tFar);
+			glm::vec3 tmax = glm::max(tNear, tFar);
 
-				if (tNear > tFar)
-				{
-					float temp = tNear;
-					tNear = tFar;
-					tFar = temp;
-				}
+			float t0 = glm::max(glm::max(tmin.x, tmin.y), tmin.z);
+			float t1 = glm::min(glm::min(tmax.x, tmax.y), tmax.z);
 
-				// avoid floating point error
-				tFar *= 1 + 2 * gamma(3);
-				
-				t0 = glm::max(tNear, t0);
-				t1 = glm::min(tFar, t1);
+			if (t0 > t1) return false;
 
-				if (t0 > t1) return false;
-			}
-
-			if (hit_t0) *hit_t0 = t0;
-			if (hit_t1) *hit_t1 = t1;
+			t = t0;
 
 			return true;
 		}
