@@ -1,12 +1,37 @@
 #include "bvh.h"
 
 #include "PBRT/Shape/triangle.h"
+#include "PBRT/Shape/square.h"
+#include "PBRT/Shape/cube.h"
+#include "PBRT/Shape/sphere.h"
+
 #include "PBRT/pbrt.h"
 #include <queue>
 #include <format>
 
 namespace CudaPBRT
 {
+	INLINE BoundingBox CreateBoundingBox(const ShapeData& data, const std::vector<glm::vec3>& vertices)
+	{
+		switch (data.type)
+		{
+		case ShapeType::Triangle:
+			return Triangle::GetWorldBounding({ vertices[data.verticeId[0]],
+												vertices[data.verticeId[1]],
+												vertices[data.verticeId[2]] });
+		case ShapeType::Square:
+			return Square::GetWorldBounding(data);
+		case ShapeType::Cube:
+			return Cube::GetWorldBounding(data);
+		case ShapeType::Sphere:
+			return Sphere::GetWorldBounding(data);
+		default:
+			printf("Unknown ShapeType!\n");
+		}
+
+		return {};
+	}
+
 	void CreateBVH(std::vector<ShapeData>& shapeData,
 				   const std::vector<glm::vec3>& vertices,
 				   std::vector<BoundingBox>& bounding_boxes,
@@ -20,9 +45,7 @@ namespace CudaPBRT
 		// Create Bounding boxes for all shapes
 		for (int i = 0; i < shapeData.size(); ++i)
 		{
-			boxes.emplace_back(i, Triangle::GetWorldBounding({ vertices[shapeData[i].verticeId[0]], 
-															   vertices[shapeData[i].verticeId[1]], 
-															   vertices[shapeData[i].verticeId[2]]}));
+			boxes.emplace_back(i, CreateBoundingBox(shapeData[i], vertices));
 
 			//std::string tem = R"(AABB( min[{}, {}, {}], max[{}, {}, {}] ))";
 			//

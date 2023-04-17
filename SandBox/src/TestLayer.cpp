@@ -147,8 +147,6 @@ void TestLayer::AddCornellBox_Triangles(std::vector<ShapeData>& shapeData, std::
 	std::vector<glm::ivec3> triangles;
 	// apply transform
 	glm::mat4 transform;
-	glm::mat4 invTrans;
-	glm::mat3 transposeInvTrans;
 
 	v_start_id.emplace_back(vertices.size());
 	vertices.emplace_back(1, 1, -1);
@@ -176,7 +174,7 @@ void TestLayer::AddCornellBox_Triangles(std::vector<ShapeData>& shapeData, std::
 	tri_end_id.emplace_back(triangles.size());
 	material_id.emplace_back(material_a);
 	
-	Shape::ComputeTransforms(glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(1.5, 3, 1.5), transform, invTrans, transposeInvTrans);
+	Shape::ComputeTransform(glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(1.5, 3, 1.5), transform);
 
 	for (int i = v_start_id.back(); i < vertices.size(); ++i)
 	{
@@ -209,7 +207,7 @@ void TestLayer::AddCornellBox_Triangles(std::vector<ShapeData>& shapeData, std::
 	tri_end_id.emplace_back(triangles.size());
 	material_id.emplace_back(material_b);
 
-	Shape::ComputeTransforms(glm::vec3(-2, -1, 0.75), glm::vec3(0, -17.5, 0), glm::vec3(1.5, 1.5, 1.5), transform, invTrans, transposeInvTrans);
+	Shape::ComputeTransform(glm::vec3(-2, -1, 0.75), glm::vec3(0, -17.5, 0), glm::vec3(1.5, 1.5, 1.5), transform);
 
 	for (int i = v_start_id.back(); i < vertices.size(); ++i)
 	{
@@ -238,8 +236,6 @@ void TestLayer::AddTwoBox_Triangles(std::vector<ShapeData>& shapeData, std::vect
 	std::vector<glm::ivec3> triangles;
 	// apply transform
 	glm::mat4 transform;
-	glm::mat4 invTrans;
-	glm::mat3 transposeInvTrans;
 
 	v_start_id.emplace_back(vertices.size());
 	vertices.emplace_back(1, 1, -1);
@@ -267,7 +263,7 @@ void TestLayer::AddTwoBox_Triangles(std::vector<ShapeData>& shapeData, std::vect
 	tri_end_id.emplace_back(triangles.size());
 	material_id.emplace_back(material_a);
 
-	Shape::ComputeTransforms(glm::vec3(2, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), transform, invTrans, transposeInvTrans);
+	Shape::ComputeTransform(glm::vec3(2, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), transform);
 
 	for (int i = v_start_id.back(); i < vertices.size(); ++i)
 	{
@@ -300,7 +296,7 @@ void TestLayer::AddTwoBox_Triangles(std::vector<ShapeData>& shapeData, std::vect
 	tri_end_id.emplace_back(triangles.size());
 	material_id.emplace_back(material_b);
 
-	Shape::ComputeTransforms(glm::vec3(-2, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), transform, invTrans, transposeInvTrans);
+	Shape::ComputeTransform(glm::vec3(-2, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), transform);
 
 	for (int i = v_start_id.back(); i < vertices.size(); ++i)
 	{
@@ -320,32 +316,8 @@ void TestLayer::AddTwoBox_Triangles(std::vector<ShapeData>& shapeData, std::vect
 	}
 }
 
-void TestLayer::TestBoundingBox(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices)
+void TestLayer::CreateBoundingBox(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices)
 {
-	std::vector<glm::ivec3> triangles;
-
-	vertices.emplace_back(0, 1, -1);
-	vertices.emplace_back(1, -1, 0);
-	vertices.emplace_back(-1, -1, 0);
-	triangles.emplace_back(glm::ivec3(0, 1, 2));
-
-	
-
-	std::string tem = R"(AABB( min[{}, {}, {}], max[{}, {}, {}] ))";
-
-	//for (int i = 0; i < triangles.size(); ++i)
-	//{
-	//	const glm::ivec3& tri = triangles[i];
-	//	boundingBoxes.emplace_back(Triangle::GetWorldBounding({ vertices[tri[0]], vertices[tri[1]], vertices[tri[2]] }));
-	//	
-	//	const BoundingBox& aabb = boundingBoxes.back();
-	//
-	//	std::cout << std::vformat(tem, 
-	//		std::make_format_args(aabb.m_Min[0], aabb.m_Min[1], aabb.m_Min[2], aabb.m_Max[0], aabb.m_Max[1], aabb.m_Max[2])) << std::endl;
-	//}
-	//
-	//std::cout << std::endl;
-
 	std::vector<BoundingBox> boundingBoxes;
 	std::vector<BVHNode> bvh_nodes;
 
@@ -378,11 +350,11 @@ void TestLayer::LoadScene()
 	// shape data
 	std::vector<ShapeData> shapeData;
 
-	//shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, -2.5, 0), glm::vec3(-90, 0, 0), glm::vec3(10, 10, 1)); // Floor
-	//shapeData.emplace_back(ShapeType::Square, matteRedId, glm::vec3(5, 2.5, 0), glm::vec3(0, -90, 0), glm::vec3(10, 10, 1)); // Red wall
-	//shapeData.emplace_back(ShapeType::Square, matteGreenId, glm::vec3(-5, 2.5, 0), glm::vec3(0, 90, 0), glm::vec3(10, 10, 1)); // Green Wall
-	//shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 2.5, 5), glm::vec3(0, 180, 0), glm::vec3(10, 10, 1)); // Back Wall
-	//shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 7.5, 0), glm::vec3(90, 0, 0), glm::vec3(10, 10, 1)); // Ceiling
+	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, -2.5, 0), glm::vec3(-90, 0, 0), glm::vec3(10, 10, 1)); // Floor
+	shapeData.emplace_back(ShapeType::Square, matteRedId, glm::vec3(5, 2.5, 0), glm::vec3(0, -90, 0), glm::vec3(10, 10, 1)); // Red wall
+	shapeData.emplace_back(ShapeType::Square, matteGreenId, glm::vec3(-5, 2.5, 0), glm::vec3(0, 90, 0), glm::vec3(10, 10, 1)); // Green Wall
+	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 2.5, 5), glm::vec3(0, 180, 0), glm::vec3(10, 10, 1)); // Back Wall
+	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 7.5, 0), glm::vec3(90, 0, 0), glm::vec3(10, 10, 1)); // Ceiling
 
 	std::vector<glm::vec3> vertices;
 
@@ -390,12 +362,11 @@ void TestLayer::LoadScene()
 	AddCornellBox_Triangles(shapeData, vertices, matteWhiteId, matteWhiteId);
 	//AddTwoBox_Triangles(shapeData, vertices, matteWhiteId, matteWhiteId);
 
-	TestBoundingBox(shapeData, vertices);
-	
-	//shapeData.emplace_back(ShapeType::Sphere, glassId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(3, 3, 3));
-	//shapeData.emplace_back(ShapeType::Cube, glassId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
+	//shapeData.emplace_back(ShapeType::Sphere, matteWhiteId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(3, 3, 3));
+	//shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
 	//shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(-2, -1, 0.75), glm::vec3(0, -17.5, 0), glm::vec3(3, 3, 3)); // Short Cube
-
+	
+	CreateBoundingBox(shapeData, vertices);
 	// Light
 	std::vector<LightData> lightData;
 	ShapeData areaLightShape(ShapeType::Square, -1, glm::vec3(0, 7.45, 0), glm::vec3(90, 0, 0), glm::vec3(3, 3, 1));

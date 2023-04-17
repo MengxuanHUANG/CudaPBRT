@@ -245,7 +245,7 @@ namespace CudaPBRT
 		PathSegment& segment = pathSegment[index];
 		segment.intersection.Reset();
 
-		scene.IntersectionNaive(segment.ray, segment.intersection);
+		scene.SceneIntersection(segment.ray, segment.intersection);
 	}
 
 	__global__ void GlobalDisplayNormal(int max_index, PathSegment* pathSegment, Scene scene)

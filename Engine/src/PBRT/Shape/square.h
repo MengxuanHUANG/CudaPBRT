@@ -60,6 +60,22 @@ namespace CudaPBRT
             return glm::vec3(m_Transform * glm::vec4(local_p, 0.f, 1.f)); // transform from local to world
         }
 
+        INLINE CPU_ONLY static BoundingBox GetWorldBounding(const ShapeData& data)
+        {
+            glm::vec3 v[4]{glm::vec3(1, 1, 0), glm::vec3(1, -1, 0), glm::vec3(-1, 1, 0), glm::vec3(-1, -1, 0)};
+            
+            glm::mat4 transform;
+
+            Shape::ComputeTransform(data.translation, data.rotation, data.scale, transform);
+
+            for (int i = 0; i < 4; ++i)
+            {
+                v[i] = glm::vec3(transform * glm::vec4(v[i], 1.f));
+            }
+
+            return {glm::min(glm::min(glm::min(v[0], v[1]), v[2]), v[3]), glm::max(glm::max(glm::max(v[0], v[1]), v[2]), v[3]) };
+        }
+
     protected:
         INLINE CPU_GPU glm::vec3 ComputeNormal() const
         {

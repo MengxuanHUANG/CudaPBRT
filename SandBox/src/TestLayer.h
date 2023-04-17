@@ -39,7 +39,7 @@ protected:
 	
 	void AddTwoBox_Triangles(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices, int material_a, int material_b);
 
-	void TestBoundingBox(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices);
+	void CreateBoundingBox(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices);
 
 public:
 	uPtr<PerspectiveCamera> m_Camera;

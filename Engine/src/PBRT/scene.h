@@ -31,7 +31,7 @@ namespace CudaPBRT
             //sample.pdf;// /= light_count; // equivalent to divide by pdf 
             //printf("arae: %f\n", sample.pdf);
             Intersection shadow_intersect;
-            return (IntersectionNaive(sample.shadowRay, shadow_intersect) && shadow_intersect.isLight && shadow_intersect.id == light_id);
+            return (SceneIntersection(sample.shadowRay, shadow_intersect) && shadow_intersect.isLight && shadow_intersect.id == light_id);
         }
 
         INLINE CPU_GPU float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)
@@ -49,7 +49,16 @@ namespace CudaPBRT
             CUDA_FREE(BVH);
         }
 
-		CPU_GPU bool IntersectionNaive(const Ray& ray, Intersection& intersection)
+        CPU_GPU bool SceneIntersection(const Ray& ray, Intersection& intersection)
+        {
+#if USE_BVH 1
+            return BVHIntersection(ray, intersection);
+#else
+            return IntersectionNaive(ray, intersection);
+#endif
+        }
+
+		INLINE CPU_GPU bool IntersectionNaive(const Ray& ray, Intersection& intersection)
 		{
             for (int i = 0; i < light_count; ++i)
             {
@@ -61,7 +70,6 @@ namespace CudaPBRT
                     intersection.id = i;
                 }
             }
-
             for (int i = 0; i < shape_count; ++i)
             {
                 Intersection it;
@@ -72,13 +80,27 @@ namespace CudaPBRT
                     intersection.material_id = shapes[i]->material_id;
                 }
             }
+            return !(intersection.id < 0);
+		}
 
-            /*
+        INLINE CPU_GPU bool BVHIntersection(const Ray& ray, Intersection& intersection)
+        {
+            for (int i = 0; i < light_count; ++i)
+            {
+                Intersection it;
+                if (lights[i]->IntersectionP(ray, it) && it < intersection)
+                {
+                    intersection = it;
+                    intersection.isLight = true;
+                    intersection.id = i;
+                }
+            }
+
             // BVH intersection
             int to_visit[64];
             int current_node = 0;
             int next_visit = 0;
-            
+
             glm::vec3 invDir(glm::vec3(1.f) / ray.DIR);
             bool dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
 
@@ -86,7 +108,7 @@ namespace CudaPBRT
             {
                 const BVHNode& node = BVH[current_node];
                 const BoundingBox& bounding = boundings[node.boundingBoxId];
-                
+
                 //printf("Current: %d [%f, %f, %f] [%f, %f, %f]\n", current_node, 
                 //    bounding.m_Min.x, bounding.m_Min.y, bounding.m_Min.z,
                 //    bounding.m_Max.x, bounding.m_Max.y, bounding.m_Max.z);
@@ -122,9 +144,9 @@ namespace CudaPBRT
                     current_node = to_visit[--next_visit];
                 }
             }
-            */
+
             return !(intersection.id < 0);
-		}
+        }
 
 	public:
         Shape** shapes; // shapes on device

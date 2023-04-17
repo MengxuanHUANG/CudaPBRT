@@ -66,6 +66,17 @@ namespace CudaPBRT
 													 glm::mat4& invTransform, 
 													 glm::mat3& TransposeInvTransform)
 		{
+			Shape::ComputeTransform(translate, rotate, scale, transform);
+
+			invTransform = glm::inverse(transform);
+			TransposeInvTransform = glm::transpose(glm::inverse(glm::mat3(transform)));
+		}
+
+		INLINE CPU_GPU static void ComputeTransform(const glm::vec3& translate,
+													 const glm::vec3& rotate,
+													 const glm::vec3& scale,
+													 glm::mat4& transform)
+		{
 			glm::mat4 T = glm::translate(glm::mat4(1.f), translate);
 
 			glm::mat4 S = glm::scale(glm::mat4(1.f), scale);
@@ -75,8 +86,6 @@ namespace CudaPBRT
 			glm::mat4 Rz = glm::rotate(glm::mat4(1.f), glm::radians(rotate.z), { 0.f, 0.f, 1.f });
 
 			transform = T * Rx * Ry * Rz * S;
-			invTransform = glm::inverse(transform);
-			TransposeInvTransform = glm::transpose(glm::inverse(glm::mat3(transform)));
 		}
 	public:
 		int material_id;

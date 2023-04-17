@@ -50,6 +50,33 @@ namespace CudaPBRT
             return ComputeNormal(p);
         }
 
+        INLINE CPU_ONLY static BoundingBox GetWorldBounding(const ShapeData& data)
+        {
+            BoundingBox box;
+            
+            glm::mat4 transform;
+
+            Shape::ComputeTransform(data.translation, data.rotation, data.scale, transform);
+            transform = glm::transpose(transform);
+
+            float cx = transform[0][3];
+            float dx = glm::sqrt(glm::dot(transform[0], transform[0]));
+            box.m_Min.x = cx - dx;
+            box.m_Max.x = cx + dx;
+
+            float cy = transform[1][3];
+            float dy = glm::sqrt(glm::dot(transform[1], transform[1]));
+            box.m_Min.y = cy - dy;
+            box.m_Max.y = cy + dy;
+
+            float cz = transform[2][3];
+            float dz = glm::sqrt(glm::dot(transform[2], transform[2]));
+            box.m_Min.z = cz - dz;
+            box.m_Max.z = cz + dz;
+
+            return box;
+        }
+
     protected:
         INLINE CPU_GPU static void SolveQuadratic(float A, float B, float C, float& t0, float& t1) 
         {

@@ -15,6 +15,8 @@
 
 #define CUDA_FREE(ptr) if(ptr != nullptr) { cudaFree(ptr); ptr = nullptr; }
 
+#define USE_BVH 1
+
 namespace CudaPBRT
 {
 	static constexpr int PathMaxDepth = 10;
