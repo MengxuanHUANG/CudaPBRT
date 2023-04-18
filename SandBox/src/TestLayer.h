@@ -33,13 +33,15 @@ public:
 protected:
 	bool OnWindowResize(WindowResizeEvent& event);
 
-	void TestSingleTriangle(std::vector<ShapeData>& shapeData);
+	void TestSingleTriangle(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices);
 
 	void AddCornellBox_Triangles(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices, int material_a, int material_b);
 	
 	void AddTwoBox_Triangles(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices, int material_a, int material_b);
 
 	void CreateBoundingBox(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices);
+
+	void LoadObj(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices, const char* path);
 
 public:
 	uPtr<PerspectiveCamera> m_Camera;

@@ -264,14 +264,7 @@ namespace CudaPBRT
 			Material* material = scene.materials[intersection.material_id];
 			segment.surfaceNormal = material->GetNormal(intersection.normal);
 			glm::vec3 wo = WorldToLocal(segment.surfaceNormal) * (-segment.ray.DIR);
-			if (wo.z > 0.f)
-			{
-				segment.radiance = 0.5f * (segment.surfaceNormal + 1.f);
-			}
-			else
-			{
-				//segment.radiance = 0.f;
-			}
+			segment.radiance = 0.5f * (segment.surfaceNormal + 1.f);
 		}
 		segment.End();
 	}

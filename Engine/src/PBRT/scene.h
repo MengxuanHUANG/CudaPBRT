@@ -109,22 +109,16 @@ namespace CudaPBRT
                 const BVHNode& node = BVH[current_node];
                 const BoundingBox& bounding = boundings[node.boundingBoxId];
 
-                //printf("Current: %d [%f, %f, %f] [%f, %f, %f]\n", current_node, 
-                //    bounding.m_Min.x, bounding.m_Min.y, bounding.m_Min.z,
-                //    bounding.m_Max.x, bounding.m_Max.y, bounding.m_Max.z);
-
                 float t;
 
-                if (bounding.IntersectP(ray, invDir, t))
+                if (bounding.IntersectP(ray, invDir, t) && t < intersection.t)
                 {
                     //printf("Current: %d\n", current_node);
                     if (node.primitiveId >= 0) // leaf node
                     {
                         Intersection it;
-                        //printf("Test %s, primitive: %d\n", node.primitiveId < 12 ? "long box" : "short box", node.primitiveId);
-                        if (t < intersection.t && shapes[node.primitiveId]->IntersectionP(ray, it) && it < intersection)
+                        if (shapes[node.primitiveId]->IntersectionP(ray, it) && it < intersection)
                         {
-                            //printf("Hit %s, primitive: %d\n", node.primitiveId < 12 ? "long box" : "short box", node.primitiveId);
                             intersection = it;
                             intersection.id = node.primitiveId;
                             intersection.material_id = shapes[node.primitiveId]->material_id;
@@ -134,8 +128,16 @@ namespace CudaPBRT
                     }
                     else
                     {
-                        current_node = node.next;
-                        to_visit[next_visit++] = node.next + 1;
+                        if (dirIsNeg[node.splitAxis])
+                        {
+                            current_node = node.next;
+                            to_visit[next_visit++] = node.next + 1;
+                        }
+                        else
+                        {
+                            current_node = node.next + 1;
+                            to_visit[next_visit++] = node.next;
+                        }
                     }
                 }
                 else

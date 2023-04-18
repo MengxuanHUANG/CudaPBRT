@@ -20,9 +20,13 @@
 #include "PBRT/Material/material.h"
 #include "PBRT/Light/light.h"
 
+#include <iomanip>
 #include <format>
 #include <string>
 #include <iostream>
+#include <fstream>
+#include <ranges>
+#include <string_view>
 
 TestLayer::TestLayer(const std::string& name)
 	:Layer(name)
@@ -124,18 +128,22 @@ bool TestLayer::OnWindowResize(WindowResizeEvent& event)
 	return false;
 }
 
-void TestLayer::TestSingleTriangle(std::vector<ShapeData>& shapeData)
+void TestLayer::TestSingleTriangle(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices)
 {
-	std::vector<glm::vec3> vertices;
 	std::vector<glm::ivec3> triangles;
 
-	vertices.emplace_back(0, 1, 0);
-	vertices.emplace_back(1, -1, 0);
-	vertices.emplace_back(-1, -1, 0);
+	vertices.emplace_back( 0,  1, -2);
+	vertices.emplace_back( 1, -1, -2);
+	vertices.emplace_back(-1, -1, -2);
+	vertices.emplace_back( 0,  1, 2);
+	vertices.emplace_back( 1, -1, 2);
+	vertices.emplace_back(-1, -1, 2);
 	triangles.emplace_back(glm::ivec3(0, 1, 2));
+	triangles.emplace_back(glm::ivec3(5, 4, 3));
 
 	BufferData<glm::vec3>(m_Scene->vertices, vertices.data(), vertices.size());
-	shapeData.emplace_back(0, triangles[0], m_Scene->vertices);
+	shapeData.emplace_back(4, triangles[0], m_Scene->vertices);
+	shapeData.emplace_back(4, triangles[1], m_Scene->vertices);
 }
 
 void TestLayer::AddCornellBox_Triangles(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices, int material_a, int material_b)
@@ -263,45 +271,45 @@ void TestLayer::AddTwoBox_Triangles(std::vector<ShapeData>& shapeData, std::vect
 	tri_end_id.emplace_back(triangles.size());
 	material_id.emplace_back(material_a);
 
-	Shape::ComputeTransform(glm::vec3(2, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), transform);
+	Shape::ComputeTransform(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(100, 100, 100), transform);
 
 	for (int i = v_start_id.back(); i < vertices.size(); ++i)
 	{
 		vertices[i] = glm::vec3(transform * glm::vec4(vertices[i], 1.f));
 	}
 
-	v_start_id.emplace_back(vertices.size());
-	vertices.emplace_back(1, 1, -1);
-	vertices.emplace_back(1, -1, -1);
-	vertices.emplace_back(-1, -1, -1);
-	vertices.emplace_back(-1, 1, -1);
-
-	vertices.emplace_back(1, 1, 1);
-	vertices.emplace_back(1, -1, 1);
-	vertices.emplace_back(-1, -1, 1);
-	vertices.emplace_back(-1, 1, 1);
-
-	triangles.emplace_back(8 + glm::ivec3(0, 1, 2)); // front
-	triangles.emplace_back(8 + glm::ivec3(0, 2, 3)); // front
-	triangles.emplace_back(8 + glm::ivec3(5, 4, 7)); // back
-	triangles.emplace_back(8 + glm::ivec3(5, 7, 6)); // back
-	triangles.emplace_back(8 + glm::ivec3(6, 7, 3)); // right
-	triangles.emplace_back(8 + glm::ivec3(6, 3, 2)); // right
-	triangles.emplace_back(8 + glm::ivec3(0, 5, 1)); // left
-	triangles.emplace_back(8 + glm::ivec3(0, 4, 5)); // left
-	triangles.emplace_back(8 + glm::ivec3(3, 7, 4)); // top
-	triangles.emplace_back(8 + glm::ivec3(3, 4, 0)); // top
-	triangles.emplace_back(8 + glm::ivec3(2, 1, 5)); // bottom
-	triangles.emplace_back(8 + glm::ivec3(2, 5, 6)); // bottom
-	tri_end_id.emplace_back(triangles.size());
-	material_id.emplace_back(material_b);
-
-	Shape::ComputeTransform(glm::vec3(-2, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), transform);
-
-	for (int i = v_start_id.back(); i < vertices.size(); ++i)
-	{
-		vertices[i] = glm::vec3(transform * glm::vec4(vertices[i], 1.f));
-	}
+	//v_start_id.emplace_back(vertices.size());
+	//vertices.emplace_back(1, 1, -1);
+	//vertices.emplace_back(1, -1, -1);
+	//vertices.emplace_back(-1, -1, -1);
+	//vertices.emplace_back(-1, 1, -1);
+	//
+	//vertices.emplace_back(1, 1, 1);
+	//vertices.emplace_back(1, -1, 1);
+	//vertices.emplace_back(-1, -1, 1);
+	//vertices.emplace_back(-1, 1, 1);
+	//
+	//triangles.emplace_back(8 + glm::ivec3(0, 1, 2)); // front
+	//triangles.emplace_back(8 + glm::ivec3(0, 2, 3)); // front
+	//triangles.emplace_back(8 + glm::ivec3(5, 4, 7)); // back
+	//triangles.emplace_back(8 + glm::ivec3(5, 7, 6)); // back
+	//triangles.emplace_back(8 + glm::ivec3(6, 7, 3)); // right
+	//triangles.emplace_back(8 + glm::ivec3(6, 3, 2)); // right
+	//triangles.emplace_back(8 + glm::ivec3(0, 5, 1)); // left
+	//triangles.emplace_back(8 + glm::ivec3(0, 4, 5)); // left
+	//triangles.emplace_back(8 + glm::ivec3(3, 7, 4)); // top
+	//triangles.emplace_back(8 + glm::ivec3(3, 4, 0)); // top
+	//triangles.emplace_back(8 + glm::ivec3(2, 1, 5)); // bottom
+	//triangles.emplace_back(8 + glm::ivec3(2, 5, 6)); // bottom
+	//tri_end_id.emplace_back(triangles.size());
+	//material_id.emplace_back(material_b);
+	//
+	//Shape::ComputeTransform(glm::vec3(-2, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), transform);
+	//
+	//for (int i = v_start_id.back(); i < vertices.size(); ++i)
+	//{
+	//	vertices[i] = glm::vec3(transform * glm::vec4(vertices[i], 1.f));
+	//}
 
 	BufferData<glm::vec3>(m_Scene->vertices, vertices.data(), vertices.size());
 
@@ -345,7 +353,7 @@ void TestLayer::LoadScene()
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.63, 0.065, 0.05)); //matteRed
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.14, 0.45, 0.091)); //matteGreen
 	materialData.emplace_back(MaterialType::SpecularReflection, glm::vec3(1.f, 1.f, 1.f)); // mirror
-	materialData.emplace_back(MaterialType::SpecularTransmission, glm::vec3(0.9f, 0.9f, 1.f), 0.f, 0.f, 1.55f); // glass
+	materialData.emplace_back(MaterialType::SpecularTransmission, glm::vec3(.9f, .9f, 1.f), 0.f, 0.f, 1.55f); // glass
 
 	// shape data
 	std::vector<ShapeData> shapeData;
@@ -358,14 +366,14 @@ void TestLayer::LoadScene()
 
 	std::vector<glm::vec3> vertices;
 
-	//TestSingleTriangle(shapeData);
-	AddCornellBox_Triangles(shapeData, vertices, matteWhiteId, matteWhiteId);
-	//AddTwoBox_Triangles(shapeData, vertices, matteWhiteId, matteWhiteId);
+	//TestSingleTriangle(shapeData, vertices);
+	//AddCornellBox_Triangles(shapeData, vertices, glassId, matteWhiteId);
+	//AddTwoBox_Triangles(shapeData, vertices, glassId, matteWhiteId);
 
 	//shapeData.emplace_back(ShapeType::Sphere, matteWhiteId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(3, 3, 3));
-	//shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
+	//shapeData.emplace_back(ShapeType::Cube, glassId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
 	//shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(-2, -1, 0.75), glm::vec3(0, -17.5, 0), glm::vec3(3, 3, 3)); // Short Cube
-	
+	LoadObj(shapeData, vertices, "E://Projects//CUDA_Projects//CudaPBRT//res//models//bunny.obj");
 	CreateBoundingBox(shapeData, vertices);
 	// Light
 	std::vector<LightData> lightData;
@@ -376,4 +384,55 @@ void TestLayer::LoadScene()
 	CreateArrayOnCude<Shape, ShapeData>(m_Scene->shapes, m_Scene->shape_count, shapeData);
 	CreateArrayOnCude<Material, MaterialData>(m_Scene->materials, m_Scene->material_count, materialData);
 	CreateArrayOnCude<Light, LightData>(m_Scene->lights, m_Scene->light_count, lightData);
+}
+
+void TestLayer::LoadObj(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices, const char* path)
+{
+	std::ifstream in(path, std::ios::in);
+
+	int v_start_id = vertices.size();
+	std::vector<glm::ivec3> triangles;
+
+	int line_count = 0;
+
+	for (std::string line; std::getline(in, line);)
+	{
+		//printf("%d \n", line_count++);
+
+		if (line.starts_with("v"))
+		{
+			std::vector<std::string> result;
+			std::string delim = " ";
+			for (const auto word : std::views::split(line, delim))
+			{
+				result.emplace_back(std::string_view{ word.begin(), word.end() }.data());
+			}
+			vertices.emplace_back(std::stof(result[1]), std::stof(result[2]), std::stof(result[3]));
+		}
+		else if (line.starts_with("f"))
+		{
+			std::vector<std::string> result;
+			std::string delim = " ";
+			for (const auto word : std::views::split(line, delim))
+			{
+				result.emplace_back(std::string_view{ word.begin(), word.end() }.data());
+			}
+			triangles.emplace_back(std::stoi(result[1]), std::stoi(result[2]), std::stoi(result[3]));
+		}
+	}
+
+	glm::mat4 transform;
+	Shape::ComputeTransform(glm::vec3(0, 0, 0), glm::vec3(0, 180, 0), glm::vec3(20, 20, 20), transform);
+
+	for (int i = v_start_id; i < vertices.size(); ++i)
+	{
+		vertices[i] = glm::vec3(transform * glm::vec4(vertices[i], 1.f));
+	}
+
+	BufferData<glm::vec3>(m_Scene->vertices, vertices.data(), vertices.size());
+
+	for (int i = 0; i < triangles.size(); ++i)
+	{
+		shapeData.emplace_back(0, triangles[i], m_Scene->vertices);
+	}
 }
