@@ -10,8 +10,8 @@ namespace CudaPBRT
 	{
 	public:
 		CPU_GPU BoundingBox()
-			: m_Min(FloatMax),
-			  m_Max(FloatMin)
+			: m_Min(FloatMax, FloatMax, FloatMax),
+			  m_Max(FloatMin, FloatMin, FloatMin)
 		{}
 		CPU_GPU BoundingBox(const glm::vec3& pMin, const glm::vec3& pMax)
 			: m_Min(pMin), m_Max(pMax)
@@ -23,7 +23,7 @@ namespace CudaPBRT
 			return (i == 0 ? m_Min : m_Max);
 		}
 
-		CPU_GPU inline glm::vec3 Centroid() const { return .5f * m_Min + .5f * m_Max; }
+		CPU_GPU inline glm::vec3 Centroid() const { return (m_Min + m_Max) * 0.5f; }
 
 		CPU_GPU inline glm::vec3 Diagonal() const { return m_Max - m_Min; }
 
@@ -34,45 +34,39 @@ namespace CudaPBRT
 							 (*this)[(corner & 4) ? 1 : 0].z);
 		}
 
-		CPU_GPU inline BoundingBox Union(const BoundingBox& bBox) const
+		CPU_GPU inline void Union(const BoundingBox& other)
 		{
-			return { glm::vec3(
-						glm::min(m_Min.x, bBox.m_Min.x),
-						glm::min(m_Min.y, bBox.m_Min.y),
-						glm::min(m_Min.z, bBox.m_Min.z)
-					),
-					glm::vec3(
-						glm::max(m_Max.x, bBox.m_Max.x),
-						glm::max(m_Max.y, bBox.m_Max.y),
-						glm::max(m_Max.z, bBox.m_Max.z)
-					)};
+			m_Min.x = other.m_Min.x < m_Min.x ? other.m_Min.x : m_Min.x;
+			m_Min.y = other.m_Min.y < m_Min.y ? other.m_Min.y : m_Min.y;
+			m_Min.z = other.m_Min.z < m_Min.z ? other.m_Min.z : m_Min.z;
+
+			m_Max.x = other.m_Max.x > m_Max.x ? other.m_Max.x : m_Max.x;
+			m_Max.y = other.m_Max.y > m_Max.y ? other.m_Max.y : m_Max.y;
+			m_Max.z = other.m_Max.z > m_Max.z ? other.m_Max.z : m_Max.z;
 		}
 
-		CPU_GPU inline BoundingBox Union(const glm::vec3& p) const
+		CPU_GPU inline void Union(const glm::vec3& p)
 		{
-			return { glm::vec3(
-						glm::min(m_Min.x, p.x),
-						glm::min(m_Min.y, p.y),
-						glm::min(m_Min.z, p.z)
-					),
-					glm::vec3(
-						glm::max(m_Max.x, p.x),
-						glm::max(m_Max.y, p.y),
-						glm::max(m_Max.z, p.z)
-					) };
+			m_Min.x = p.x < m_Min.x ? p.x : m_Min.x;
+			m_Min.y = p.y < m_Min.y ? p.y : m_Min.y;
+			m_Min.z = p.z < m_Min.z ? p.z : m_Min.z;
+
+			m_Max.x = p.x > m_Max.x ? p.x : m_Max.x;
+			m_Max.y = p.y > m_Max.y ? p.y : m_Max.y;
+			m_Max.z = p.z > m_Max.z ? p.z : m_Max.z;
 		}
 
-		CPU_GPU inline BoundingBox Intersect(const BoundingBox& bBox) const
+		CPU_GPU inline BoundingBox Intersect(const BoundingBox& other) const
 		{
 			return { glm::vec3(
-						glm::max(m_Min.x, bBox.m_Min.x),
-						glm::max(m_Min.y, bBox.m_Min.y),
-						glm::max(m_Min.z, bBox.m_Min.z)
+						m_Min.x > other.m_Min.x ? m_Min.x : other.m_Min.x,
+						m_Min.y > other.m_Min.y ? m_Min.y : other.m_Min.y,
+						m_Min.z > other.m_Min.z ? m_Min.z : other.m_Min.z
 					),
 					glm::vec3(
-						glm::min(m_Max.x, bBox.m_Max.x),
-						glm::min(m_Max.y, bBox.m_Max.y),
-						glm::min(m_Max.z, bBox.m_Max.z)
+						m_Max.x < other.m_Max.x ? m_Max.x : other.m_Max.x,
+						m_Max.y < other.m_Max.y ? m_Max.y : other.m_Max.y,
+						m_Max.z < other.m_Max.z ? m_Max.z : other.m_Max.z
 					) };
 		}
 
@@ -124,10 +118,10 @@ namespace CudaPBRT
 		}
 
 		CPU_GPU inline glm::vec3 Offset(const glm::vec3 &p) const {
-			glm::vec3 o = p - m_Min;
-			if (m_Max.x > m_Min.x) o.x /= (m_Max.x - m_Min.x);
-			if (m_Max.y > m_Min.y) o.y /= (m_Max.y - m_Min.y);
-			if (m_Max.z > m_Min.z) o.z /= (m_Max.z - m_Min.z);
+			glm::vec3 o = (p - m_Min) / (m_Max - m_Min);
+			//if (m_Max.x > m_Min.x) o.x /= (m_Max.x - m_Min.x);
+			//if (m_Max.y > m_Min.y) o.y /= (m_Max.y - m_Min.y);
+			//if (m_Max.z > m_Min.z) o.z /= (m_Max.z - m_Min.z);
 
 			return o;
 		}
@@ -156,6 +150,7 @@ namespace CudaPBRT
 		}
 	
 	public:
-		glm::vec3 m_Min, m_Max;
+		glm::vec3 m_Min;
+		glm::vec3 m_Max;
 	};
 }

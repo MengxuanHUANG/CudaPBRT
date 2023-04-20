@@ -33,31 +33,24 @@ namespace CudaPBRT
 	}
 
 	void CreateBVH(std::vector<ShapeData>& shapeData,
-				   const std::vector<glm::vec3>& vertices,
-				   std::vector<BoundingBox>& bounding_boxes,
-				   std::vector<BVHNode>& BVH)
+		const std::vector<glm::vec3>& vertices,
+		std::vector<BoundingBox>& bounding_boxes,
+		std::vector<BVHNode>& BVH)
 	{
-		// stores the bounding boxes of primitives
-		std::vector<std::pair<int, BoundingBox>> boxes;
-
+		// store the bounding boxes of primitives
+		std::vector<std::pair<int, BoundingBox>> aabbs;
+		// store the ordered primitives
+		std::vector<ShapeData> ordered_primitives;
 		//TODO: reserve for bounding box vector
-		
+
 		// Create Bounding boxes for all shapes
 		for (int i = 0; i < shapeData.size(); ++i)
 		{
-			boxes.emplace_back(i, CreateBoundingBox(shapeData[i], vertices));
-
-			//std::string tem = R"(AABB( min[{}, {}, {}], max[{}, {}, {}] ))";
-			//
-			//const BoundingBox& aabb = boxes.back().second;
-			//
-			//std::cout << std::vformat(tem, std::make_format_args(
-			//	aabb.m_Min.x, aabb.m_Min.y, aabb.m_Min.z, 
-			//	aabb.m_Max.x, aabb.m_Max.y, aabb.m_Max.z)) << std::endl;
+			aabbs.emplace_back(i, CreateBoundingBox(shapeData[i], vertices));
 		}
 
 		std::queue<std::pair<int, int>> taskes;
-		
+
 		taskes.emplace(0, shapeData.size());
 
 		while (!taskes.empty())
@@ -78,8 +71,9 @@ namespace CudaPBRT
 			if (nPrimitives == 1)
 			{
 				// Create leaf node
-				bounding_boxes.emplace_back(boxes[start].second);
-				BVH.emplace_back(boxes[start].first, bounding_boxes.size() - 1);
+				bounding_boxes.emplace_back(aabbs[start].second);
+				ordered_primitives.emplace_back(shapeData[aabbs[start].first]);
+				BVH.emplace_back(ordered_primitives.size() - 1, 1, bounding_boxes.size() - 1);
 
 				continue;
 			}
@@ -88,119 +82,196 @@ namespace CudaPBRT
 			BoundingBox bounding;
 			for (int i = start; i < end; ++i)
 			{
-				bounding = bounding.Union(boxes[i].second);
+				bounding.Union(aabbs[i].second);
 			}
 
 			BoundingBox centroid_bound;
 			for (int i = start; i < end; ++i)
 			{
-				centroid_bound = centroid_bound.Union(boxes[i].second.Centroid());
+				centroid_bound.Union(aabbs[i].second.Centroid());
 			}
 			int dim = centroid_bound.MaximumExtent();
 			int mid = (start + end) / 2;
-			
-			// 2. Split bounding box set
-			//if (centroid_bound.m_Max[dim] == centroid_bound.m_Min[dim]) // the centroid bounds have zero volume, no need split
-			//{
-			//	for (int i = start; i < end; ++i) {
-			//		bounding_boxes.emplace_back(boxes[i].second);
-			//	}
-			//	
-			//	BVH.emplace_back(boxes[start].first, bounding_boxes.size() - 1, -1);
-			//
-			//	continue;
-			//}
+
 			// Add the bounding box
 			bounding_boxes.emplace_back(bounding);
-			BVH.emplace_back(-1, bounding_boxes.size() - 1, dim, bounding_boxes.size() + taskes.size());
 
+			// 2. Split bounding box set
+			// if the centroid bounds have zero volume, no need split
+			if (centroid_bound.m_Max[dim] == centroid_bound.m_Min[dim])
+			{
+				for (int i = start; i < end; ++i) {
+					ordered_primitives.emplace_back(shapeData[aabbs[i].first]);
+				}
+
+				BVH.emplace_back(ordered_primitives.size() - nPrimitives, nPrimitives, bounding_boxes.size() - 1);
+				continue;
+			}
+
+#if BVH_SAH
+			// SAH split
+			if (nPrimitives <= 4)
+			{
+				// Equal split
+				mid = (start + end) / 2;
+				std::nth_element(&aabbs[start], &aabbs[mid], &aabbs[end - 1] + 1,
+					[dim](const std::pair<int, BoundingBox>& a, const std::pair<int, BoundingBox>& b) {
+						return a.second.Centroid()[dim] < b.second.Centroid()[dim];
+					});
+			}
+			else
+			{
+				// Allocate bucketInfo for SAH partition buckets
+				constexpr int nBuckets = 12; // try 11 possible partitions
+				struct BucketInfo {
+					int count = 0;
+					BoundingBox bounds;
+				};
+				BucketInfo buckets[nBuckets];
+
+				// initialize BucketInfo
+				float dim_min = centroid_bound.m_Min[dim];
+				float dim_max = centroid_bound.m_Max[dim];
+				for (int i = start; i < end; ++i)
+				{
+					int b = nBuckets * (aabbs[i].second.Centroid()[dim] - dim_min) / (dim_max - dim_min);
+					b = glm::clamp(b, 0, nBuckets - 1);
+					buckets[b].count++;
+					buckets[b].bounds.Union(aabbs[i].second);
+				}
+
+				// compute cost for splitting after each bucket & find min cost
+				float min_cost = FloatMax;
+				int min_cost_bucket = 0;
+				float costs[nBuckets];
+				for (int i = 0; i < nBuckets - 1; ++i)
+				{
+					BoundingBox b0, b1;
+					int count0 = 0, count1 = 0;
+
+					for (int j = 0; j <= i; ++j)
+					{
+						b0.Union(buckets[j].bounds);
+						count0 += buckets[j].count;
+					}
+
+					for (int j = i + 1; j < nBuckets; ++j) 
+					{
+						b1.Union(buckets[j].bounds);
+						count1 += buckets[j].count;
+					}
+					costs[i] = 0.125f * (count0 * b0.SurfaceArea() + count1 * b1.SurfaceArea()) / bounding.SurfaceArea();
+					if (costs[i] < min_cost)
+					{
+						min_cost = costs[i];
+						min_cost_bucket = i;
+					}
+				}
+
+				// create leaf node or split
+				if (nPrimitives > 255 || min_cost < nPrimitives) // split
+				{
+					auto* midPtr = std::partition(&aabbs[start], &aabbs[end - 1] + 1,
+						[=](const std::pair<int, BoundingBox>& pair) {
+							int b = nBuckets * (pair.second.Centroid()[dim] - dim_min) / (dim_max - dim_min);
+							b = glm::clamp(b, 0, nBuckets - 1);
+							return b <= min_cost_bucket;
+						});
+					mid = midPtr - aabbs.data();
+				}
+				else // create leaf node
+				{
+					for (int i = start; i < end; ++i) {
+						ordered_primitives.emplace_back(shapeData[aabbs[i].first]);
+					}
+
+					BVH.emplace_back(ordered_primitives.size() - nPrimitives, nPrimitives, bounding_boxes.size() - 1);
+					continue;
+				}
+			}
+#else
 			// Middle Split 
 			float p_mid = 0.5f * (centroid_bound.m_Max[dim] + centroid_bound.m_Min[dim]);
-			auto* midPtr = std::partition(&boxes[start], &boxes[end - 1] + 1,
-					[dim, p_mid](const std::pair<int, BoundingBox>& pair) {
-						return pair.second.Centroid()[dim] < p_mid;
-					});
-			mid = midPtr - &boxes[0];
+			auto* midPtr = std::partition(&aabbs[start], &aabbs[end - 1] + 1,
+				[dim, p_mid](const std::pair<int, BoundingBox>& pair) {
+					return pair.second.Centroid()[dim] < p_mid;
+				});
+			mid = midPtr - &aabbs[0];
 
 			if (mid == start || mid == end)
 			{
 				// Equal split
 				mid = (start + end) / 2;
-				std::nth_element(&boxes[start], &boxes[mid], &boxes[end - 1] + 1,
+				std::nth_element(&aabbs[start], &aabbs[mid], &aabbs[end - 1] + 1,
 					[dim](const std::pair<int, BoundingBox>& a, const std::pair<int, BoundingBox>& b) {
 						return a.second.Centroid()[dim] < b.second.Centroid()[dim];
 					});
 			}
-			//for (auto& pair : boxes)
-			//{
-			//	printf("%d ", pair.first);
-			//}
-			//printf("\n");
-
+#endif
 			// 3. Emplace taskes for left branch and right branch
+			BVH.emplace_back(-1, 0, bounding_boxes.size() - 1, dim, bounding_boxes.size() + taskes.size());
 			taskes.emplace(start, mid); // Left
 			taskes.emplace(mid, end); // Right
 		}
+
+		shapeData.swap(ordered_primitives);
+
 		PerspectiveCamera camera(680, 680, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
-		float t;
-/*
-		for (int w = 0; w < 680; w++)
+
+		int w = 350;
+		int h = 350;
+		Ray ray = CastRay(camera, { w, h });
+		glm::vec3 invDir(glm::vec3(1.f) / ray.DIR);
+		bool dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
+
+		int to_visit[64];
+		int current_node = 0;
+		int next_visit = 0;
+
+		float closest_t = FloatMax;
+	/*
+		while (true)
 		{
-			for (int h = 0; h < 680; ++h)
+			const BVHNode& node = BVH[current_node];
+			const BoundingBox& bounding = bounding_boxes[node.boundingBoxId];
+
+			float t;
+			if (bounding.IntersectP(ray, invDir, t) && t < closest_t)
 			{
-				if (w != 500 || h != 100) continue;
-				//printf("[%d, %d]\n", w, h);
-				Ray ray = CastRay(camera, {w, h});
-				glm::vec3 invDir(glm::vec3(1.f) / ray.DIR);
-				bool dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
-
-				int to_visit[64];
-				int current_node = 0;
-				int next_visit = 0;
-				
-				while (true)
+				closest_t = t;
+				//printf("Current: %d\n", current_node);
+				if (node.primitiveId >= 0) // leaf node
 				{
-					const BVHNode& node = BVH[current_node];
-					const BoundingBox& bounding = bounding_boxes[node.boundingBoxId];
-
-					//printf("Current: %d [%f, %f, %f] [%f, %f, %f]\n", current_node, 
-					//    bounding.m_Min.x, bounding.m_Min.y, bounding.m_Min.z,
-					//    bounding.m_Max.x, bounding.m_Max.y, bounding.m_Max.z);
-
-					float t0, t1;
-
-					if (bounding.IntersectP(ray, invDir, t))
-					{
-						//printf("Current: %d\n", current_node);
-						if (node.primitiveId >= 0) // leaf node
-						{
-							printf("Test %s, primitive: %d\n", node.primitiveId < 12 ? "long box" : "short box", node.primitiveId);
-
-							if (next_visit == 0) break;
-							current_node = to_visit[--next_visit];
-						}
-						else
-						{
-							current_node = node.next;
-							to_visit[next_visit++] = node.next + 1;
-						}
-					}
-					else
-					{
-						if (next_visit == 0) break;
-						current_node = to_visit[--next_visit];
-					}
-
-					//printf("To Visit: ");
-					//for (int i = 0; i < next_visit; ++i)
-					//{
-					//	printf("%d ", to_visit[i]);
-					//}
-					//printf("\n");
+					Intersection it;
+					if (next_visit == 0) break;
+					current_node = to_visit[--next_visit];
+				}
+				else
+				{
+					current_node = dirIsNeg[node.splitAxis] ? node.next : node.next + 1;
+					to_visit[next_visit++] = dirIsNeg[node.splitAxis] ? node.next + 1 : node.next;
 				}
 			}
+			else
+			{
+				if (next_visit == 0) break;
+				current_node = to_visit[--next_visit];
+			}
+			std::cout << "current: " << current_node;
+			if (next_visit > 0)
+			{
+				std::cout << ", next: ";
+				for (int i = 0; i < next_visit; ++i)
+				{
+					std::cout << to_visit[i] << " ";
+				}
+				std::cout << std::endl;
+			}
+			else
+			{
+				std::cout << ", next: empty" << std::endl;
+			}
 		}
-
-		*/
+	*/
 	}
 }

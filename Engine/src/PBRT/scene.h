@@ -28,8 +28,6 @@ namespace CudaPBRT
             int light_id = static_cast<int>(glm::floor(rand * 10.f)) % light_count;
             sample = lights[light_id]->Sample_Li(p, normal, xi);
             
-            //sample.pdf;// /= light_count; // equivalent to divide by pdf 
-            //printf("arae: %f\n", sample.pdf);
             Intersection shadow_intersect;
             return (SceneIntersection(sample.shadowRay, shadow_intersect) && shadow_intersect.isLight && shadow_intersect.id == light_id);
         }
@@ -41,12 +39,20 @@ namespace CudaPBRT
 
         void FreeDataOnCuda()
         {
+            printf("start free cuda\n");
+            printf("start free arrays on cuda\n");
             FreeArrayOnCuda<Shape>(shapes, shape_count);
             FreeArrayOnCuda<Material>(materials, material_count);
             FreeArrayOnCuda<Light>(lights, light_count);
+            printf("end free arrays on cuda\n");
+
+            printf("start free BVH arrays on cuda\n");
             CUDA_FREE(vertices);
             CUDA_FREE(boundings);
             CUDA_FREE(BVH);
+            printf("end free BVH arrays on cuda\n");
+
+            printf("end free cuda\n");
         }
 
         CPU_GPU bool SceneIntersection(const Ray& ray, Intersection& intersection)
@@ -103,7 +109,7 @@ namespace CudaPBRT
 
             glm::vec3 invDir(glm::vec3(1.f) / ray.DIR);
             bool dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
-
+            int max_it = 0;
             while (true)
             {
                 const BVHNode& node = BVH[current_node];
@@ -113,31 +119,25 @@ namespace CudaPBRT
 
                 if (bounding.IntersectP(ray, invDir, t) && t < intersection.t)
                 {
-                    //printf("Current: %d\n", current_node);
                     if (node.primitiveId >= 0) // leaf node
                     {
                         Intersection it;
-                        if (shapes[node.primitiveId]->IntersectionP(ray, it) && it < intersection)
+                        for (int i = 0; i < node.primitiveCount; ++i)
                         {
-                            intersection = it;
-                            intersection.id = node.primitiveId;
-                            intersection.material_id = shapes[node.primitiveId]->material_id;
+                            if (shapes[i + node.primitiveId]->IntersectionP(ray, it) && it < intersection)
+                            {
+                                intersection = it;
+                                intersection.id = node.primitiveId;
+                                intersection.material_id = shapes[node.primitiveId + i]->material_id;
+                            }
                         }
                         if (next_visit == 0) break;
                         current_node = to_visit[--next_visit];
                     }
                     else
                     {
-                        if (dirIsNeg[node.splitAxis])
-                        {
-                            current_node = node.next;
-                            to_visit[next_visit++] = node.next + 1;
-                        }
-                        else
-                        {
-                            current_node = node.next + 1;
-                            to_visit[next_visit++] = node.next;
-                        }
+                        current_node = dirIsNeg[node.splitAxis] ? node.next : node.next + 1;
+                        to_visit[next_visit++] = dirIsNeg[node.splitAxis] ? node.next + 1 : node.next;
                     }
                 }
                 else

@@ -534,7 +534,7 @@ namespace CudaPBRT
 		CUDA_CHECK_ERROR();
 
 		int depth = 0;
-		while (max_count > 0 && ++depth < CudaPBRT::PathMaxDepth)
+		while (max_count > 0 && depth++ < CudaPBRT::PathMaxDepth)
 		{
 			KernalConfig intersectionConfig({ max_count, 1, 1 }, { 8, 0, 0 });
 
@@ -578,7 +578,7 @@ namespace CudaPBRT
 		glBindTexture(GL_TEXTURE_2D, m_DisplayImage);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void*)host_image);
 		glBindTexture(GL_TEXTURE_2D, 0);
-
+		
 		++m_Iteration;
 	}
 

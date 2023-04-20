@@ -11,6 +11,7 @@ namespace CudaPBRT
 	struct BVHNode
 	{
 		int primitiveId = -1;
+		int primitiveCount = 0;
 		int boundingBoxId = -1;
 		int splitAxis = -1;
 		int next = -1;
@@ -19,8 +20,8 @@ namespace CudaPBRT
 		{
 		}
 
-		CPU_GPU BVHNode(int primitive, int bb, int axis = -1, int next = -1)
-			: primitiveId(primitive), boundingBoxId(bb), splitAxis(axis), next(next)
+		CPU_GPU BVHNode(int primitive, int count, int bb, int axis = -1, int next = -1)
+			: primitiveId(primitive), primitiveCount(count), boundingBoxId(bb), splitAxis(axis), next(next)
 		{}
 	};
 

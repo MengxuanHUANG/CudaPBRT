@@ -33,7 +33,7 @@ TestLayer::TestLayer(const std::string& name)
 {
 	window = Application::GetApplication().GetWindow();
 	WindowProps* props = window->GetWindowProps();
-	m_Camera = mkU<PerspectiveCamera>(680, 680, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
+	m_Camera = mkU<PerspectiveCamera>(700, 700, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
 	m_CamController = mkU<PerspectiveCameraController>(*m_Camera);
 	m_Scene = mkU<Scene>();
 }
@@ -76,7 +76,9 @@ void TestLayer::OnDetach()
 
 void TestLayer::OnUpdate(float delatTime)
 {
+	float time_step = window->GetTime();
 	m_CudaPBRT->Run(m_Scene.get());
+	m_FrameTime = window->GetTime() - time_step;
 }
 
 void TestLayer::OnImGuiRendered(float deltaTime)
@@ -87,6 +89,8 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 	ImGui::Begin("Rendered Image", &open, window_flags);
 	{
 		ImGui::Text("Iteration: %d", m_CudaPBRT->m_Iteration);
+		ImGui::Text("Frame Time: %f", m_FrameTime);
+		ImGui::Text("fps: %f", 1.f / m_FrameTime);
 		ImGui::Image((void*)(intptr_t)(m_CudaPBRT->GetDisplayTextureId()), ImVec2(m_Camera->width, m_Camera->height));
 	}
 	ImGui::End();
@@ -271,45 +275,45 @@ void TestLayer::AddTwoBox_Triangles(std::vector<ShapeData>& shapeData, std::vect
 	tri_end_id.emplace_back(triangles.size());
 	material_id.emplace_back(material_a);
 
-	Shape::ComputeTransform(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(100, 100, 100), transform);
+	Shape::ComputeTransform(glm::vec3(0, 3, -2), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), transform);
 
 	for (int i = v_start_id.back(); i < vertices.size(); ++i)
 	{
 		vertices[i] = glm::vec3(transform * glm::vec4(vertices[i], 1.f));
 	}
 
-	//v_start_id.emplace_back(vertices.size());
-	//vertices.emplace_back(1, 1, -1);
-	//vertices.emplace_back(1, -1, -1);
-	//vertices.emplace_back(-1, -1, -1);
-	//vertices.emplace_back(-1, 1, -1);
-	//
-	//vertices.emplace_back(1, 1, 1);
-	//vertices.emplace_back(1, -1, 1);
-	//vertices.emplace_back(-1, -1, 1);
-	//vertices.emplace_back(-1, 1, 1);
-	//
-	//triangles.emplace_back(8 + glm::ivec3(0, 1, 2)); // front
-	//triangles.emplace_back(8 + glm::ivec3(0, 2, 3)); // front
-	//triangles.emplace_back(8 + glm::ivec3(5, 4, 7)); // back
-	//triangles.emplace_back(8 + glm::ivec3(5, 7, 6)); // back
-	//triangles.emplace_back(8 + glm::ivec3(6, 7, 3)); // right
-	//triangles.emplace_back(8 + glm::ivec3(6, 3, 2)); // right
-	//triangles.emplace_back(8 + glm::ivec3(0, 5, 1)); // left
-	//triangles.emplace_back(8 + glm::ivec3(0, 4, 5)); // left
-	//triangles.emplace_back(8 + glm::ivec3(3, 7, 4)); // top
-	//triangles.emplace_back(8 + glm::ivec3(3, 4, 0)); // top
-	//triangles.emplace_back(8 + glm::ivec3(2, 1, 5)); // bottom
-	//triangles.emplace_back(8 + glm::ivec3(2, 5, 6)); // bottom
-	//tri_end_id.emplace_back(triangles.size());
-	//material_id.emplace_back(material_b);
-	//
-	//Shape::ComputeTransform(glm::vec3(-2, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), transform);
-	//
-	//for (int i = v_start_id.back(); i < vertices.size(); ++i)
-	//{
-	//	vertices[i] = glm::vec3(transform * glm::vec4(vertices[i], 1.f));
-	//}
+	v_start_id.emplace_back(vertices.size());
+	vertices.emplace_back(1, 1, -1);
+	vertices.emplace_back(1, -1, -1);
+	vertices.emplace_back(-1, -1, -1);
+	vertices.emplace_back(-1, 1, -1);
+	
+	vertices.emplace_back(1, 1, 1);
+	vertices.emplace_back(1, -1, 1);
+	vertices.emplace_back(-1, -1, 1);
+	vertices.emplace_back(-1, 1, 1);
+	
+	triangles.emplace_back(8 + glm::ivec3(0, 1, 2)); // front
+	triangles.emplace_back(8 + glm::ivec3(0, 2, 3)); // front
+	triangles.emplace_back(8 + glm::ivec3(5, 4, 7)); // back
+	triangles.emplace_back(8 + glm::ivec3(5, 7, 6)); // back
+	triangles.emplace_back(8 + glm::ivec3(6, 7, 3)); // right
+	triangles.emplace_back(8 + glm::ivec3(6, 3, 2)); // right
+	triangles.emplace_back(8 + glm::ivec3(0, 5, 1)); // left
+	triangles.emplace_back(8 + glm::ivec3(0, 4, 5)); // left
+	triangles.emplace_back(8 + glm::ivec3(3, 7, 4)); // top
+	triangles.emplace_back(8 + glm::ivec3(3, 4, 0)); // top
+	triangles.emplace_back(8 + glm::ivec3(2, 1, 5)); // bottom
+	triangles.emplace_back(8 + glm::ivec3(2, 5, 6)); // bottom
+	tri_end_id.emplace_back(triangles.size());
+	material_id.emplace_back(material_b);
+	
+	Shape::ComputeTransform(glm::vec3(0, 3, 2), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), transform);
+	
+	for (int i = v_start_id.back(); i < vertices.size(); ++i)
+	{
+		vertices[i] = glm::vec3(transform * glm::vec4(vertices[i], 1.f));
+	}
 
 	BufferData<glm::vec3>(m_Scene->vertices, vertices.data(), vertices.size());
 
@@ -368,7 +372,7 @@ void TestLayer::LoadScene()
 
 	//TestSingleTriangle(shapeData, vertices);
 	//AddCornellBox_Triangles(shapeData, vertices, glassId, matteWhiteId);
-	//AddTwoBox_Triangles(shapeData, vertices, glassId, matteWhiteId);
+	//AddTwoBox_Triangles(shapeData, vertices, matteWhiteId, matteWhiteId);
 
 	//shapeData.emplace_back(ShapeType::Sphere, matteWhiteId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(3, 3, 3));
 	//shapeData.emplace_back(ShapeType::Cube, glassId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
@@ -394,35 +398,69 @@ void TestLayer::LoadObj(std::vector<ShapeData>& shapeData, std::vector<glm::vec3
 	std::vector<glm::ivec3> triangles;
 
 	int line_count = 0;
-
+	int f_start = 0;
 	for (std::string line; std::getline(in, line);)
 	{
-		//printf("%d \n", line_count++);
-
-		if (line.starts_with("v"))
+		//std::cout << line << std::endl;
+		if (line.starts_with("FStart"))
 		{
-			std::vector<std::string> result;
 			std::string delim = " ";
-			for (const auto word : std::views::split(line, delim))
-			{
-				result.emplace_back(std::string_view{ word.begin(), word.end() }.data());
-			}
+
+			auto v = line | std::views::split(delim) | std::views::transform([](auto word) {
+				return std::string(word.begin(), word.end());
+			});
+
+			std::vector<std::string> result(v.begin(), v.end());
+
+			f_start = std::stoi(result[1]);
+		}
+		if (line.starts_with("vn"))
+		{
+
+		}
+		else if (line.starts_with("vt"))
+		{
+
+		}
+		else if (line.starts_with("v"))
+		{
+			std::string delim = " ";
+
+			auto v = line | std::views::split(delim) | std::views::transform([](auto word) {
+				return std::string(word.begin(), word.end());
+			});
+
+			std::vector<std::string> result(v.begin(), v.end());
+
 			vertices.emplace_back(std::stof(result[1]), std::stof(result[2]), std::stof(result[3]));
 		}
 		else if (line.starts_with("f"))
 		{
-			std::vector<std::string> result;
 			std::string delim = " ";
-			for (const auto word : std::views::split(line, delim))
+
+			auto v = line | std::views::split(delim) | std::views::transform([](auto word) {
+				return std::string(word.begin(), word.end());
+			});
+
+			std::vector<std::string> result(v.begin(), v.end());
+			
+			glm::ivec3 v_id;
+
+			for (int i = 0; i < 3; ++i)
 			{
-				result.emplace_back(std::string_view{ word.begin(), word.end() }.data());
+				auto id_str = result[i + 1] | std::views::split('/') | std::views::transform([](auto word) {
+					return std::string(word.begin(), word.end());
+				});
+				std::vector<std::string> ids(id_str.begin(), id_str.end());
+				v_id[i] = std::stoi(ids[0]) - f_start;
 			}
-			triangles.emplace_back(std::stoi(result[1]), std::stoi(result[2]), std::stoi(result[3]));
+
+			triangles.emplace_back(v_id);
 		}
 	}
 
 	glm::mat4 transform;
-	Shape::ComputeTransform(glm::vec3(0, 0, 0), glm::vec3(0, 180, 0), glm::vec3(20, 20, 20), transform);
+	Shape::ComputeTransform(glm::vec3(0, 1, 0), glm::vec3(0, 180, 0), glm::vec3(10, 10, 10), transform);
 
 	for (int i = v_start_id; i < vertices.size(); ++i)
 	{

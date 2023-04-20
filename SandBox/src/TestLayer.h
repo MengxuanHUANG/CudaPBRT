@@ -51,4 +51,6 @@ protected:
 	Window* window;
 	uPtr<Scene> m_Scene;
 	uPtr<CudaPathTracer> m_CudaPBRT;
+
+	float m_FrameTime;
 };

@@ -17,9 +17,13 @@
 
 #define USE_BVH 1
 
+#if USE_BVH
+#define BVH_SAH 1
+#endif
+
 namespace CudaPBRT
 {
-	static constexpr int PathMaxDepth = 10;
+	static constexpr int PathMaxDepth = 5;
 
 	static constexpr float ShadowEpsilon	= 0.0001f;
 	static constexpr float Pi				= 3.1415927f;
@@ -30,8 +34,8 @@ namespace CudaPBRT
 	static constexpr float PiOver4			= 0.7853981f;
 	static constexpr float Sqrt2			= 1.4142136f;
 
-	static constexpr float FloatMin = std::numeric_limits<float>::min();
-	static constexpr float FloatMax = std::numeric_limits<float>::max();
+	static constexpr float FloatMin = -10000000.f;
+	static constexpr float FloatMax =  10000000.f;
 	static constexpr float FloatEpsilon = std::numeric_limits<float>::epsilon();
 
 	static constexpr float MachineEpsilon = 0.5f * std::numeric_limits<float>::epsilon();
