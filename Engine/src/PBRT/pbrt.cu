@@ -5,6 +5,8 @@
 #include "pathSegment.h"
 #include "scene.h"
 
+#include "texture.h"
+
 #include "BVH/boundingBox.h"
 #include "intersection.h"
 #include "Shape/sphere.h"
@@ -123,7 +125,7 @@ namespace CudaPBRT
 
 		// tone mapping
 		color = color / (1.f + color);
-
+		
 		// gammar correction
 		color = glm::pow(color, glm::vec3(1.f / 2.2f));
 
@@ -214,7 +216,7 @@ namespace CudaPBRT
 	template void FreeArrayOnCuda(Material**& device_array, size_t count);
 	template void FreeArrayOnCuda(Light**& device_array, size_t count);
 
-	__global__ void GlobalCastRayFromCamera(int iteration, PerspectiveCamera* camera, PathSegment* pathSegment)
+	__global__ void GlobalCastRayFromCamera(int iteration, PerspectiveCamera* camera, PathSegment* pathSegment) 
 	{
 		int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 		int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -445,6 +447,31 @@ namespace CudaPBRT
 		writePixel(iteration, hdr_img[pixelId], img[pixelId], segment.radiance);
 	}
 
+	__global__ void GlobalDisplayTexture(CudaTexObj tex, int width, int height, float3* hdr_img, uchar4* img)
+	{
+		int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+		int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+		if (x >= width || y >= height) {
+			return;
+		}
+
+		float u = static_cast<float>(x) / static_cast<float>(width);
+		float v = static_cast<float>(y) / static_cast<float>(height);
+
+		float4 albedo = tex2D<float4>(tex, u, v);
+		
+		glm::vec3 color(albedo.x, albedo.y, albedo.z);
+		color = color / (1.f + color);
+		color = glm::pow(color, glm::vec3(1.f / 2.2f));
+		color = glm::mix(glm::vec3(0.f), glm::vec3(255.f), color);
+		int index = x + y * width;
+		
+		img[index].x = static_cast<int>(color.r);
+		img[index].y = static_cast<int>(color.g);
+		img[index].z = static_cast<int>(color.b);
+		img[index].w = 255;
+	}
+
 	CudaPathTracer::CudaPathTracer()
 	{
 
@@ -519,6 +546,25 @@ namespace CudaPBRT
 		{
 			glDeleteTextures(1, &m_DisplayImage);
 		}
+	}
+
+	void CudaPathTracer::DisplayTexture(const CudaTexture& texture)
+	{
+		auto dim = texture.GetDim();
+
+		KernalConfig config({ width, height, 1 }, { 3, 3, 0 });
+		GlobalDisplayTexture << < config.numBlocks, config.threadPerBlock >> > (texture.GetTextureObject(), width, height, device_hdr_image, device_image);
+		cudaDeviceSynchronize();
+		CUDA_CHECK_ERROR();
+
+		// Copy rendered result to CPU.
+		cudaMemcpy(host_image, device_image, sizeof(uchar4) * width * height, cudaMemcpyDeviceToHost);
+		CUDA_CHECK_ERROR();
+
+		// pass render result to glTexture2D
+		glBindTexture(GL_TEXTURE_2D, m_DisplayImage);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void*)host_image);
+		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
 	void CudaPathTracer::Run(Scene* scene)

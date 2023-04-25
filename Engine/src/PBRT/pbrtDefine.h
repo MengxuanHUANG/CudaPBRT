@@ -23,6 +23,9 @@
 
 namespace CudaPBRT
 {
+	typedef cudaTextureObject_t CudaTexObj;
+	typedef cudaArray_t CudaArray;
+
 	static constexpr int PathMaxDepth = 5;
 
 	static constexpr float ShadowEpsilon	= 0.0001f;

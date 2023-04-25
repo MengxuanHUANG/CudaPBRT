@@ -27,29 +27,42 @@ namespace CudaPBRT
 
 		float eta = AirETA; // IOR of air
 
-		int albedoMapId		= -1;
-		int normalMapId		= -1;
-		int metallicMapId	= -1;
-		int roughnessMapId	= -1;
+		CudaTexObj albedoMapId		= -1;
+		CudaTexObj normalMapId		= -1;
+		CudaTexObj metallicMapId	= -1;
+		CudaTexObj roughnessMapId	= -1;
 
 		MaterialData(MaterialType type, 
 					 const glm::vec3& albedo = glm::vec3(1.f),
 					 float metallic = 0.5f,
 					 float roughness = 0.5f,
-					 float eta = 1.000293f,
-					 int albedoMapId = -1,
-					 int normalMapId = -1,
-					 int metallicMapId = -1,
-					 int roughnessMapId = -1)
+					 float eta = AirETA)
 			: type(type), 
 			  albedo(albedo), 
 			  metallic(metallic), 
 			  roughness(roughness), 
 			  eta(eta), 
-			  albedoMapId(albedoMapId), 
-			  normalMapId(normalMapId), 
-			  metallicMapId(metallicMapId), 
-			  roughnessMapId(roughnessMapId)
+			  albedoMapId(0), 
+			  normalMapId(0), 
+			  metallicMapId(0), 
+			  roughnessMapId(0)
+		{}
+
+		MaterialData(MaterialType type,
+					 CudaTexObj albedo_map_id,
+					 CudaTexObj normal_map_id = 0,
+					 CudaTexObj metallic_map_id = 0,
+					 CudaTexObj roughness_map_id = 0,
+					 float eta = AirETA)
+			: type(type),
+			  albedo(glm::vec3(1.f)),
+			  metallic(0.f),
+			  roughness(0.f),
+			  eta(eta),
+			  albedoMapId(albedo_map_id),
+			  normalMapId(normal_map_id),
+			  metallicMapId(metallic_map_id),
+			  roughnessMapId(roughness_map_id)
 		{}
 	};
 

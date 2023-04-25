@@ -7,6 +7,7 @@
 #include "PBRT/BVH/boundingBox.h"
 #include "PBRT/Shape/triangle.h"
 #include "PBRT/BVH/bvh.h"
+#include "PBRT/texture.h"
 
 #include <GL/glew.h>
 #include <imgui/imgui.h>
@@ -33,7 +34,7 @@ TestLayer::TestLayer(const std::string& name)
 {
 	window = Application::GetApplication().GetWindow();
 	WindowProps* props = window->GetWindowProps();
-	m_Camera = mkU<PerspectiveCamera>(700, 700, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
+	m_Camera = mkU<PerspectiveCamera>(1200, 600, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
 	m_CamController = mkU<PerspectiveCameraController>(*m_Camera);
 	m_Scene = mkU<Scene>();
 }
@@ -53,20 +54,9 @@ void TestLayer::OnAttach()
 	m_CudaPBRT = mkU<CudaPathTracer>();
 	m_CudaPBRT->InitCuda(*m_Camera);
 
-	// load image example
-	//std::string filename = "E://Study//Upenn//DSGN5005 3D_Modeling//Adams.jpg";
-	//
-	//int width, height;
-	//
-	//unsigned char* image_data = stbi_load(filename.c_str(), &width, &height, NULL, 4);
-	//if (image_data)
-	//{
-	//}
-	//stbi_image_free(image_data);
-
 	LoadScene();
 
-	//m_CudaPBRT->Run(m_Scene.get());
+	m_CudaPBRT->DisplayTexture(*m_Textures[2]);
 }
 void TestLayer::OnDetach()
 {
@@ -76,9 +66,9 @@ void TestLayer::OnDetach()
 
 void TestLayer::OnUpdate(float delatTime)
 {
-	float time_step = window->GetTime();
-	m_CudaPBRT->Run(m_Scene.get());
-	m_FrameTime = window->GetTime() - time_step;
+	//float time_step = window->GetTime();
+	//m_CudaPBRT->Run(m_Scene.get());
+	//m_FrameTime = window->GetTime() - time_step;
 }
 
 void TestLayer::OnImGuiRendered(float deltaTime)
@@ -343,14 +333,24 @@ void TestLayer::LoadScene()
 {
 	m_Scene->FreeDataOnCuda();
 
+	// load texture
+	const char* albedo_tex_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//brick.jpg";
+	const char* nor_tex_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//brickN.jpg";
+	const char* env_map_path = "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//fireplace_4k.hdr";
+
+	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(albedo_tex_path));
+	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(nor_tex_path));
+	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(env_map_path));
+
 	// Hard-coding Cornell Box Scene
 
 	// material data
-	int matteWhiteId = 0;
-	int matteRedId = 1;
-	int matteGreenId = 2;
-	int mirrorId = 3;
-	int glassId = 4;
+	int matteWhiteId	= 0;
+	int matteRedId		= 1;
+	int matteGreenId	= 2;
+	int mirrorId		= 3;
+	int glassId			= 4;
+	int tex_Id			= 5;
 
 	std::vector<MaterialData> materialData;
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.85, 0.81, 0.78)); //matteWhite
@@ -358,6 +358,7 @@ void TestLayer::LoadScene()
 	materialData.emplace_back(MaterialType::DiffuseReflection, glm::vec3(0.14, 0.45, 0.091)); //matteGreen
 	materialData.emplace_back(MaterialType::SpecularReflection, glm::vec3(1.f, 1.f, 1.f)); // mirror
 	materialData.emplace_back(MaterialType::SpecularTransmission, glm::vec3(.9f, .9f, 1.f), 0.f, 0.f, 1.55f); // glass
+	//materialData.emplace_back(MaterialType::DiffuseReflection, m_Textures[0]->GetTextureObject()); // texture
 
 	// shape data
 	std::vector<ShapeData> shapeData;
@@ -371,13 +372,13 @@ void TestLayer::LoadScene()
 	std::vector<glm::vec3> vertices;
 
 	//TestSingleTriangle(shapeData, vertices);
-	//AddCornellBox_Triangles(shapeData, vertices, glassId, matteWhiteId);
+	AddCornellBox_Triangles(shapeData, vertices, glassId, matteWhiteId);
 	//AddTwoBox_Triangles(shapeData, vertices, matteWhiteId, matteWhiteId);
 
-	//shapeData.emplace_back(ShapeType::Sphere, matteWhiteId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(3, 3, 3));
+	//shapeData.emplace_back(ShapeType::Sphere, glassId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(3, 3, 3));
 	//shapeData.emplace_back(ShapeType::Cube, glassId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
 	//shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(-2, -1, 0.75), glm::vec3(0, -17.5, 0), glm::vec3(3, 3, 3)); // Short Cube
-	LoadObj(shapeData, vertices, "E://Projects//CUDA_Projects//CudaPBRT//res//models//bunny.obj");
+	//LoadObj(shapeData, vertices, "E://Projects//CUDA_Projects//CudaPBRT//res//models//sphere.obj");
 	CreateBoundingBox(shapeData, vertices);
 	// Light
 	std::vector<LightData> lightData;
@@ -460,7 +461,7 @@ void TestLayer::LoadObj(std::vector<ShapeData>& shapeData, std::vector<glm::vec3
 	}
 
 	glm::mat4 transform;
-	Shape::ComputeTransform(glm::vec3(0, 1, 0), glm::vec3(0, 180, 0), glm::vec3(10, 10, 10), transform);
+	Shape::ComputeTransform(glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(2, 2, 2), transform);
 
 	for (int i = v_start_id; i < vertices.size(); ++i)
 	{
@@ -471,6 +472,6 @@ void TestLayer::LoadObj(std::vector<ShapeData>& shapeData, std::vector<glm::vec3
 
 	for (int i = 0; i < triangles.size(); ++i)
 	{
-		shapeData.emplace_back(0, triangles[i], m_Scene->vertices);
+		shapeData.emplace_back(4, triangles[i], m_Scene->vertices);
 	}
 }

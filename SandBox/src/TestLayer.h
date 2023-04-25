@@ -12,6 +12,7 @@ using namespace CudaPBRT;
 namespace CudaPBRT
 {
 	class CudaPathTracer;
+	class CudaTexture;
 }
 
 class TestLayer : public Layer
@@ -51,6 +52,8 @@ protected:
 	Window* window;
 	uPtr<Scene> m_Scene;
 	uPtr<CudaPathTracer> m_CudaPBRT;
+
+	std::vector<uPtr<CudaTexture>> m_Textures;
 
 	float m_FrameTime;
 };
