@@ -139,6 +139,11 @@ namespace CudaPBRT
 		pixel.w = 255;
 	}
 
+	GPU_ONLY float4 ReadTexture(const CudaTexObj& tex_obj, const glm::vec2& uv)
+	{
+		return tex2D<float4>(tex_obj, uv[0], uv[1]);
+	}
+
 	template<typename T, typename DataType>
 	__global__ void CreateArray(T** device_array, DataType* data, size_t max_count)
 	{
@@ -263,10 +268,17 @@ namespace CudaPBRT
 		Intersection& intersection = segment.intersection;
 		if (intersection.id >= 0)
 		{
-			Material* material = scene.materials[intersection.material_id];
-			segment.surfaceNormal = material->GetNormal(intersection.normal);
-			glm::vec3 wo = WorldToLocal(segment.surfaceNormal) * (-segment.ray.DIR);
-			segment.radiance = 0.5f * (segment.surfaceNormal + 1.f);
+			if (intersection.isLight)
+			{
+				segment.radiance = Spectrum(1.f);
+			}
+			else
+			{
+				Material* material = scene.materials[intersection.material_id];
+				segment.surfaceNormal = material->GetNormal(intersection.normal, intersection.uv);
+				//glm::vec3 wo = WorldToLocal(segment.surfaceNormal) * (-segment.ray.DIR);
+				segment.radiance = 0.5f * (segment.surfaceNormal + 1.f);
+			}
 		}
 		segment.End();
 	}
@@ -390,11 +402,11 @@ namespace CudaPBRT
 			else
 			{
 				Material* material = scene.materials[intersection.material_id];
-				Spectrum albedo = material->GetAlbedo();
+				Spectrum albedo = material->GetAlbedo(intersection.uv);
 				BSDF& bsdf = material->GetBSDF();
 				segment.materialType = material->m_MaterialData.type;
 
-				segment.surfaceNormal = material->GetNormal(intersection.normal);
+				segment.surfaceNormal = material->GetNormal(intersection.normal, intersection.uv);
 				const glm::vec3 surface_point = ray * intersection.t;
 
 				const glm::vec3& normal = segment.surfaceNormal;
@@ -458,7 +470,7 @@ namespace CudaPBRT
 		float u = static_cast<float>(x) / static_cast<float>(width);
 		float v = static_cast<float>(y) / static_cast<float>(height);
 
-		float4 albedo = tex2D<float4>(tex, u, v);
+		float4 albedo = ReadTexture(tex, { u, v });
 		
 		glm::vec3 color(albedo.x, albedo.y, albedo.z);
 		color = color / (1.f + color);

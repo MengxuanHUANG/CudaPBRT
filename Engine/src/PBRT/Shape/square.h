@@ -7,7 +7,7 @@ namespace CudaPBRT
     /**
     * Default position: (0, 0, 0)
     * Default Surface normal: (0, 0, 1)
-    * Default size [width, height] [2, 2]
+    * Default size [width, height] [1, 1]
     */
     class Square : public Shape
     {
@@ -25,23 +25,38 @@ namespace CudaPBRT
 
             Ray localRay(local_origin, local_dir);
 
-            float t = -localRay.O.z / localRay.DIR.z; // t = -o.z / dir.z
+            glm::vec3 normal = glm::vec3(0, 0, 1);
 
-            if (localRay.DIR.z < 0.f && t > 0.f) // ray is toward the square
+            float dt = glm::dot(normal, localRay.DIR);
+
+            // use the following for one-sided rectangle
+            if (dt > 0.0) return false;
+            float t = -glm::dot(normal, localRay.O) / dt;
+            if (t < 0.0) return false;
+
+            glm::vec3 hit = localRay * t; // local hit point
+            glm::vec3 vi = hit;
+            glm::vec3 U = glm::vec3(1, 0, 0);
+            glm::vec3 V = glm::vec3(0, -1, 0);
+
+            float dU = glm::dot(U, vi);
+            float dV = glm::dot(V, vi);
+            
+            if (glm::abs(dU) > 0.5f || glm::abs(dV) > 0.5f)
             {
-                glm::vec3 local_p = localRay * t;
-
-                if (local_p.x >= -0.5f &&
-                    local_p.x <=  0.5f &&
-                    local_p.y >= -0.5f &&
-                    local_p.y <=  0.5f)
-                {
-                    intersection = Intersection(t, ray * t, ComputeNormal());
-                    return true;
-                }
+                return  false;
             }
+            else
+            {
+                intersection.t = t;
+                intersection.p = ray * t;
+                intersection.normal = glm::normalize(m_TransformInvTranspose * normal);
 
-            return false;
+                intersection.uv = glm::vec2(dU, dV);
+                intersection.uv += 0.5f;
+
+                return true;
+            }
         }
         
         CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const override

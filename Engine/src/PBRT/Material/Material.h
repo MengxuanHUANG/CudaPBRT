@@ -4,6 +4,8 @@
 
 namespace CudaPBRT
 {
+	GPU_ONLY float4 ReadTexture(const CudaTexObj& tex_obj, const glm::vec2& uv);
+
 	enum class MaterialType : unsigned char
 	{
 		Specular = BIT(7),
@@ -27,10 +29,10 @@ namespace CudaPBRT
 
 		float eta = AirETA; // IOR of air
 
-		CudaTexObj albedoMapId		= -1;
-		CudaTexObj normalMapId		= -1;
-		CudaTexObj metallicMapId	= -1;
-		CudaTexObj roughnessMapId	= -1;
+		CudaTexObj albedoMapId		= 0;
+		CudaTexObj normalMapId		= 0;
+		CudaTexObj metallicMapId	= 0;
+		CudaTexObj roughnessMapId	= 0;
 
 		MaterialData(MaterialType type, 
 					 const glm::vec3& albedo = glm::vec3(1.f),
@@ -76,26 +78,65 @@ namespace CudaPBRT
 
 		CPU_GPU virtual ~Material() {}
 
-		CPU_GPU BSDF& GetBSDF() { return m_BSDF; }
+		INLINE CPU_GPU BSDF& GetBSDF() { return m_BSDF; }
 
-		CPU_GPU Spectrum GetAlbedo(const glm::vec2& uv = glm::vec2(0, 0)) const
+		INLINE GPU_ONLY Spectrum GetAlbedo(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			return Spectrum(m_MaterialData.albedo);
+			if (m_MaterialData.albedoMapId > 0)
+			{
+				float4 color = ReadTexture(m_MaterialData.albedoMapId, uv);
+				glm::vec3 albedo(color.x, color.y, color.z);
+				//albedo = glm::pow(albedo, glm::vec3(2.2f));
+				return Spectrum(albedo);
+			}
+			else
+			{
+				return Spectrum(m_MaterialData.albedo);
+			}
 		}
 
-		CPU_GPU glm::vec3 GetNormal(const glm::vec3& normal, const glm::vec2& uv = glm::vec2(0, 0)) const
+		INLINE GPU_ONLY glm::vec3 GetNormal(const glm::vec3& normal, const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			return normal;
+			if (m_MaterialData.normalMapId > 0)
+			{
+				// TODO: recompute normal
+				float4 nor = ReadTexture(m_MaterialData.normalMapId, uv);
+				glm::vec3 tan, bitan;
+
+				coordinateSystem(normal, tan, bitan);
+
+				return glm::normalize(nor.x * tan + nor.y * bitan + nor.z * normal);
+			}
+			else
+			{
+				return normal;
+			}
 		}
 
-		CPU_GPU float GetMetallic(const glm::vec2& uv = glm::vec2(0, 0)) const
+		INLINE GPU_ONLY float GetMetallic(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			return m_MaterialData.metallic;
+			if (m_MaterialData.metallicMapId > 0)
+			{
+				float4 metallic = ReadTexture(m_MaterialData.metallicMapId, uv);
+				return m_MaterialData.metallic;
+			}
+			else
+			{
+				return m_MaterialData.metallic;
+			}
 		}
 
-		CPU_GPU float GetRoughness(const glm::vec2& uv = glm::vec2(0, 0)) const
+		INLINE GPU_ONLY float GetRoughness(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			return m_MaterialData.roughness;
+			if (m_MaterialData.roughnessMapId > 0)
+			{
+				float4 roughness = ReadTexture(m_MaterialData.roughnessMapId, uv);
+				return m_MaterialData.roughness;
+			}
+			else
+			{
+				return m_MaterialData.roughness;
+			}
 		}
 
 	public:

@@ -15,6 +15,8 @@ namespace CudaPBRT
 		glm::vec3 p = glm::vec3(0.f);
 		glm::vec3 normal = glm::vec3(0.f);
 
+		glm::vec2 uv = glm::vec2(0.f);
+
 		CPU_GPU Intersection() 
 		{}
 
@@ -33,6 +35,7 @@ namespace CudaPBRT
 			t = CudaPBRT::FloatMax;
 			p = glm::vec3(0.f);
 			normal = glm::vec3(0.f);
+			uv = glm::vec2(0.f);
 		}
 
 		INLINE CPU_GPU bool operator<(const Intersection& other) const
