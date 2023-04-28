@@ -251,11 +251,11 @@ void TestLayer::LoadScene()
 	const char* nor_tex_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//whitebubbleN.jpg";
 	const char* env_map_path = "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//fireplace_4k.hdr";
 
-	const char* wahoo_albedo_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//wahoo.bmp";
+	const char* albedo_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_COL_2k.png";
 
 	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(albedo_tex_path));
 	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(nor_tex_path));
-	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(wahoo_albedo_path));
+	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(albedo_path));
 	//m_Textures.emplace_back(CudaTexture::CreateCudaTexture(env_map_path));
 
 	// Hard-coding Cornell Box Scene
@@ -298,7 +298,7 @@ void TestLayer::LoadScene()
 	//shapeData.emplace_back(ShapeType::Sphere, glassId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(3, 3, 3));
 	//shapeData.emplace_back(ShapeType::Cube, glassId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
 	//shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(-2, -1, 0.75), glm::vec3(0, -17.5, 0), glm::vec3(3, 3, 3)); // Short Cube
-	LoadObj(shapeData, triangles, vertices, normals, uvs, "E://Projects//CUDA_Projects//CudaPBRT//res//models//wahoo.obj");
+	LoadObj(shapeData, triangles, vertices, normals, uvs, "E://Projects//CUDA_Projects//CudaPBRT//res//models//Camera.obj");
 
 	BufferData<glm::vec3>(m_Scene->vertices, vertices.data(), vertices.size());
 	BufferData<glm::vec3>(m_Scene->normals, normals.data(), normals.size());
@@ -396,28 +396,56 @@ void TestLayer::LoadObj(std::vector<ShapeData>& shapeData,
 
 			std::vector<std::string> result(v.begin(), v.end());
 			
-			glm::ivec3 v_id;
-			glm::ivec3 n_id;
-			glm::ivec3 uv_id;
-
-			for (int i = 0; i < 3; ++i)
+			
+			if (result.size() == 4)
 			{
-				auto id_str = result[i + 1] | std::views::split('/') | std::views::transform([](auto word) {
-					return std::string(word.begin(), word.end());
-				});
-				std::vector<std::string> ids(id_str.begin(), id_str.end());
-				v_id[i]  = std::stoi(ids[0]) - f_start;
-				uv_id[i] = std::stoi(ids[1]) - f_start;
-				n_id[i]  = std::stoi(ids[2]) - f_start;
-			}
+				glm::ivec3 v_id;
+				glm::ivec3 n_id;
+				glm::ivec3 uv_id;
 
-			triangles.emplace_back(v_id, n_id, uv_id);
+				for (int i = 0; i < 3; ++i)
+				{
+					auto id_str = result[i + 1] | std::views::split('/') | std::views::transform([](auto word) {
+						return std::string(word.begin(), word.end());
+						});
+					std::vector<std::string> ids(id_str.begin(), id_str.end());
+					v_id[i] = std::stoi(ids[0]) - f_start;
+					uv_id[i] = std::stoi(ids[1]) - f_start;
+					n_id[i] = std::stoi(ids[2]) - f_start;
+				}
+
+				triangles.emplace_back(v_id, n_id, uv_id);
+			}
+			else if (result.size() == 5)
+			{
+				glm::ivec4 v_id;
+				glm::ivec4 n_id;
+				glm::ivec4 uv_id;
+
+				for (int i = 0; i < 4; ++i)
+				{
+					auto id_str = result[i + 1] | std::views::split('/') | std::views::transform([](auto word) {
+						return std::string(word.begin(), word.end());
+						});
+					std::vector<std::string> ids(id_str.begin(), id_str.end());
+					v_id[i] = std::stoi(ids[0]) - f_start;
+					uv_id[i] = std::stoi(ids[1]) - f_start;
+					n_id[i] = std::stoi(ids[2]) - f_start;
+				}
+				// naive triangulation for face has 4 vertices
+				triangles.emplace_back(glm::ivec3(v_id[0], v_id[1], v_id[2]), 
+										glm::ivec3(n_id[0], n_id[1], n_id[2]), 
+										glm::ivec3(uv_id[0], uv_id[1], uv_id[2]));
+				triangles.emplace_back(glm::ivec3(v_id[0], v_id[2], v_id[3]), 
+										glm::ivec3(n_id[0], n_id[2], n_id[3]),
+										glm::ivec3(uv_id[0], uv_id[2], uv_id[3]));
+			}
 		}
 	}
 
 	glm::mat4 transform;
 	glm::mat3 transposeInvT;
-	Shape::ComputeTransform(glm::vec3(0, 3, 0), glm::vec3(0, 180, 0), glm::vec3(0.5, 0.5, 0.5), transform);
+	Shape::ComputeTransform(glm::vec3(0, 3, 0), glm::vec3(0, 180, 0), glm::vec3(0.2, 0.2, 0.2), transform);
 	transposeInvT = glm::transpose(glm::inverse(glm::mat3(transform)));
 
 	for (size_t i = v_start_id; i < vertices.size(); ++i)
