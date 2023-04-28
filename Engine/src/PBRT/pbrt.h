@@ -20,9 +20,10 @@ namespace CudaPBRT
 	void BufferData(T*& device_ptr, T* host_ptr, size_t size)
 	{
 		ASSERT(device_ptr == nullptr);
-		ASSERT(host_ptr != nullptr);
 		if (size > 0)
 		{
+			ASSERT(host_ptr != nullptr);
+
 			cudaMalloc((void**)&device_ptr, sizeof(T) * size);
 			CUDA_CHECK_ERROR();
 

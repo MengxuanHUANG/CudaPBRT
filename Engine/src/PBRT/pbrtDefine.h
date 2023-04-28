@@ -92,6 +92,12 @@ namespace CudaPBRT
 		return glm::transpose(LocalToWorld(nor));
 	}
 	
+	template<typename T>
+	INLINE CPU_GPU T BarycentricInterpolation(const T& c1, const T& c2, const T& c3, float u, float v)
+	{
+		return u * c1 + v * c2 + (1.f - u - v) * c3;
+	}
+
 	inline void CudaCheckError(const char* file, int line)
 	{
 		cudaDeviceSynchronize();

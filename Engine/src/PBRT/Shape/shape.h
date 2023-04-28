@@ -10,6 +10,22 @@
 
 namespace CudaPBRT
 {
+	struct TriangleData
+	{
+		glm::ivec3 vId	= glm::ivec3(-1);
+		glm::ivec3 nId	= glm::ivec3(-1);
+		glm::ivec3 uvId = glm::ivec3(-1);
+		
+		CPU_GPU TriangleData() 
+		{}
+		
+		CPU_GPU TriangleData(const glm::ivec3& v_id, 
+							 const glm::ivec3& n_id = glm::ivec3(-1),
+							 const glm::ivec3& uv_id = glm::ivec3(-1))
+			:vId(v_id), nId(n_id), uvId(uv_id)
+		{}
+	};
+
 	enum class ShapeType : unsigned char
 	{
 		None = 0,
@@ -28,13 +44,19 @@ namespace CudaPBRT
 		glm::vec3 rotation = glm::vec3(0.f);
 		glm::vec3 scale = glm::vec3(1.f);
 
-		glm::ivec3 verticeId = glm::ivec3(-1);
+		TriangleData triangle;
+
 		glm::vec3* vertices = nullptr;
+		glm::vec3* normals = nullptr;
+		glm::vec2* uvs = nullptr;
 
 		ShapeData(const int& material_id,
-				  const glm::ivec3& v_id,
-				  glm::vec3* vertices)
-			: type(ShapeType::Triangle), material_id(material_id), verticeId(v_id), vertices(vertices)
+				  const TriangleData& tri,
+				  glm::vec3* vertices,
+				  glm::vec3* normal = nullptr,
+				  glm::vec2* uv = nullptr)
+			: type(ShapeType::Triangle), material_id(material_id), 
+			  triangle(tri), vertices(vertices), normals(normal), uvs(uv)
 		{}
 
 		ShapeData(ShapeType type,

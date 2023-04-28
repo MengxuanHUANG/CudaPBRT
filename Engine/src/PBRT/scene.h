@@ -16,7 +16,8 @@ namespace CudaPBRT
 	{
 	public:
         Scene()
-            : shapes(nullptr), materials(nullptr), lights(nullptr), vertices(nullptr),
+            : shapes(nullptr), materials(nullptr), lights(nullptr), 
+              vertices(nullptr), normals(nullptr), uvs(nullptr),
               shape_count(0), material_count(0), light_count(0),
               boundings(nullptr), BVH(nullptr)
         {
@@ -42,14 +43,23 @@ namespace CudaPBRT
             printf("start free cuda\n");
             printf("start free arrays on cuda\n");
             FreeArrayOnCuda<Shape>(shapes, shape_count);
+            CUDA_CHECK_ERROR();
             FreeArrayOnCuda<Material>(materials, material_count);
+            CUDA_CHECK_ERROR();
             FreeArrayOnCuda<Light>(lights, light_count);
             printf("end free arrays on cuda\n");
 
             printf("start free BVH arrays on cuda\n");
             CUDA_FREE(vertices);
+            CUDA_CHECK_ERROR();
+            CUDA_FREE(normals);
+            CUDA_CHECK_ERROR();
+            CUDA_FREE(uvs);
+            CUDA_CHECK_ERROR();
             CUDA_FREE(boundings);
+            CUDA_CHECK_ERROR();
             CUDA_FREE(BVH);
+            CUDA_CHECK_ERROR();
             printf("end free BVH arrays on cuda\n");
 
             printf("end free cuda\n");
@@ -155,6 +165,8 @@ namespace CudaPBRT
         Material** materials; // materials on device
 		Light** lights; // lights on device
         glm::vec3* vertices;
+        glm::vec3* normals;
+        glm::vec2* uvs;
 
         size_t shape_count;
         size_t material_count;

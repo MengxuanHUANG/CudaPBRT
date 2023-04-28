@@ -16,9 +16,9 @@ namespace CudaPBRT
 		switch (data.type)
 		{
 		case ShapeType::Triangle:
-			return Triangle::GetWorldBounding({ vertices[data.verticeId[0]],
-												vertices[data.verticeId[1]],
-												vertices[data.verticeId[2]] });
+			return Triangle::GetWorldBounding({ vertices[data.triangle.vId[0]],
+												vertices[data.triangle.vId[1]],
+												vertices[data.triangle.vId[2]] });
 		case ShapeType::Square:
 			return Square::GetWorldBounding(data);
 		case ShapeType::Cube:
