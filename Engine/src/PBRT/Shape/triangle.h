@@ -60,22 +60,14 @@ namespace CudaPBRT
 
             if (t > 0.f)
             {
-                if (m_Triangle.nId[0] >= 0)
-                {
-                    intersection.normal = BarycentricInterpolation<glm::vec3>(m_Normals[m_Triangle.nId[1]],
-                                                                              m_Normals[m_Triangle.nId[2]],
-                                                                              m_Normals[m_Triangle.nId[0]], uv.x, uv.y);
-                    intersection.normal = glm::normalize(intersection.normal);
-                }
-                else
-                {
-                    intersection.normal = glm::normalize(glm::cross(edge01, edge02));
-                }
-
-                intersection.normal = glm::normalize(glm::cross(edge01, edge02));
+                intersection.normal = m_Triangle.nId[0] >= 0 ? BarycentricInterpolation<glm::vec3>(m_Normals[m_Triangle.nId[1]],
+                                                                                                   m_Normals[m_Triangle.nId[2]],
+                                                                                                   m_Normals[m_Triangle.nId[0]], uv.x, uv.y):
+                                                               glm::cross(edge01, edge02);
+                intersection.normal = glm::normalize(intersection.normal);
                 intersection.t = t;
                 intersection.p = ray * t;
-                intersection.uv = uv;
+
                 intersection.uv = m_Triangle.uvId[0] >= 0 ? BarycentricInterpolation<glm::vec2>(m_UVs[m_Triangle.uvId[1]],
                                                                                                 m_UVs[m_Triangle.uvId[2]],
                                                                                                 m_UVs[m_Triangle.uvId[0]], uv.x, uv.y) :

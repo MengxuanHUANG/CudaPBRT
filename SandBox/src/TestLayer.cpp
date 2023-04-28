@@ -292,13 +292,13 @@ void TestLayer::LoadScene()
 	std::vector<glm::vec2> uvs;
 	std::vector<TriangleData> triangles;
 
-	TestSingleTriangle(shapeData, triangles, vertices, normals, uvs);
+	//TestSingleTriangle(shapeData, triangles, vertices, normals, uvs);
 	//AddCornellBox_Triangles(shapeData, triangles, vertices, normals, uvs, matteWhiteId, matteWhiteId);
 
 	//shapeData.emplace_back(ShapeType::Sphere, glassId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(3, 3, 3));
 	//shapeData.emplace_back(ShapeType::Cube, glassId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
 	//shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(-2, -1, 0.75), glm::vec3(0, -17.5, 0), glm::vec3(3, 3, 3)); // Short Cube
-	//LoadObj(shapeData, triangles, vertices, normals, uvs, "E://Projects//CUDA_Projects//CudaPBRT//res//models//wahoo.obj");
+	LoadObj(shapeData, triangles, vertices, normals, uvs, "E://Projects//CUDA_Projects//CudaPBRT//res//models//wahoo.obj");
 
 	BufferData<glm::vec3>(m_Scene->vertices, vertices.data(), vertices.size());
 	BufferData<glm::vec3>(m_Scene->normals, normals.data(), normals.size());
@@ -334,7 +334,7 @@ void TestLayer::LoadObj(std::vector<ShapeData>& shapeData,
 	size_t n_start_id = normals.size();
 
 	int line_count = 0;
-	int f_start = 0;
+	int f_start = 1;
 	for (std::string line; std::getline(in, line);)
 	{
 		//std::cout << line << std::endl;
@@ -372,7 +372,7 @@ void TestLayer::LoadObj(std::vector<ShapeData>& shapeData,
 
 			std::vector<std::string> result(v.begin(), v.end());
 
-			uvs.emplace_back(std::stof(result[1]), std::stof(result[2]));
+			uvs.emplace_back(std::stof(result[1]), 1.f - std::stof(result[2]));
 		}
 		else if (line.starts_with("v"))
 		{
