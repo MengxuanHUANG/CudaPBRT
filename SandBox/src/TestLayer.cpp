@@ -251,11 +251,12 @@ void TestLayer::LoadScene()
 	const char* nor_tex_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//whitebubbleN.jpg";
 	const char* env_map_path = "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//fireplace_4k.hdr";
 
-	const char* albedo_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_COL_2k.png";
-
+	const char* cam_albedo_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_COL_2k.png";
+	const char* cam_nor_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_NRML_2k.png";
 	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(albedo_tex_path));
 	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(nor_tex_path));
-	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(albedo_path));
+	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(cam_albedo_path));
+	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(cam_nor_path));
 	//m_Textures.emplace_back(CudaTexture::CreateCudaTexture(env_map_path));
 
 	// Hard-coding Cornell Box Scene
@@ -276,7 +277,7 @@ void TestLayer::LoadScene()
 	materialData.emplace_back(MaterialType::SpecularReflection, glm::vec3(1.f, 1.f, 1.f)); // mirror
 	materialData.emplace_back(MaterialType::SpecularTransmission, glm::vec3(.9f, .9f, 1.f), 0.f, 0.f, 1.55f); // glass
 	materialData.emplace_back(MaterialType::DiffuseReflection, m_Textures[0]->GetTextureObject(), m_Textures[1]->GetTextureObject()); // texture
-	materialData.emplace_back(MaterialType::DiffuseReflection, m_Textures[2]->GetTextureObject()); // texture
+	materialData.emplace_back(MaterialType::DiffuseReflection, m_Textures[2]->GetTextureObject(), m_Textures[3]->GetTextureObject()); // texture
 
 	// shape data
 	std::vector<ShapeData> shapeData;
@@ -396,49 +397,32 @@ void TestLayer::LoadObj(std::vector<ShapeData>& shapeData,
 
 			std::vector<std::string> result(v.begin(), v.end());
 			
+			ASSERT(result.size() > 3);
 			
-			if (result.size() == 4)
+			std::vector<int> v_id;
+			std::vector<int> n_id;
+			std::vector<int> uv_id;
+			
+			v_id.resize(result.size() - 1);
+			n_id.resize(result.size() - 1);
+			uv_id.resize(result.size() - 1);
+
+			for (int i = 0; i < result.size() - 1; ++i)
 			{
-				glm::ivec3 v_id;
-				glm::ivec3 n_id;
-				glm::ivec3 uv_id;
-
-				for (int i = 0; i < 3; ++i)
-				{
-					auto id_str = result[i + 1] | std::views::split('/') | std::views::transform([](auto word) {
-						return std::string(word.begin(), word.end());
-						});
-					std::vector<std::string> ids(id_str.begin(), id_str.end());
-					v_id[i] = std::stoi(ids[0]) - f_start;
-					uv_id[i] = std::stoi(ids[1]) - f_start;
-					n_id[i] = std::stoi(ids[2]) - f_start;
-				}
-
-				triangles.emplace_back(v_id, n_id, uv_id);
+				auto id_str = result[i + 1] | std::views::split('/') | std::views::transform([](auto word) {
+					return std::string(word.begin(), word.end());
+					});
+				std::vector<std::string> ids(id_str.begin(), id_str.end());
+				v_id[i] = std::stoi(ids[0]) - f_start;
+				uv_id[i] = std::stoi(ids[1]) - f_start;
+				n_id[i] = std::stoi(ids[2]) - f_start;
 			}
-			else if (result.size() == 5)
+			// naive triangulation
+			for (int i = 1; i < result.size() - 2; ++i)
 			{
-				glm::ivec4 v_id;
-				glm::ivec4 n_id;
-				glm::ivec4 uv_id;
-
-				for (int i = 0; i < 4; ++i)
-				{
-					auto id_str = result[i + 1] | std::views::split('/') | std::views::transform([](auto word) {
-						return std::string(word.begin(), word.end());
-						});
-					std::vector<std::string> ids(id_str.begin(), id_str.end());
-					v_id[i] = std::stoi(ids[0]) - f_start;
-					uv_id[i] = std::stoi(ids[1]) - f_start;
-					n_id[i] = std::stoi(ids[2]) - f_start;
-				}
-				// naive triangulation for face has 4 vertices
-				triangles.emplace_back(glm::ivec3(v_id[0], v_id[1], v_id[2]), 
-										glm::ivec3(n_id[0], n_id[1], n_id[2]), 
-										glm::ivec3(uv_id[0], uv_id[1], uv_id[2]));
-				triangles.emplace_back(glm::ivec3(v_id[0], v_id[2], v_id[3]), 
-										glm::ivec3(n_id[0], n_id[2], n_id[3]),
-										glm::ivec3(uv_id[0], uv_id[2], uv_id[3]));
+				triangles.emplace_back(glm::ivec3( v_id[0],  v_id[i],  v_id[i + 1]),
+									   glm::ivec3( n_id[0],  n_id[i],  n_id[i + 1]),
+									   glm::ivec3(uv_id[0], uv_id[i], uv_id[i + 1]));
 			}
 		}
 	}
