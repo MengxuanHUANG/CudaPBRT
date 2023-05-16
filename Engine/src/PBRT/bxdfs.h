@@ -102,7 +102,7 @@ namespace CudaPBRT
 				return BSDFSample();
 			}
 			glm::vec3 wi = Sampler::SquareToHemisphereCosine(xi);
-			glm::vec3 wiW = normalize(LocalToWorld(normal) * wi);
+			glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
 			
 			return BSDFSample(f(R, wo, wi), wiW, PDF(wo, wi), etaA);
 		}
@@ -124,7 +124,7 @@ namespace CudaPBRT
 		{
 			glm::vec3 wi = Reflect(wo);
 
-			glm::vec3 wiW = normalize(LocalToWorld(normal) * wi);
+			glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
 
 			return BSDFSample(R / AbsCosTheta(wi), wiW, 1.f, etaA);
 		}

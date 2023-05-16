@@ -385,7 +385,7 @@ namespace CudaPBRT
 		PathSegment& segment = pathSegment[index];
 		Intersection& intersection = segment.intersection;
 		Ray& ray = segment.ray;
-
+		const EnvironmentMap& env_map = scene.envMap;
 		if (intersection.id >= 0)
 		{
 			if (intersection.isLight)
@@ -441,7 +441,12 @@ namespace CudaPBRT
 				}
 			}
 		}
-		
+		else if(env_map.GetTexObj() > 0)
+		{
+			float4 irradiance = env_map.GetIrradiance(ray.DIR);
+			segment.throughput *= Spectrum(irradiance.x, irradiance.y, irradiance.z);
+			segment.radiance += segment.throughput;
+		}
 		segment.End();
 	}
 

@@ -4,10 +4,10 @@
 
 namespace CudaPBRT
 {
-	CudaTexture::CudaTexture(const char* path)
+	CudaTexture::CudaTexture(const char* path, bool flip_v)
 		:m_TexObj(0), m_CudaArray()
 	{
-		InitTexture(path);
+		InitTexture(path, flip_v);
 	}
 
 	CudaTexture::~CudaTexture()
@@ -15,7 +15,7 @@ namespace CudaPBRT
 		FreeTexture();
 	}
 
-	void CudaTexture::InitTexture(const char* path)
+	void CudaTexture::InitTexture(const char* path, bool flip_v)
 	{
         // free original texture if necessary
         if (m_TexObj != 0)
@@ -24,7 +24,8 @@ namespace CudaPBRT
         }
         
         // read image from file       
-       
+        stbi_set_flip_vertically_on_load(flip_v);
+
         float* image_data = stbi_loadf(path, &m_Width, &m_Height, NULL, 4);
         ASSERT(image_data);
 
@@ -70,8 +71,16 @@ namespace CudaPBRT
 		cudaFreeArray(m_CudaArray);
 	}
 
-    uPtr <CudaTexture> CudaTexture::CreateCudaTexture(const char* path)
+    uPtr <CudaTexture> CudaTexture::CreateCudaTexture(const char* path, bool flip_v)
 	{
-        return mkU<CudaTexture>(path);
+        return mkU<CudaTexture>(path, flip_v);
 	}
+
+    GPUTexture::GPUTexture(CudaTexObj tex_obj)
+        : m_TexObj(tex_obj)
+    {}
+
+    EnvironmentMap::EnvironmentMap(CudaTexObj tex_obj)
+        : GPUTexture(tex_obj)
+    {}
 }

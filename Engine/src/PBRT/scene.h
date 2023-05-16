@@ -9,6 +9,7 @@
 #include "BVH/bvh.h"
 
 #include "pbrt.h"
+#include "texture.h"
 
 namespace CudaPBRT
 {
@@ -19,12 +20,17 @@ namespace CudaPBRT
             : shapes(nullptr), materials(nullptr), lights(nullptr), 
               vertices(nullptr), normals(nullptr), uvs(nullptr),
               shape_count(0), material_count(0), light_count(0),
-              boundings(nullptr), BVH(nullptr)
+              boundings(nullptr), BVH(nullptr),
+              envMap(0)
         {
         }
 
         INLINE CPU_GPU bool Sample_Li(float rand, const glm::vec2& xi, const glm::vec3& p, const glm::vec3& normal, LightSample& sample)
         {
+            if (light_count <= 0.f)
+            {
+                return false;
+            }
             ASSERT(light_count < 10);
             int light_id = static_cast<int>(glm::floor(rand * 10.f)) % light_count;
             sample = lights[light_id]->Sample_Li(p, normal, xi);
@@ -93,6 +99,7 @@ namespace CudaPBRT
                 {
                     intersection = it;
                     intersection.id = i;
+                    intersection.isLight = false;
                     intersection.material_id = shapes[i]->material_id;
                 }
             }
@@ -138,6 +145,7 @@ namespace CudaPBRT
                             {
                                 intersection = it;
                                 intersection.id = node.primitiveId;
+                                intersection.isLight = false;
                                 intersection.material_id = shapes[node.primitiveId + i]->material_id;
                             }
                         }
@@ -175,5 +183,6 @@ namespace CudaPBRT
         // BVH
         BoundingBox* boundings;
         BVHNode* BVH;
+        EnvironmentMap envMap;
 	};
 }
