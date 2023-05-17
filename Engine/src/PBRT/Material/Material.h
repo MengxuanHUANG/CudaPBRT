@@ -13,7 +13,8 @@ namespace CudaPBRT
 		LambertianReflection	= 1U,
 		SpecularReflection		= 2U | Specular,
 		SpecularTransmission	= 3U | Specular,
-		Glass					= 4U | Specular
+		Glass					= 4U | Specular,
+		MicrofacetReflection	= 5U
 	};
 
 	INLINE CPU_GPU bool MaterialIs(MaterialType type, MaterialType flag)

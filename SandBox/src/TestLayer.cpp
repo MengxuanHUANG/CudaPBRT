@@ -256,8 +256,6 @@ void TestLayer::LoadScene()
 	const char* cam_nor_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_NRML_2k.png";
 	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(cam_albedo_path, true));
 	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(cam_nor_path, true));
-	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(tex_albedo_path));
-	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(tex_nor_path));
 	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(env_map_path, true));
 
 	//m_Scene->envMap.SetTexObj(m_Textures.back()->GetTextureObject());
@@ -271,6 +269,7 @@ void TestLayer::LoadScene()
 	int mirrorId		= 3;
 	int glassId			= 4;
 	int obj_tex_Id		= 5;
+	int microfacetId	= 6;
 
 	std::vector<MaterialData> materialData;
 	materialData.emplace_back(MaterialType::LambertianReflection, glm::vec3(0.85, 0.81, 0.78)); //matteWhite
@@ -279,7 +278,7 @@ void TestLayer::LoadScene()
 	materialData.emplace_back(MaterialType::SpecularReflection, glm::vec3(1.f, 1.f, 1.f)); // mirror
 	materialData.emplace_back(MaterialType::SpecularTransmission, glm::vec3(.9f, .9f, 1.f), 0.f, 0.f, 1.55f); // glass
 	materialData.emplace_back(MaterialType::LambertianReflection, m_Textures[0]->GetTextureObject(), m_Textures[1]->GetTextureObject()); // texture
-	materialData.emplace_back(MaterialType::LambertianReflection, m_Textures[2]->GetTextureObject(), m_Textures[3]->GetTextureObject()); // texture
+	materialData.emplace_back(MaterialType::MicrofacetReflection, glm::vec3(1.f, 1.f, 1.f)); // texture
 
 	// shape data
 	std::vector<ShapeData> shapeData;
@@ -287,7 +286,7 @@ void TestLayer::LoadScene()
 	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, -2.5, 0), glm::vec3(-90, 0, 0), glm::vec3(10, 10, 1)); // Floor
 	shapeData.emplace_back(ShapeType::Square, matteRedId, glm::vec3(5, 2.5, 0), glm::vec3(0, -90, 0), glm::vec3(10, 10, 1)); // Red wall
 	shapeData.emplace_back(ShapeType::Square, matteGreenId, glm::vec3(-5, 2.5, 0), glm::vec3(0, 90, 0), glm::vec3(10, 10, 1)); // Green Wall
-	shapeData.emplace_back(ShapeType::Square, 6, glm::vec3(0, 2.5, 5), glm::vec3(0, 180, 0), glm::vec3(10, 10, 1)); // Back Wall
+	shapeData.emplace_back(ShapeType::Square, microfacetId, glm::vec3(0, 2.5, 5), glm::vec3(0, 180, 0), glm::vec3(10, 10, 1)); // Back Wall
 	shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, 7.5, 0), glm::vec3(90, 0, 0), glm::vec3(10, 10, 1)); // Ceiling
 
 	std::vector<glm::vec3> vertices;
@@ -296,9 +295,9 @@ void TestLayer::LoadScene()
 	std::vector<TriangleData> triangles;
 
 	//TestSingleTriangle(shapeData, triangles, vertices, normals, uvs);
-	//AddCornellBox_Triangles(shapeData, triangles, vertices, normals, uvs, matteWhiteId, matteWhiteId);
+	AddCornellBox_Triangles(shapeData, triangles, vertices, normals, uvs, matteWhiteId, matteWhiteId);
 
-	shapeData.emplace_back(ShapeType::Sphere, glassId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(3, 3, 3));
+	//shapeData.emplace_back(ShapeType::Sphere, glassId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(3, 3, 3));
 	//shapeData.emplace_back(ShapeType::Cube, glassId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
 	//shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(-2, -1, 0.75), glm::vec3(0, -17.5, 0), glm::vec3(3, 3, 3)); // Short Cube
 	//LoadObj(shapeData, triangles, vertices, normals, uvs, "E://Projects//CUDA_Projects//CudaPBRT//res//models//Camera.obj");

@@ -121,27 +121,53 @@ namespace CudaPBRT
 		float etaB;
 	};
 
-	// microfacet reflection
-	class OrenNayar : public BxDF
+	// OrenNayar microfacet reflection
+	class MicrofacetReflection : public BxDF
 	{
 	public:
 		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
-			return Spectrum(0.f);
+			float roughness = 0.001f;
+
+			float cosThetaO = AbsCosTheta(wo);
+			float cosThetaI = AbsCosTheta(wi);
+			glm::vec3 wh = wi + wo;
+			// Handle degenerate cases for microfacet reflection
+			if (cosThetaI == 0 || cosThetaO == 0) return Spectrum();
+			if (wh.x == 0 && wh.y == 0 && wh.z == 0) return Spectrum();
+			wh = glm::normalize(wh);
+			float F = 1;
+			float D = TrowbridgeReitzD(wh, roughness);
+			float G = TrowbridgeReitzG(wo, wi, roughness);
+
+			return R * F * D * G / (4.f * cosThetaI * cosThetaO);
 		}
 
 		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const override
 		{
-			glm::vec3 wi = Reflect(wo);
+			float roughness = 0.001f;
+			if (wo.z <= 0.f)
+			{
+				return BSDFSample();
+			}
+			glm::vec3 wh = Sample_wh(wo, xi, roughness);
+			glm::vec3 wi = glm::reflect(-wo, wh);
 
 			glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
+			
+			if (!SameHemisphere(wo, wi)) return BSDFSample();
 
-			return BSDFSample(R / AbsCosTheta(wi), wiW, 1.f, etaA);
+			// Compute PDF of _wi_ for microfacet reflection
+			float pdf = TrowbridgeReitzPdf(wo, wh, roughness) / (4 * glm::dot(wo, wh));
+
+			return BSDFSample(f(R, wo, wi), wiW, pdf, etaA);
 		}
 
 		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const override
 		{
-			return 0.f;
+			float roughness = 0.001f;
+			glm::vec3 wh = glm::normalize(wo + wi);
+			return TrowbridgeReitzPdf(wo, wh, roughness) / (4 * glm::dot(wo, wh));
 		}
 	};
 }

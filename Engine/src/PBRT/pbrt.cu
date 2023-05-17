@@ -72,6 +72,9 @@ namespace CudaPBRT
 		case MaterialType::Glass:
 			bsdf = new FresnelBSDF(new SpecularReflection(), new SpecularTransmission(data.eta), data.eta);
 			break;
+		case MaterialType::MicrofacetReflection:
+			bsdf = new SingleBSDF(new MicrofacetReflection());
+			break;
 		default:
 			printf("Unknown MaterialType!\n");
 			return nullptr;
