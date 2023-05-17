@@ -14,9 +14,7 @@
 #include "Shape/cube.h"
 #include "Shape/triangle.h"
 
-#include "Material/diffuseMaterial.h"
-#include "Material/specularMaterial.h"
-#include "Material/glass.h"
+#include "Material/bsdf.h"
 #include "Sampler/rng.h"
 #include "Light/light.h"
 
@@ -59,18 +57,26 @@ namespace CudaPBRT
 	
 	CPU_GPU Material* Create(const MaterialData& data)
 	{
+		BSDF* bsdf = nullptr;
 		switch (data.type)
 		{
-		case MaterialType::DiffuseReflection:
-			return new DiffuseMaterial(data);
+		case MaterialType::LambertianReflection:
+			bsdf = new SingleBSDF(new LambertianReflection());
+			break;
 		case MaterialType::SpecularReflection:
-			return new SpecularMaterial(data);
+			bsdf = new SingleBSDF(new SpecularReflection());
+			break;
 		case MaterialType::SpecularTransmission:
-			return new Glass(data);
+			bsdf = new SingleBSDF(new SpecularTransmission(data.eta));
+			break;
+		case MaterialType::Glass:
+			bsdf = new FresnelBSDF(new SpecularReflection(), new SpecularTransmission(data.eta), data.eta);
+			break;
 		default:
 			printf("Unknown MaterialType!\n");
 			return nullptr;
 		}
+		return new Material(data, bsdf);
 	}
 
 	CPU_GPU Light* Create(const LightData& data)

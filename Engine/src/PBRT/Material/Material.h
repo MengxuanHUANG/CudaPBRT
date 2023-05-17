@@ -2,7 +2,7 @@
 #include "PBRT/pbrtDefine.h"
 #include "materialUtilities.h"
 
-#include "PBRT/bsdf.h"
+#include "bsdf.h"
 
 namespace CudaPBRT
 {
@@ -10,9 +10,10 @@ namespace CudaPBRT
 	{
 		Specular = BIT(7),
 		None = 0,
-		DiffuseReflection		= 1U,
+		LambertianReflection	= 1U,
 		SpecularReflection		= 2U | Specular,
-		SpecularTransmission	= 3U | Specular
+		SpecularTransmission	= 3U | Specular,
+		Glass					= 4U | Specular
 	};
 
 	INLINE CPU_GPU bool MaterialIs(MaterialType type, MaterialType flag)
@@ -72,13 +73,16 @@ namespace CudaPBRT
 	class Material
 	{
 	public:
-		CPU_GPU Material(const MaterialData& mData, BxDF* bxdf)
-			:m_MaterialData(mData), m_BSDF(bxdf)
+		CPU_GPU Material(const MaterialData& mData, BSDF* bsdf)
+			:m_MaterialData(mData), m_BSDF(bsdf)
 		{}
 
-		CPU_GPU virtual ~Material() {}
+		CPU_GPU virtual ~Material() 
+		{
+			SAFE_FREE(m_BSDF);
+		}
 
-		INLINE CPU_GPU BSDF& GetBSDF() { return m_BSDF; }
+		INLINE CPU_GPU BSDF& GetBSDF() { return *m_BSDF; }
 
 		INLINE GPU_ONLY Spectrum GetAlbedo(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
@@ -141,6 +145,6 @@ namespace CudaPBRT
 
 	public:
 		MaterialData m_MaterialData;
-		BSDF m_BSDF;
+		BSDF* m_BSDF;
 	};
 }
