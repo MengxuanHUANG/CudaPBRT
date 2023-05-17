@@ -75,4 +75,19 @@ namespace CudaPBRT
 		thrust::device_ptr<PathSegment> devPathsThr;
 		thrust::device_ptr<PathSegment> devTerminatedPathsThr;
 	};
+
+	struct KernalConfig
+	{
+		dim3 numBlocks;
+		dim3 threadPerBlock;
+
+		KernalConfig(const glm::vec3& blocks, const glm::ivec3& threads)
+		{
+			threadPerBlock = dim3(BIT(threads.x), BIT(threads.y), BIT(threads.z));
+
+			numBlocks = dim3(glm::ceil(blocks.x / static_cast<float>(threadPerBlock.x)),
+							 glm::ceil(blocks.y / static_cast<float>(threadPerBlock.y)),
+							 glm::ceil(blocks.z / static_cast<float>(threadPerBlock.z)));
+		}
+	};
 }

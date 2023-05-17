@@ -255,7 +255,7 @@ void TestLayer::LoadScene()
 	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(cam_nor_path, true));
 	m_Textures.emplace_back(CudaTexture::CreateCudaTexture(env_map_path, true));
 
-	m_Scene->envMap.SetTexObj(m_Textures.back()->GetTextureObject());
+	//m_Scene->envMap.SetTexObj(m_Textures.back()->GetTextureObject());
 
 	// Hard-coding Cornell Box Scene
 
@@ -369,7 +369,7 @@ void TestLayer::LoadObj(std::vector<ShapeData>& shapeData,
 
 			std::vector<std::string> result(v.begin(), v.end());
 
-			uvs.emplace_back(std::stof(result[1]), 1.f - std::stof(result[2]));
+			uvs.emplace_back(std::stof(result[1]), std::stof(result[2]));
 		}
 		else if (line.starts_with("v"))
 		{
@@ -425,7 +425,7 @@ void TestLayer::LoadObj(std::vector<ShapeData>& shapeData,
 
 	glm::mat4 transform;
 	glm::mat3 transposeInvT;
-	Shape::ComputeTransform(glm::vec3(0, 3, 0), glm::vec3(0, 180, 0), glm::vec3(0.2, 0.2, 0.2), transform);
+	Shape::ComputeTransform(glm::vec3(0, 0, 0), glm::vec3(0, 180, 0), glm::vec3(0.5), transform);
 	transposeInvT = glm::transpose(glm::inverse(glm::mat3(transform)));
 
 	for (size_t i = v_start_id; i < vertices.size(); ++i)

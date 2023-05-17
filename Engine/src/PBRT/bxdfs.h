@@ -1,6 +1,7 @@
 #pragma once
-#include "PBRT/pbrtDefine.h"
-#include "PBRT/Spectrum.h"
+#include "pbrtDefine.h"
+#include "pbrtUtilities.h"
+#include "spectrum.h"
 
 #include <glm/glm.hpp>
 
@@ -8,61 +9,6 @@
 
 namespace CudaPBRT
 {
-	// bsdf help functions
-	INLINE CPU_GPU float FresnelDielectric(float etaI, float etaT, float cosThetaI)
-	{
-		cosThetaI = glm::clamp(cosThetaI, -1.f, 1.f);
-
-		if (cosThetaI < 0.f)
-		{
-			float temp = etaI;
-			etaI = etaT;
-			etaT = temp;
-			cosThetaI = -cosThetaI;
-		}
-
-		float sinThetaI = glm::sqrt(glm::max(0.f, 1.f - cosThetaI * cosThetaI));
-		float sinThetaT = etaI / etaT * sinThetaI;
-
-		if (sinThetaT >= 1.f)
-		{
-			return 1.f;
-		}
-
-		float cosThetaT = glm::sqrt(glm::max(0.f, 1.f - sinThetaT * sinThetaT));
-		float Rparl = ((etaT * cosThetaI) - (etaI * cosThetaT)) / ((etaT * cosThetaI) + (etaI * cosThetaT));
-		float Rperp = ((etaI * cosThetaI) - (etaT * cosThetaT)) / ((etaI * cosThetaI) + (etaT * cosThetaT));
-
-		return (Rparl * Rparl + Rperp * Rperp) / 2.f;
-	}
-
-	INLINE CPU_GPU glm::vec3 Reflect(const glm::vec3& wo)
-	{
-		return { -wo.x, -wo.y, wo.z };
-	}
-
-	INLINE CPU_GPU bool Refract(const glm::vec3& wi, const glm::vec3& n, float eta, glm::vec3& wt)
-	{
-		float cosThetaI = glm::dot(n, wi);
-		float sin2ThetaI = glm::max(0.f, 1.f - cosThetaI * cosThetaI);
-		float sin2ThetaT = eta * eta * sin2ThetaI;
-
-		if (sin2ThetaT >= 1.f) return false;
-
-		float cosThetaT = std::sqrt(1 - sin2ThetaT);
-		wt = eta * -wi + (eta * cosThetaI - cosThetaT) * n;
-		return true;
-	}
-
-	INLINE CPU_GPU glm::vec3 Faceforward(const glm::vec3& n, const glm::vec3& v)
-	{
-		return (glm::dot(n, v) < 0.f) ? -n : n;
-	}
-	
-	INLINE CPU_GPU bool SameHemisphere(const glm::vec3& w, const glm::vec3& wp) {
-		return w.z * wp.z > 0;
-	}
-
 	struct BSDFSample
 	{
 		Spectrum f;
@@ -227,5 +173,29 @@ namespace CudaPBRT
 
 	public:
 		float etaB;
+	};
+
+	// microfacet reflection
+	class OrenNayar : public BxDF
+	{
+	public:
+		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& wo, const glm::vec3& wi) const override
+		{
+			return Spectrum(0.f);
+		}
+
+		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const override
+		{
+			glm::vec3 wi = Reflect(wo);
+
+			glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
+
+			return BSDFSample(R / AbsCosTheta(wi), wiW, 1.f, etaA);
+		}
+
+		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const override
+		{
+			return 0.f;
+		}
 	};
 }

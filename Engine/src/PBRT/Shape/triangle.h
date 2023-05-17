@@ -1,6 +1,7 @@
 #pragma once
 
 #include "shape.h"
+#include "PBRT/pbrtUtilities.h"
 #include <array>
 
 namespace CudaPBRT

@@ -21,7 +21,6 @@
 #include "Light/light.h"
 
 #include <GL/glew.h>
-#include <cuda_gl_interop.h>
 
 #include <thrust/remove.h>
 #include <thrust/sort.h>

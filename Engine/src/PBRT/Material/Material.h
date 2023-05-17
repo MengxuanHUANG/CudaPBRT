@@ -1,11 +1,11 @@
 #pragma once
 #include "PBRT/pbrtDefine.h"
+#include "materialUtilities.h"
+
 #include "PBRT/bsdf.h"
 
 namespace CudaPBRT
 {
-	GPU_ONLY float4 ReadTexture(const CudaTexObj& tex_obj, const glm::vec2& uv);
-
 	enum class MaterialType : unsigned char
 	{
 		Specular = BIT(7),

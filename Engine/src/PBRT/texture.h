@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pbrtDefine.h"
+#include "pbrtUtilities.h"
 #include "spectrum.h"
 
 namespace CudaPBRT
@@ -26,8 +27,6 @@ namespace CudaPBRT
 		static uPtr<CudaTexture> CreateCudaTexture(const char* path, bool flip_v = false);
 	};
 
-	GPU_ONLY float4 ReadTexture(const CudaTexObj& tex_obj, const glm::vec2& uv);
-	
 	class GPUTexture
 	{
 	public:
