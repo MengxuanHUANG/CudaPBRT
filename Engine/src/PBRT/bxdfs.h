@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 
 #include "Sampler/sampler.h"
+#include "Sampler/rng.h"
 
 namespace CudaPBRT
 {
@@ -25,35 +26,48 @@ namespace CudaPBRT
 		}
 	};
 
+	struct BSDFData
+	{
+		const glm::vec3& normal;
+		const float& roughness;
+		const float& metallic;
+		const float& eta;
+		const Spectrum& R;
+
+		CPU_GPU BSDFData(const glm::vec3& n, const float& r, const float& m, const float& eta, const Spectrum& R)
+			:normal(n), roughness(r), metallic(m), eta(eta), R(R)
+		{}
+	};
+
 	class BxDF
 	{
 	public:
-		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& wo, const glm::vec3& wi) const = 0;
-		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const = 0;
-		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const = 0;
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const = 0;
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const = 0;
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const = 0;
 	};
 
 	class LambertianReflection : public BxDF
 	{
 	public:
-		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& wo, const glm::vec3& wi) const override
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
-			return R * InvPi;
+			return data.R * InvPi;
 		}
 
-		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const override
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const override
 		{
 			if (wo.z <= 0.f)
 			{
 				return BSDFSample();
 			}
-			glm::vec3 wi = Sampler::SquareToHemisphereCosine(xi);
-			glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
+			glm::vec3 wi = Sampler::SquareToHemisphereCosine({rng.rand(), rng.rand()});
+			glm::vec3 wiW = glm::normalize(LocalToWorld(data.normal) * wi);
 			
-			return BSDFSample(f(R, wo, wi), wiW, PDF(wo, wi), etaA);
+			return BSDFSample(f(data, wo, wi), wiW, PDF(data, wo, wi), data.eta);
 		}
 
-		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const override
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
 			return Sampler::SquareToHemisphereCosinePDF(wi);
 		}
@@ -61,21 +75,21 @@ namespace CudaPBRT
 
 	class SpecularReflection : public BxDF
 	{
-		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& wo, const glm::vec3& wi) const override
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
 			return Spectrum(0.f);
 		}
 
-		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const override
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const override
 		{
 			glm::vec3 wi = Reflect(wo);
 
-			glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
+			glm::vec3 wiW = glm::normalize(LocalToWorld(data.normal) * wi);
 
-			return BSDFSample(R / AbsCosTheta(wi), wiW, 1.f, etaA);
+			return BSDFSample(data.R / AbsCosTheta(wi), wiW, 1.f, data.eta);
 		}
 
-		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const override
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
 			return 0.f;
 		}
@@ -87,13 +101,15 @@ namespace CudaPBRT
 		CPU_GPU SpecularTransmission(float eta)
 			:etaB(eta)
 		{}
-		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& wo, const glm::vec3& wi) const override
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
 			return Spectrum(0.f);
 		}
 
-		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& T, float etaA, const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const override
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const override
 		{
+			const float etaA = data.eta;
+
 			bool entering = CosTheta(wo) > 0.f;
 			float etaI = entering ? etaA : etaB;
 			float etaT = entering ? etaB : etaA;
@@ -105,14 +121,14 @@ namespace CudaPBRT
 				return BSDFSample();
 			}
 
-			Spectrum ft = T;
+			Spectrum ft = data.R;
 
-			glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
+			glm::vec3 wiW = glm::normalize(LocalToWorld(data.normal) * wi);
 
 			return BSDFSample(ft / AbsCosTheta(wi), wiW, 1.f, etaB);
 		}
 
-		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const override
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
 			return 0.f;
 		}
@@ -121,14 +137,12 @@ namespace CudaPBRT
 		float etaB;
 	};
 
-	// OrenNayar microfacet reflection
+	// microfacet reflection
 	class MicrofacetReflection : public BxDF
 	{
 	public:
-		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& wo, const glm::vec3& wi) const override
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
-			float roughness = 0.001f;
-
 			float cosThetaO = AbsCosTheta(wo);
 			float cosThetaI = AbsCosTheta(wi);
 			glm::vec3 wh = wi + wo;
@@ -137,37 +151,109 @@ namespace CudaPBRT
 			if (wh.x == 0 && wh.y == 0 && wh.z == 0) return Spectrum();
 			wh = glm::normalize(wh);
 			float F = 1;
-			float D = TrowbridgeReitzD(wh, roughness);
-			float G = TrowbridgeReitzG(wo, wi, roughness);
+			float D = TrowbridgeReitzD(wh, data.roughness);
+			float G = TrowbridgeReitzG(wo, wi, data.roughness);
 
-			return R * F * D * G / (4.f * cosThetaI * cosThetaO);
+			return data.R * F * D * G / (4.f * cosThetaI * cosThetaO);
 		}
 
-		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& wo, const glm::vec3& normal, const glm::vec2& xi) const override
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const override
 		{
-			float roughness = 0.001f;
 			if (wo.z <= 0.f)
 			{
 				return BSDFSample();
 			}
-			glm::vec3 wh = Sample_wh(wo, xi, roughness);
+			glm::vec3 wh = Sample_wh(wo, {rng.rand(), rng.rand()}, data.roughness);
 			glm::vec3 wi = glm::reflect(-wo, wh);
 
-			glm::vec3 wiW = glm::normalize(LocalToWorld(normal) * wi);
+			glm::vec3 wiW = glm::normalize(LocalToWorld(data.normal) * wi);
 			
 			if (!SameHemisphere(wo, wi)) return BSDFSample();
 
 			// Compute PDF of _wi_ for microfacet reflection
-			float pdf = TrowbridgeReitzPdf(wo, wh, roughness) / (4 * glm::dot(wo, wh));
+			float pdf = TrowbridgeReitzPdf(wo, wh, data.roughness) / (4 * glm::dot(wo, wh));
 
-			return BSDFSample(f(R, wo, wi), wiW, pdf, etaA);
+			return BSDFSample(f(data, wo, wi), wiW, pdf, data.eta);
 		}
 
-		CPU_GPU virtual float PDF(const glm::vec3& wo, const glm::vec3& wi) const override
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
-			float roughness = 0.001f;
 			glm::vec3 wh = glm::normalize(wo + wi);
-			return TrowbridgeReitzPdf(wo, wh, roughness) / (4 * glm::dot(wo, wh));
+			return TrowbridgeReitzPdf(wo, wh, data.roughness) / (4 * glm::dot(wo, wh));
+		}
+	};
+
+	// matellic workflow
+	class MetallicWorkflow : public BxDF 
+	{
+	public:
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
+		{
+			glm::mat3 l2w = LocalToWorld(data.normal);
+			glm::vec3 woW = glm::normalize(l2w * wo);
+			glm::vec3 wiW = glm::normalize(l2w * wi);
+
+			const float& roughness = data.roughness;
+			const float& metallic = data.metallic;
+			float alpha = roughness * roughness;
+
+			float cosThetaO = glm::dot(data.normal, woW);
+			float cosThetaI = glm::dot(data.normal, wiW);
+			glm::vec3 wh = glm::normalize(wi + wo);
+			glm::vec3 whW = glm::normalize(woW + wiW);
+			// Handle degenerate cases for microfacet reflection
+			if (cosThetaI * cosThetaO < 1e-7f) return Spectrum(0.f);
+
+			Spectrum F = FrSchlick(glm::mix(Spectrum(0.08f), data.R, metallic), glm::dot(whW, woW));
+			float D = SmithG(cosThetaO, cosThetaI, alpha);
+			float G = GTR2Distrib(glm::dot(data.normal, whW), alpha);
+
+			return glm::mix(data.R * InvPi * (1.f - metallic), glm::vec3(G * D / (4.f * cosThetaO * cosThetaI)), F);
+		}
+
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const override
+		{
+			glm::vec3 woW = glm::normalize(LocalToWorld(data.normal) * wo);
+
+			const float& roughness = data.roughness;
+			const float& metallic = data.metallic;
+			float alpha = roughness * roughness;
+			glm::vec3 wi;
+			if (rng.rand() > (1.f / (2.f - metallic)))
+			{
+				wi = Sampler::SquareToHemisphereCosine({ rng.rand(), rng.rand() });
+			}
+			else
+			{
+				glm::vec3 wh = glm::normalize(GTR2Sample(data.normal, wo, alpha, { rng.rand(), rng.rand() }));
+				wi = -glm::reflect(wo, wh);
+			}
+			glm::vec3 wiW = glm::normalize(LocalToWorld(data.normal) * wi);
+			if (wi.z < 0.f)
+			{
+				return BSDFSample();
+			}
+			else
+			{
+				return BSDFSample(f(data, wo, wi), wiW, PDF(data, wo, wi), data.eta);
+			}
+		}
+
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
+		{
+			const float& roughness = data.roughness;
+			const float& metallic = data.metallic;
+			float alpha = roughness * roughness;
+
+			glm::vec3 woW = glm::normalize(LocalToWorld(data.normal) * wo);
+			glm::vec3 wiW = glm::normalize(LocalToWorld(data.normal) * wi);
+
+			glm::vec3 wh = glm::normalize(wo + wi);
+			glm::vec3 whW = glm::normalize(woW + wiW);
+
+			return glm::mix(glm::max(glm::dot(data.normal, wiW), 0.f) * InvPi,
+							GTR2Pdf(data.normal, whW, woW, alpha) / (4.f * AbsDot(whW, woW)),
+							1.f / (2.f - metallic));
 		}
 	};
 }

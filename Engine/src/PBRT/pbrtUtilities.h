@@ -36,7 +36,7 @@ namespace CudaPBRT
 		return (f * f) / (f * f + g * g);
 	}
 
-	INLINE CPU_GPU void coordinateSystem(const glm::vec3& v1, glm::vec3& v2, glm::vec3& v3)
+	INLINE CPU_GPU void CoordinateSystem(const glm::vec3& v1, glm::vec3& v2, glm::vec3& v3)
 	{
 		if (glm::abs(v1.x) > glm::abs(v1.y))
 			v2 = glm::vec3(-v1.z, 0, v1.x) / glm::sqrt(v1.x * v1.x + v1.z * v1.z);
@@ -48,7 +48,7 @@ namespace CudaPBRT
 	INLINE CPU_GPU glm::mat3 LocalToWorld(const::glm::vec3& nor)
 	{
 		glm::vec3 tan, bit;
-		coordinateSystem(nor, tan, bit);
+		CoordinateSystem(nor, tan, bit);
 		return glm::mat3(tan, bit, nor);
 	}
 	INLINE CPU_GPU glm::mat3 WorldToLocal(const::glm::vec3& nor)

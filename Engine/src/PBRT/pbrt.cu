@@ -75,6 +75,9 @@ namespace CudaPBRT
 		case MaterialType::MicrofacetReflection:
 			bsdf = new SingleBSDF(new MicrofacetReflection());
 			break;
+		case MaterialType::MetallicWorkflow:
+			bsdf = new SingleBSDF(new MetallicWorkflow());
+			break;
 		default:
 			printf("Unknown MaterialType!\n");
 			return nullptr;
@@ -314,14 +317,17 @@ namespace CudaPBRT
 			else
 			{
 				Material* material = scene.materials[intersection.material_id];
+				Spectrum albedo = material->GetAlbedo(intersection.uv);
 				segment.materialType = material->m_MaterialData.type;
+
+				const glm::vec3& normal = material->GetNormal(intersection.normal, intersection.uv);
+				float roughness = material->GetRoughness(intersection.uv);
+				float metallic = material->GetMetallic(intersection.uv);
+				BSDFData bsdf_data(normal, roughness, metallic, segment.eta, albedo);
+
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
-
 				BSDF& bsdf = material->GetBSDF();
-
-				const glm::vec3& normal = material->GetNormal(intersection.normal);
-
-				BSDFSample bsdf_sample = bsdf.Sample_f(material->GetAlbedo(), segment.eta, -ray.DIR, normal, { rng.rand(), rng.rand() });
+				BSDFSample bsdf_sample = bsdf.Sample_f(bsdf_data, -ray.DIR, rng);
 
 				if (bsdf_sample.pdf == 0.f && glm::length(bsdf_sample.f) == 0.f)
 				{
@@ -415,9 +421,14 @@ namespace CudaPBRT
 				segment.materialType = material->m_MaterialData.type;
 
 				segment.surfaceNormal = material->GetNormal(intersection.normal, intersection.uv);
+				float roughness = material->GetRoughness(intersection.uv);
+				float metallic = material->GetMetallic(intersection.uv);
 				const glm::vec3 surface_point = ray * intersection.t;
 
 				const glm::vec3& normal = segment.surfaceNormal;
+
+				BSDFData bsdf_data(normal, roughness, metallic, segment.eta, albedo);
+
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
 
 				// estimate direct light sample
@@ -426,8 +437,8 @@ namespace CudaPBRT
 					LightSample light_sample;
 					if (scene.Sample_Li(rng.rand(), { rng.rand(), rng.rand() }, surface_point, normal, light_sample))
 					{
-						Spectrum scattering_f = bsdf.f(albedo, -ray.DIR, light_sample.wiW, normal); // evaluate scattering bsdf
-						float scattering_pdf = bsdf.PDF(-ray.DIR, light_sample.wiW, normal);// evaluate scattering pdf
+						Spectrum scattering_f = bsdf.f(bsdf_data, -ray.DIR, light_sample.wiW); // evaluate scattering bsdf
+						float scattering_pdf = bsdf.PDF(bsdf_data , -ray.DIR, light_sample.wiW);// evaluate scattering pdf
 						if (scattering_pdf > 0.f)
 						{
 							segment.radiance += light_sample.Le * scattering_f * segment.throughput *
@@ -437,7 +448,7 @@ namespace CudaPBRT
 				}
 
 				// compute throughput
-				BSDFSample bsdf_sample = bsdf.Sample_f(albedo, segment.eta, -ray.DIR, normal, { rng.rand(), rng.rand() });
+				BSDFSample bsdf_sample = bsdf.Sample_f(bsdf_data, -ray.DIR, rng);
 
 				if (bsdf_sample.pdf > 0.f)
 				{

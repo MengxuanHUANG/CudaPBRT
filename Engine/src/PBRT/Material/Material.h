@@ -14,7 +14,8 @@ namespace CudaPBRT
 		SpecularReflection		= 2U | Specular,
 		SpecularTransmission	= 3U | Specular,
 		Glass					= 4U | Specular,
-		MicrofacetReflection	= 5U
+		MicrofacetReflection	= 5U,
+		MetallicWorkflow		= 6U
 	};
 
 	INLINE CPU_GPU bool MaterialIs(MaterialType type, MaterialType flag)
@@ -108,7 +109,7 @@ namespace CudaPBRT
 				float4 nor = ReadTexture(m_MaterialData.normalMapId, uv);
 				glm::vec3 tan, bitan;
 
-				coordinateSystem(normal, tan, bitan);
+				CoordinateSystem(normal, tan, bitan);
 
 				return glm::normalize(nor.x * tan + nor.y * bitan + nor.z * normal);
 			}

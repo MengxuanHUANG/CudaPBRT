@@ -3,6 +3,9 @@
 #include "PBRT/pbrtDefine.h"
 #include "PBRT/pbrtUtilities.h"
 
+#include "PBRT/Sampler/sampler.h"
+#include "PBRT/spectrum.h"
+
 namespace CudaPBRT
 {
 	// bsdf help functions
@@ -108,5 +111,63 @@ namespace CudaPBRT
 	INLINE CPU_GPU float TrowbridgeReitzPdf(const glm::vec3& wo, const glm::vec3& wh, float roughness) 
 	{
 		return TrowbridgeReitzD(wh, roughness) * AbsCosTheta(wh);
+	}
+
+	INLINE CPU_GPU float SchlickWeight(float cosTheta) {
+		float m = glm::clamp(1.f - cosTheta, 0.f, 1.f);
+		return (m * m) * (m * m) * m; // m ^ 5
+	}
+	
+	INLINE CPU_GPU float FrSchlick(float R0, const float& cosTheta)
+	{
+		return glm::mix(SchlickWeight(cosTheta), R0, 1.f);
+	}
+
+	INLINE CPU_GPU Spectrum FrSchlick(const Spectrum& R0, const float& cosTheta)
+	{
+		return glm::mix(R0, glm::vec3(1.f), SchlickWeight(cosTheta));
+	}
+
+	INLINE CPU_GPU float SchlickR0FromEta(const float& eta) { return glm::sqrt(eta - 1.f) / glm::sqrt(eta + 1.f); }
+
+	INLINE CPU_GPU float SchlickG(const float& cosTheta, const float& alpha)
+	{
+		float a = alpha * 0.5f;
+		return cosTheta / (cosTheta * (1.f - a) + a);
+	}
+
+	INLINE CPU_GPU float SmithG(const float& cosWo, const float& cosWi, const float& alpha)
+	{
+		return SchlickG(glm::abs(cosWo), alpha) * SchlickG(glm::abs(cosWi), alpha);
+	}
+
+	INLINE CPU_GPU float GTR2Distrib(const float& cosTheta, const float& alpha)
+	{
+		float NdotH = glm::max(cosTheta, 0.f);
+		float denom = NdotH * NdotH * (alpha - 1.f) + 1.f;
+		denom = denom * denom * Pi;
+		return alpha / denom;
+	}
+
+	INLINE CPU_GPU float GTR2Pdf(glm::vec3 normal, glm::vec3 wh, glm::vec3 wo, const float& alpha)
+	{
+		return GTR2Distrib(glm::dot(normal, wh), alpha) * SchlickG(glm::dot(normal, wo), alpha) *
+			AbsDot(wh, wo) / AbsDot(normal, wo);
+	}
+
+	INLINE CPU_GPU glm::vec3 GTR2Sample(glm::vec3 normal, glm::vec3 wo, const float& alpha, glm::vec2 xi)
+	{
+		glm::vec3 vh = glm::normalize(wo * glm::vec3(alpha, alpha, 1.f));
+		float lenSq = vh.x * vh.x + vh.y * vh.y;
+		glm::vec3 t = lenSq > 0.f ? glm::vec3(-vh.y, vh.x, 0.f) / glm::sqrt(lenSq) : glm::vec3(1.f, 0.f, 0.f);
+		glm::vec3 b = glm::cross(vh, t);
+
+		glm::vec2 p = Sampler::SquareToDiskConcentric({ xi.x, xi.y });
+		float s = 0.5f * (vh.z + 1.f);
+		p.y = (1.f - s) * glm::sqrt(1.f - p.x * p.x) + s * p.y;
+
+		glm::vec3 h = t * p.x + b * p.y + vh * glm::sqrt(glm::max(0.f, 1.f - glm::dot(p, p)));
+		h = glm::vec3(h.x * alpha, h.y * alpha, glm::max(0.f, h.z));
+		return h;
 	}
 }

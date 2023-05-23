@@ -13,9 +13,9 @@ namespace CudaPBRT
 		CPU_GPU BSDF() {}
 		CPU_GPU virtual ~BSDF() {}
 
-		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& woW, const glm::vec3& wiW, const glm::vec3& normal) const = 0;
-		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& woW, const glm::vec3& normal, const glm::vec2& xi) const = 0;
-		CPU_GPU virtual float PDF(const glm::vec3& woW, const glm::vec3& wiW, const glm::vec3& normal) const = 0;
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const = 0;
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& woW, RNG& rng) const = 0;
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const = 0;
 	};
 
 	class SingleBSDF : public BSDF
@@ -30,30 +30,30 @@ namespace CudaPBRT
 			SAFE_FREE(m_BxDF);
 		}
 
-		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& woW, const glm::vec3& wiW, const glm::vec3& normal) const override
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const override
 		{
-			glm::mat3 toLocal = WorldToLocal(normal);
+			glm::mat3 toLocal = WorldToLocal(data.normal);
 
-			glm::vec3 wo = toLocal * woW;
-			glm::vec3 wi = toLocal * wiW;
+			glm::vec3 wo = glm::normalize(toLocal * woW);
+			glm::vec3 wi = glm::normalize(toLocal * wiW);
 
-			return m_BxDF->f(R, wo, wi);
+			return m_BxDF->f(data, wo, wi);
 		}
 
-		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& woW, const glm::vec3& normal, const glm::vec2& xi) const override
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& woW, RNG& rng) const override
 		{
-			glm::vec3 wo = WorldToLocal(normal) * woW;
+			glm::vec3 wo = glm::normalize(WorldToLocal(data.normal) * woW);
 
-			return m_BxDF->Sample_f(R, etaA, wo, normal, xi);
+			return m_BxDF->Sample_f(data, wo, rng);
 		}
 
-		CPU_GPU virtual float PDF(const glm::vec3& woW, const glm::vec3& wiW, const glm::vec3& normal) const override
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const override
 		{
-			glm::mat3 toLocal = WorldToLocal(normal);
-			glm::vec3 wo = toLocal * woW;
-			glm::vec3 wi = toLocal * wiW;
+			glm::mat3 toLocal = WorldToLocal(data.normal);
+			glm::vec3 wo = glm::normalize(toLocal * woW);
+			glm::vec3 wi = glm::normalize(toLocal * wiW);
 
-			return m_BxDF->PDF(wo, wi);
+			return m_BxDF->PDF(data, wo, wi);
 		}
 
 	public:
@@ -76,38 +76,39 @@ namespace CudaPBRT
 			SAFE_FREE(m_BxDFs[1]);
 		}
 
-		CPU_GPU virtual Spectrum f(const Spectrum& R, const glm::vec3& woW, const glm::vec3& wiW, const glm::vec3& normal) const
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const
 		{
-			glm::mat3 toLocal = WorldToLocal(normal);
+			glm::mat3 toLocal = WorldToLocal(data.normal);
 
-			glm::vec3 wo = toLocal * woW;
-			glm::vec3 wi = toLocal * wiW;
+			glm::vec3 wo = glm::normalize(toLocal * woW);
+			glm::vec3 wi = glm::normalize(toLocal * wiW);
 
-			return m_BxDFs[0]->f(R, wo, wi);
+			return m_BxDFs[0]->f(data, wo, wi);
 		}
 
-		CPU_GPU virtual BSDFSample Sample_f(const Spectrum& R, float etaA, const glm::vec3& woW, const glm::vec3& normal, const glm::vec2& xi) const
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& woW, RNG& rng) const
 		{
-			glm::vec3 wo = WorldToLocal(normal) * woW;
-			
+			glm::vec3 wo = glm::normalize(WorldToLocal(data.normal) * woW);
+			const float etaA = data.eta;
+
 			float F = FresnelDielectric(etaA, etaB, CosTheta(wo));
-			if (xi.x < F)
+			if (rng.rand() < F)
 			{
-				return m_BxDFs[0]->Sample_f(R, etaA, wo, normal, xi);
+				return m_BxDFs[0]->Sample_f(data, wo, rng);
 			}
 			else
 			{
-				return m_BxDFs[1]->Sample_f(R, etaA, wo, normal, xi);
+				return m_BxDFs[1]->Sample_f(data, wo, rng);
 			}
 		}
 
-		CPU_GPU virtual float PDF(const glm::vec3& woW, const glm::vec3& wiW, const glm::vec3& normal) const
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const
 		{
-			glm::mat3 toLocal = WorldToLocal(normal);
-			glm::vec3 wo = toLocal * woW;
-			glm::vec3 wi = toLocal * wiW;
+			glm::mat3 toLocal = WorldToLocal(data.normal);
+			glm::vec3 wo = glm::normalize(toLocal * woW);
+			glm::vec3 wi = glm::normalize(toLocal * wiW);
 
-			return m_BxDFs[0]->PDF(wo, wi);
+			return m_BxDFs[0]->PDF(data, wo, wi);
 		}
 
 	protected:
