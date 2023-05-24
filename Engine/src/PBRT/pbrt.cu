@@ -163,7 +163,8 @@ namespace CudaPBRT
 		{
 			return;
 		}
-		
+		SAFE_FREE(device_array[id]);
+
 		device_array[id] = Create(data[id]);
 	}
 
@@ -172,11 +173,7 @@ namespace CudaPBRT
 	{
 		for (int i = 0; i < max_count; ++i)
 		{
-			if (device_array[i])
-			{
-				delete device_array[i];
-				device_array[i] = nullptr;
-			}
+			SAFE_FREE(device_array[i]);
 		}
 	}
 	
@@ -231,6 +228,35 @@ namespace CudaPBRT
 	template void FreeArrayOnCuda(Shape**& device_array, size_t count);
 	template void FreeArrayOnCuda(Material**& device_array, size_t count);
 	template void FreeArrayOnCuda(Light**& device_array, size_t count);
+
+	template<typename T, typename DataType>
+	void UpdateArrayOnCuda(T**& dev_array, std::vector<DataType>& host_data, size_t start, size_t end)
+	{
+		size_t count = end - start;
+		if (start >= 0 && end <= host_data.size() && count > 0)
+		{
+			
+			DataType* device_data;
+			cudaMalloc((void**)&device_data, sizeof(DataType) * count);
+			CUDA_CHECK_ERROR();
+
+			cudaMemcpy(device_data, host_data.data() + start, sizeof(DataType) * count, cudaMemcpyHostToDevice);
+			CUDA_CHECK_ERROR();
+
+			KernalConfig createConfig({ count, 1, 1 }, { 0, 0, 0 });
+			CreateArray<T, DataType> << < createConfig.numBlocks, createConfig.threadPerBlock >> > (dev_array + start, device_data, count);
+
+			// cudaDeviceSynchronize waits for the kernel to finish
+			cudaDeviceSynchronize();
+			CUDA_CHECK_ERROR();
+
+			CUDA_FREE(device_data);
+		}
+	}
+
+	template void UpdateArrayOnCuda<Light, LightData>(Light**& dev_array, std::vector<LightData>& data, size_t start, size_t end);
+	template void UpdateArrayOnCuda<Shape, ShapeData>(Shape**& dev_array, std::vector<ShapeData>& data, size_t start, size_t end);
+	template void UpdateArrayOnCuda<Material, MaterialData>(Material**& dev_array, std::vector<MaterialData>& data, size_t start, size_t end);
 
 	__global__ void GlobalCastRayFromCamera(int iteration, PerspectiveCamera* camera, PathSegment* pathSegment) 
 	{

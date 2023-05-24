@@ -67,5 +67,14 @@ protected:
 
 	std::vector<uPtr<CudaTexture>> m_Textures;
 
+	// shapes' data
+	std::vector<ShapeData> shapeData;
+	// materials' data
+	std::vector<MaterialData> materialData;
+	// lights' data
+	std::vector<LightData> lightData;
+
+	int m_SelectedMaterial;
+
 	float m_FrameTime;
 };

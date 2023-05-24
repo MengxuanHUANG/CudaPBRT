@@ -55,11 +55,17 @@ void TestLayer::OnAttach()
 	m_CudaPBRT->InitCuda(*m_Camera);
 
 	LoadScene();
+	
+	m_SelectedMaterial = materialData.size() - 1;
 
 	//m_CudaPBRT->DisplayTexture(*m_Textures[2]);
 }
 void TestLayer::OnDetach()
 {
+	shapeData.clear();
+	materialData.clear();
+	lightData.clear();
+
 	m_Scene->FreeDataOnCuda();
 	m_CudaPBRT.release();
 }
@@ -98,6 +104,21 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 	}
 	ImGui::End();
 
+	ImGui::Begin("Material Editor");
+	MaterialData& mdata = materialData[m_SelectedMaterial];
+
+	bool is_edited = false;
+	is_edited |= ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&(mdata.albedo)));
+	is_edited |= ImGui::DragFloat("Metallic", &(mdata.metallic), 0.01f, 0.f, 1.f);
+	is_edited |= ImGui::DragFloat("Roughness", &(mdata.roughness), 0.01f, 0.f, 1.f);
+
+	if (is_edited)
+	{
+		UpdateArrayOnCuda<Material, MaterialData>(m_Scene->materials, materialData, m_SelectedMaterial, m_SelectedMaterial + 1);
+		m_CudaPBRT->ResetPRBT();
+	}
+
+	ImGui::End();
 	//bool show = true;
 	//
 	//ImGui::ShowDemoWindow(&show);
@@ -275,8 +296,8 @@ void TestLayer::LoadScene()
 	int glassId			= 4;
 	int obj_tex_Id		= 5;
 	int microfacetId	= 6;
+	int MetallicWfId	= 7;
 
-	std::vector<MaterialData> materialData;
 	materialData.emplace_back(MaterialType::LambertianReflection, glm::vec3(0.85, 0.81, 0.78)); //matteWhite
 	materialData.emplace_back(MaterialType::LambertianReflection, glm::vec3(0.63, 0.065, 0.05)); //matteRed
 	materialData.emplace_back(MaterialType::LambertianReflection, glm::vec3(0.14, 0.45, 0.091)); //matteGreen
@@ -285,11 +306,9 @@ void TestLayer::LoadScene()
 	materialData.emplace_back(MaterialType::MetallicWorkflow, m_Textures[0]->GetTextureObject(),
 															  m_Textures[1]->GetTextureObject(),
 															  m_Textures[2]->GetTextureObject(),
-															  m_Textures[3]->GetTextureObject()); // texture
-	materialData.emplace_back(MaterialType::MetallicWorkflow, glm::vec3(.8f, .8f, .8f), .5f, 0.5f); // texture
-
-	// shape data
-	std::vector<ShapeData> shapeData;
+															  m_Textures[3]->GetTextureObject()); // texture MetallicWorkflow
+	materialData.emplace_back(MaterialType::MicrofacetReflection, glm::vec3(.8f, .8f, .8f), .5f, 0.5f); // microfacet
+	materialData.emplace_back(MaterialType::MetallicWorkflow, glm::vec3(.8f, .8f, .8f), .0f, 0.0f); // MetallicWorkflow
 
 	//shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, -2.5, 0), glm::vec3(-90, 0, 0), glm::vec3(10, 10, 1)); // Floor
 	//shapeData.emplace_back(ShapeType::Square, matteRedId, glm::vec3(5, 2.5, 0), glm::vec3(0, -90, 0), glm::vec3(10, 10, 1)); // Red wall
@@ -305,10 +324,10 @@ void TestLayer::LoadScene()
 	//TestSingleTriangle(shapeData, triangles, vertices, normals, uvs);
 	//AddCornellBox_Triangles(shapeData, triangles, vertices, normals, uvs, matteWhiteId, matteWhiteId);
 
-	//shapeData.emplace_back(ShapeType::Sphere, microfacetId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(2, 2, 2));
+	shapeData.emplace_back(ShapeType::Sphere, MetallicWfId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(2, 2, 2));
 	//shapeData.emplace_back(ShapeType::Cube, glassId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
 	//shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(-2, -1, 0.75), glm::vec3(0, -17.5, 0), glm::vec3(3, 3, 3)); // Short Cube
-	LoadObj(shapeData, triangles, vertices, normals, uvs, "E://Projects//CUDA_Projects//CudaPBRT//res//models//Camera.obj");
+	//LoadObj(shapeData, triangles, vertices, normals, uvs, "E://Projects//CUDA_Projects//CudaPBRT//res//models//Camera.obj");
 
 	BufferData<glm::vec3>(m_Scene->vertices, vertices.data(), vertices.size());
 	BufferData<glm::vec3>(m_Scene->normals, normals.data(), normals.size());
@@ -320,8 +339,8 @@ void TestLayer::LoadScene()
 	}
 
 	CreateBoundingBox(shapeData, vertices);
-	// Light
-	std::vector<LightData> lightData;
+	
+	// Lights
 	ShapeData areaLightShape(ShapeType::Square, -1, glm::vec3(0, 7.45, 0), glm::vec3(90, 0, 0), glm::vec3(3, 3, 1));
 	Spectrum Le(40);
 	//lightData.emplace_back(LightType::ShapeLight, areaLightShape, Le);
