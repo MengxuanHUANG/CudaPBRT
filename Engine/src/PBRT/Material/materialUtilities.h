@@ -150,10 +150,10 @@ namespace CudaPBRT
 		return alpha / denom;
 	}
 
-	INLINE CPU_GPU float GTR2Pdf(glm::vec3 normal, glm::vec3 whW, glm::vec3 woW, const float& alpha)
+	INLINE CPU_GPU float GTR2Pdf(glm::vec3 normal, glm::vec3 wh, glm::vec3 wo, const float& alpha)
 	{
-		return GTR2Distrib(glm::dot(normal, whW), alpha) * SchlickG(glm::dot(normal, woW), alpha) *
-			AbsDot(whW, woW) / AbsDot(normal, woW);
+		return GTR2Distrib(CosTheta(wh), alpha) * SchlickG(CosTheta(wo), alpha) *
+			AbsDot(wh, wo) / CosTheta(wo);
 	}
 
 	INLINE CPU_GPU glm::vec3 GTR2Sample(glm::vec3 normal, glm::vec3 wo, const float& alpha, glm::vec2 xi)

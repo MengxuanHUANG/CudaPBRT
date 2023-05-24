@@ -190,24 +190,21 @@ namespace CudaPBRT
 	public:
 		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
-			glm::mat3 l2w = LocalToWorld(data.normal);
-			glm::vec3 woW = glm::normalize(l2w * wo);
-			glm::vec3 wiW = glm::normalize(l2w * wi);
-
-			float roughness = glm::max(data.roughness, 0.01f);
-			float metallic = data.metallic;
-			float alpha = roughness * roughness;
-
 			float cosThetaO = CosTheta(wo);
 			float cosThetaI = CosTheta(wi);
 
-			glm::vec3 whW = glm::normalize(woW + wiW);
 			// Handle degenerate cases for microfacet reflection
 			if (cosThetaI * cosThetaO < 1e-7f) return Spectrum(0.f);
 
-			Spectrum F = FrSchlick(glm::mix(Spectrum(0.04f), data.R, metallic), glm::dot(whW, woW));
+						float roughness = glm::max(data.roughness, 0.01f);
+			float metallic = data.metallic;
+			float alpha = roughness * roughness;
+
+			glm::vec3 wh = glm::normalize(wo + wi);
+
+			Spectrum F = FrSchlick(glm::mix(Spectrum(0.04f), data.R, metallic), glm::dot(wh, wo));
 			float D = SmithG(cosThetaO, cosThetaI, alpha);
-			float G = GTR2Distrib(glm::dot(data.normal, whW), alpha);
+			float G = GTR2Distrib(CosTheta(wh), alpha);
 
 			return glm::mix(data.R * InvPi * (1.f - metallic), glm::vec3(G * D / (4.f * cosThetaO * cosThetaI)), F);
 			// Equal to
@@ -216,8 +213,6 @@ namespace CudaPBRT
 
 		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const override
 		{
-			glm::vec3 woW = glm::normalize(LocalToWorld(data.normal) * wo);
-
 			float roughness = glm::max(data.roughness, 0.01f);
 			const float& metallic = data.metallic;
 			float alpha = roughness * roughness;
@@ -245,15 +240,12 @@ namespace CudaPBRT
 
 		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
-			glm::vec3 woW = glm::normalize(LocalToWorld(data.normal) * wo);
-			glm::vec3 wiW = glm::normalize(LocalToWorld(data.normal) * wi);
-
-			glm::vec3 whW = glm::normalize(woW + wiW);
+			glm::vec3 wh = glm::normalize(wo + wi);
 			
 			float roughness = glm::max(data.roughness, 0.01f);
 
 			return glm::mix(CosTheta(wi) * InvPi,
-						    GTR2Pdf(data.normal, whW, woW, roughness * roughness) / (4.f * AbsDot(whW, woW)),
+						    GTR2Pdf(data.normal, wh, wo, roughness * roughness) / (4.f * AbsDot(wh, wo)),
 						    1.f / (2.f - data.metallic));
 		}
 	};

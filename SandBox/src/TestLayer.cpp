@@ -308,7 +308,7 @@ void TestLayer::LoadScene()
 															  m_Textures[2]->GetTextureObject(),
 															  m_Textures[3]->GetTextureObject()); // texture MetallicWorkflow
 	materialData.emplace_back(MaterialType::MicrofacetReflection, glm::vec3(.8f, .8f, .8f), .5f, 0.5f); // microfacet
-	materialData.emplace_back(MaterialType::MetallicWorkflow, glm::vec3(.8f, .8f, .8f), .0f, 0.0f); // MetallicWorkflow
+	materialData.emplace_back(MaterialType::MetallicWorkflow, glm::vec3(.8f, .8f, .8f), 1.0f, 0.0f); // MetallicWorkflow
 
 	//shapeData.emplace_back(ShapeType::Square, matteWhiteId, glm::vec3(0, -2.5, 0), glm::vec3(-90, 0, 0), glm::vec3(10, 10, 1)); // Floor
 	//shapeData.emplace_back(ShapeType::Square, matteRedId, glm::vec3(5, 2.5, 0), glm::vec3(0, -90, 0), glm::vec3(10, 10, 1)); // Red wall
