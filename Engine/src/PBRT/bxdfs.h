@@ -150,7 +150,7 @@ namespace CudaPBRT
 			if (cosThetaI == 0 || cosThetaO == 0) return Spectrum();
 			if (wh.x == 0 && wh.y == 0 && wh.z == 0) return Spectrum();
 			wh = glm::normalize(wh);
-			float F = 1;
+			float F = 1.f;
 			float D = TrowbridgeReitzD(wh, data.roughness);
 			float G = TrowbridgeReitzG(wo, wi, data.roughness);
 
@@ -163,7 +163,8 @@ namespace CudaPBRT
 			{
 				return BSDFSample();
 			}
-			glm::vec3 wh = Sample_wh(wo, {rng.rand(), rng.rand()}, data.roughness);
+			float roughness = data.roughness;
+			glm::vec3 wh = Sample_wh(wo, {rng.rand(), rng.rand()}, roughness);
 			glm::vec3 wi = glm::reflect(-wo, wh);
 
 			glm::vec3 wiW = glm::normalize(LocalToWorld(data.normal) * wi);
@@ -171,7 +172,7 @@ namespace CudaPBRT
 			if (!SameHemisphere(wo, wi)) return BSDFSample();
 
 			// Compute PDF of _wi_ for microfacet reflection
-			float pdf = TrowbridgeReitzPdf(wo, wh, data.roughness) / (4 * glm::dot(wo, wh));
+			float pdf = TrowbridgeReitzPdf(wo, wh, roughness) / (4 * glm::dot(wo, wh));
 
 			return BSDFSample(f(data, wo, wi), wiW, pdf, data.eta);
 		}
@@ -193,32 +194,34 @@ namespace CudaPBRT
 			glm::vec3 woW = glm::normalize(l2w * wo);
 			glm::vec3 wiW = glm::normalize(l2w * wi);
 
-			const float& roughness = data.roughness;
-			const float& metallic = data.metallic;
+			float roughness = glm::max(data.roughness, 0.01f);
+			float metallic = data.metallic;
 			float alpha = roughness * roughness;
 
-			float cosThetaO = glm::dot(data.normal, woW);
-			float cosThetaI = glm::dot(data.normal, wiW);
-			glm::vec3 wh = glm::normalize(wi + wo);
+			float cosThetaO = CosTheta(wo);
+			float cosThetaI = CosTheta(wi);
+
 			glm::vec3 whW = glm::normalize(woW + wiW);
 			// Handle degenerate cases for microfacet reflection
 			if (cosThetaI * cosThetaO < 1e-7f) return Spectrum(0.f);
 
-			Spectrum F = FrSchlick(glm::mix(Spectrum(0.08f), data.R, metallic), glm::dot(whW, woW));
+			Spectrum F = FrSchlick(glm::mix(Spectrum(0.04f), data.R, metallic), glm::dot(whW, woW));
 			float D = SmithG(cosThetaO, cosThetaI, alpha);
 			float G = GTR2Distrib(glm::dot(data.normal, whW), alpha);
 
 			return glm::mix(data.R * InvPi * (1.f - metallic), glm::vec3(G * D / (4.f * cosThetaO * cosThetaI)), F);
+			// Equal to
+			// (1.f - F0) * (1.f - metallic) * diffuse +  F0 * specular;
 		}
 
 		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const override
 		{
 			glm::vec3 woW = glm::normalize(LocalToWorld(data.normal) * wo);
 
-			const float& roughness = data.roughness;
+			float roughness = glm::max(data.roughness, 0.01f);
 			const float& metallic = data.metallic;
 			float alpha = roughness * roughness;
-			glm::vec3 wi;
+			glm::vec3 wi, wiW;
 			if (rng.rand() > (1.f / (2.f - metallic)))
 			{
 				wi = Sampler::SquareToHemisphereCosine({ rng.rand(), rng.rand() });
@@ -226,9 +229,10 @@ namespace CudaPBRT
 			else
 			{
 				glm::vec3 wh = glm::normalize(GTR2Sample(data.normal, wo, alpha, { rng.rand(), rng.rand() }));
-				wi = -glm::reflect(wo, wh);
+				wi = glm::reflect(-wo, wh);
 			}
-			glm::vec3 wiW = glm::normalize(LocalToWorld(data.normal) * wi);
+
+			wiW = glm::normalize(LocalToWorld(data.normal) * wi);
 			if (wi.z < 0.f)
 			{
 				return BSDFSample();
@@ -241,19 +245,16 @@ namespace CudaPBRT
 
 		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
-			const float& roughness = data.roughness;
-			const float& metallic = data.metallic;
-			float alpha = roughness * roughness;
-
 			glm::vec3 woW = glm::normalize(LocalToWorld(data.normal) * wo);
 			glm::vec3 wiW = glm::normalize(LocalToWorld(data.normal) * wi);
 
-			glm::vec3 wh = glm::normalize(wo + wi);
 			glm::vec3 whW = glm::normalize(woW + wiW);
+			
+			float roughness = glm::max(data.roughness, 0.01f);
 
-			return glm::mix(glm::max(glm::dot(data.normal, wiW), 0.f) * InvPi,
-							GTR2Pdf(data.normal, whW, woW, alpha) / (4.f * AbsDot(whW, woW)),
-							1.f / (2.f - metallic));
+			return glm::mix(CosTheta(wi) * InvPi,
+						    GTR2Pdf(data.normal, whW, woW, roughness * roughness) / (4.f * AbsDot(whW, woW)),
+						    1.f / (2.f - data.metallic));
 		}
 	};
 }

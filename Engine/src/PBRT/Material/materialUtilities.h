@@ -60,7 +60,7 @@ namespace CudaPBRT
 	}
 
 	INLINE CPU_GPU bool SameHemisphere(const glm::vec3& w, const glm::vec3& wp) {
-		return w.z * wp.z > 0;
+		return w.z * wp.z > 0.f;
 	}
 
 	INLINE CPU_GPU glm::vec3 Sample_wh(const glm::vec3& wo, const glm::vec2& xi, float roughness)
@@ -84,12 +84,12 @@ namespace CudaPBRT
 	INLINE CPU_GPU float TrowbridgeReitzD(const glm::vec3& wh, float roughness) 
 	{
 		float tan2Theta = Tan2Theta(wh);
-		if (isinf(tan2Theta)) return 0.f;
+		if (glm::isinf(tan2Theta)) return 0.f;
 
 		float cos4Theta = Cos2Theta(wh) * Cos2Theta(wh);
-
-		float e = (Cos2Phi(wh) / (roughness * roughness) + Sin2Phi(wh) / (roughness * roughness)) * tan2Theta;
-		return 1 / (Pi * roughness * roughness * cos4Theta * (1 + e) * (1 + e));
+		float alpha = roughness * roughness;
+		float e = (Cos2Phi(wh) / alpha + Sin2Phi(wh) / alpha) * tan2Theta;
+		return 1.f / (Pi * alpha * cos4Theta * (1.f + e) * (1.f + e));
 	}
 
 	INLINE CPU_GPU float Lambda(const glm::vec3& w, float roughness) 
@@ -113,7 +113,8 @@ namespace CudaPBRT
 		return TrowbridgeReitzD(wh, roughness) * AbsCosTheta(wh);
 	}
 
-	INLINE CPU_GPU float SchlickWeight(float cosTheta) {
+	INLINE CPU_GPU float SchlickWeight(float cosTheta) 
+	{
 		float m = glm::clamp(1.f - cosTheta, 0.f, 1.f);
 		return (m * m) * (m * m) * m; // m ^ 5
 	}
@@ -125,7 +126,7 @@ namespace CudaPBRT
 
 	INLINE CPU_GPU Spectrum FrSchlick(const Spectrum& R0, const float& cosTheta)
 	{
-		return glm::mix(R0, glm::vec3(1.f), SchlickWeight(cosTheta));
+		return glm::mix(R0, Spectrum(1.f), SchlickWeight(cosTheta));
 	}
 
 	INLINE CPU_GPU float SchlickR0FromEta(const float& eta) { return glm::sqrt(eta - 1.f) / glm::sqrt(eta + 1.f); }
@@ -149,10 +150,10 @@ namespace CudaPBRT
 		return alpha / denom;
 	}
 
-	INLINE CPU_GPU float GTR2Pdf(glm::vec3 normal, glm::vec3 wh, glm::vec3 wo, const float& alpha)
+	INLINE CPU_GPU float GTR2Pdf(glm::vec3 normal, glm::vec3 whW, glm::vec3 woW, const float& alpha)
 	{
-		return GTR2Distrib(glm::dot(normal, wh), alpha) * SchlickG(glm::dot(normal, wo), alpha) *
-			AbsDot(wh, wo) / AbsDot(normal, wo);
+		return GTR2Distrib(glm::dot(normal, whW), alpha) * SchlickG(glm::dot(normal, woW), alpha) *
+			AbsDot(whW, woW) / AbsDot(normal, woW);
 	}
 
 	INLINE CPU_GPU glm::vec3 GTR2Sample(glm::vec3 normal, glm::vec3 wo, const float& alpha, glm::vec2 xi)
@@ -162,7 +163,7 @@ namespace CudaPBRT
 		glm::vec3 t = lenSq > 0.f ? glm::vec3(-vh.y, vh.x, 0.f) / glm::sqrt(lenSq) : glm::vec3(1.f, 0.f, 0.f);
 		glm::vec3 b = glm::cross(vh, t);
 
-		glm::vec2 p = Sampler::SquareToDiskConcentric({ xi.x, xi.y });
+		glm::vec2 p = Sampler::SquareToDiskConcentric(xi);
 		float s = 0.5f * (vh.z + 1.f);
 		p.y = (1.f - s) * glm::sqrt(1.f - p.x * p.x) + s * p.y;
 
