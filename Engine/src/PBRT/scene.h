@@ -13,6 +13,19 @@
 
 namespace CudaPBRT
 {
+    struct ObjectData
+    {
+        // triangles start and end id
+        int start_id; 
+        int end_id;
+
+        // translation, rotation, and scale
+        Transform transform;
+
+        // material_id
+        int material_id;
+    };
+
     /*
     ** Scene data used on Cuda kernals
     */
@@ -214,19 +227,32 @@ namespace CudaPBRT
 
         void LoadSceneFromJSON(const char* path);
 
-        void LoadObj(const char* path, int material_id, const Transform& transform = Transform());
+        void LoadObj(const char* path, ObjectData& obj_data);
+
+        void CreateBoundingBox(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices);
 
     public:
         GPUScene m_GPUScene;
+
+        std::vector<ObjectData> objectData;
 
         // textures
         std::vector<uPtr<CudaTexture>> m_Textures;
 
         // shapes' data
         std::vector<ShapeData> shapeData;
+
         // materials' data
         std::vector<MaterialData> materialData;
+
         // lights' data
         std::vector<LightData> lightData;
+
+    protected:
+        // shapes' data
+        std::vector<glm::vec3> vertices;
+        std::vector<glm::vec3> normals;
+        std::vector<glm::vec2> uvs;
+        std::vector<TriangleData> triangles;
     };
 }

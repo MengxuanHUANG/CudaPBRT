@@ -29,32 +29,8 @@ public:
 
 	virtual bool OnEvent(Event& event) override;
 
-	void LoadScene();
-
 protected:
 	bool OnWindowResize(WindowResizeEvent& event);
-
-	void TestSingleTriangle(std::vector<ShapeData>& shapeData,
-							std::vector<TriangleData>& triangles,
-							std::vector<glm::vec3>& vertices,
-							std::vector<glm::vec3>& normals,
-							std::vector<glm::vec2>& uvs);
-
-	void AddCornellBox_Triangles(std::vector<ShapeData>& shapeData,
-								 std::vector<TriangleData>& triangles,
-								 std::vector<glm::vec3>& vertices,
-								 std::vector<glm::vec3>& normals,
-								 std::vector<glm::vec2>& uvs, 
-								 int material_a, int material_b);
-
-	void CreateBoundingBox(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices);
-
-	void LoadObj(std::vector<ShapeData>& shapeData,
-				 std::vector<TriangleData>& triangles,
-				 std::vector<glm::vec3>& vertices, 
-				 std::vector<glm::vec3>& normals,
-				 std::vector<glm::vec2>& uvs,
-				 const char* path);
 
 public:
 	uPtr<PerspectiveCamera> m_Camera;
@@ -62,17 +38,8 @@ public:
 
 protected:
 	Window* window; // only a reference to the window
-	uPtr<GPUScene> m_Scene;
+	uPtr<CPUScene> m_Scene;
 	uPtr<CudaPathTracer> m_CudaPBRT;
-
-	std::vector<uPtr<CudaTexture>> m_Textures;
-
-	// shapes' data
-	std::vector<ShapeData> shapeData;
-	// materials' data
-	std::vector<MaterialData> materialData;
-	// lights' data
-	std::vector<LightData> lightData;
 
 	int m_SelectedMaterial;
 

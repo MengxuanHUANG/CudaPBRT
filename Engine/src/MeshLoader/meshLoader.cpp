@@ -32,7 +32,7 @@ namespace CudaPBRT
 		: in(path)
 	{}
 
-	void ObjMeshLoader::Read(std::vector<TriangleData>& triangles,
+	void ObjMeshLoader::Load(std::vector<TriangleData>& triangles,
 							 std::vector<glm::vec3>& vertices,
 							 std::vector<glm::vec3>& normals,
 							 std::vector<glm::vec2>& uvs)
