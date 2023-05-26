@@ -20,14 +20,13 @@
 #include "PBRT/Shape/sphere.h"
 #include "PBRT/Material/material.h"
 #include "PBRT/Light/light.h"
+#include "MeshLoader/meshLoader.h"
 
 #include <iomanip>
 #include <format>
 #include <string>
 #include <iostream>
 #include <fstream>
-#include <ranges>
-#include <string_view>
 
 TestLayer::TestLayer(const std::string& name)
 	:Layer(name)
@@ -357,116 +356,27 @@ void TestLayer::LoadObj(std::vector<ShapeData>& shapeData,
 						std::vector<glm::vec2>& uvs,
 						const char* path)
 {
-	std::ifstream in(path, std::ios::in);
-
 	size_t v_start_id = vertices.size();
 	size_t n_start_id = normals.size();
 
-	int line_count = 0;
-	int f_start = 1;
-	for (std::string line; std::getline(in, line);)
+	uPtr<MeshLoader> mesh_loader = MeshLoader::CreateMeshLoad(path);
+	if (mesh_loader)
 	{
-		//std::cout << line << std::endl;
-		if (line.starts_with("FStart"))
+		mesh_loader->Read(triangles, vertices, normals, uvs);
+
+		glm::mat4 transform;
+		glm::mat3 transposeInvT;
+		Shape::ComputeTransform(glm::vec3(0, 0, 0), glm::vec3(0, 180, 0), glm::vec3(0.5), transform);
+		transposeInvT = glm::transpose(glm::inverse(glm::mat3(transform)));
+
+		for (size_t i = v_start_id; i < vertices.size(); ++i)
 		{
-			std::string delim = " ";
-
-			auto v = line | std::views::split(delim) | std::views::transform([](auto word) {
-				return std::string(word.begin(), word.end());
-			});
-
-			std::vector<std::string> result(v.begin(), v.end());
-
-			f_start = std::stoi(result[1]);
+			vertices[i] = glm::vec3(transform * glm::vec4(vertices[i], 1.f));
 		}
-		if (line.starts_with("vn"))
+
+		for (size_t i = n_start_id; i < normals.size(); ++i)
 		{
-			std::string delim = " ";
-
-			auto v = line | std::views::split(delim) | std::views::transform([](auto word) {
-				return std::string(word.begin(), word.end());
-				});
-
-			std::vector<std::string> result(v.begin(), v.end());
-
-			normals.emplace_back(std::stof(result[1]), std::stof(result[2]), std::stof(result[3]));
+			normals[i] = glm::normalize(transposeInvT * normals[i]);
 		}
-		else if (line.starts_with("vt"))
-		{
-			std::string delim = " ";
-
-			auto v = line | std::views::split(delim) | std::views::transform([](auto word) {
-				return std::string(word.begin(), word.end());
-				});
-
-			std::vector<std::string> result(v.begin(), v.end());
-
-			uvs.emplace_back(std::stof(result[1]), std::stof(result[2]));
-		}
-		else if (line.starts_with("v"))
-		{
-			std::string delim = " ";
-
-			auto v = line | std::views::split(delim) | std::views::transform([](auto word) {
-				return std::string(word.begin(), word.end());
-			});
-
-			std::vector<std::string> result(v.begin(), v.end());
-
-			vertices.emplace_back(std::stof(result[1]), std::stof(result[2]), std::stof(result[3]));
-		}
-		else if (line.starts_with("f"))
-		{
-			std::string delim = " ";
-
-			auto v = line | std::views::split(delim) | std::views::transform([](auto word) {
-				return std::string(word.begin(), word.end());
-			});
-
-			std::vector<std::string> result(v.begin(), v.end());
-			
-			ASSERT(result.size() > 3);
-			
-			std::vector<int> v_id;
-			std::vector<int> n_id;
-			std::vector<int> uv_id;
-			
-			v_id.resize(result.size() - 1);
-			n_id.resize(result.size() - 1);
-			uv_id.resize(result.size() - 1);
-
-			for (int i = 0; i < result.size() - 1; ++i)
-			{
-				auto id_str = result[i + 1] | std::views::split('/') | std::views::transform([](auto word) {
-					return std::string(word.begin(), word.end());
-					});
-				std::vector<std::string> ids(id_str.begin(), id_str.end());
-				v_id[i] = std::stoi(ids[0]) - f_start;
-				uv_id[i] = std::stoi(ids[1]) - f_start;
-				n_id[i] = std::stoi(ids[2]) - f_start;
-			}
-			// naive triangulation
-			for (int i = 1; i < result.size() - 2; ++i)
-			{
-				triangles.emplace_back(glm::ivec3( v_id[0],  v_id[i],  v_id[i + 1]),
-									   glm::ivec3( n_id[0],  n_id[i],  n_id[i + 1]),
-									   glm::ivec3(uv_id[0], uv_id[i], uv_id[i + 1]));
-			}
-		}
-	}
-
-	glm::mat4 transform;
-	glm::mat3 transposeInvT;
-	Shape::ComputeTransform(glm::vec3(0, 0, 0), glm::vec3(0, 180, 0), glm::vec3(0.5), transform);
-	transposeInvT = glm::transpose(glm::inverse(glm::mat3(transform)));
-
-	for (size_t i = v_start_id; i < vertices.size(); ++i)
-	{
-		vertices[i] = glm::vec3(transform * glm::vec4(vertices[i], 1.f));
-	}
-
-	for (size_t i = n_start_id; i < normals.size(); ++i)
-	{
-		normals[i] = glm::normalize(transposeInvT * normals[i]);
 	}
 }

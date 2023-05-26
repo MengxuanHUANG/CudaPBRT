@@ -196,13 +196,25 @@ namespace CudaPBRT
     {
     public:
         CPUScene() = default;
+        CPUScene(const char* path);
         ~CPUScene()
         {
+            ClearScene();
+        }
+
+        inline void ClearScene()
+        {
+            m_GPUScene.FreeDataOnCuda();
+
             m_Textures.clear();
             shapeData.clear();
             materialData.clear();
             lightData.clear();
         }
+
+        void LoadSceneFromJSON(const char* path);
+
+        void LoadObj(const char* path, int material_id, const Transform& transform = Transform());
 
     public:
         GPUScene m_GPUScene;

@@ -2,6 +2,8 @@
 
 #include "Core/Core.h"
 
+#include "Math/Transform.h"
+
 #include <limits>
 #include <cmath>
 #include <cuda_runtime.h>
