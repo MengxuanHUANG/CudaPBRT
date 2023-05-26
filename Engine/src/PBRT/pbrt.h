@@ -10,7 +10,7 @@
 
 namespace CudaPBRT
 {
-	class Scene;
+	class GPUScene;
 	class CudaTexture;
 
 	CPU_GPU Ray CastRay(const PerspectiveCamera& camera, const glm::vec2& p);
@@ -51,7 +51,7 @@ namespace CudaPBRT
 
 		virtual void FreeCuda();
 		void DisplayTexture(const CudaTexture& texture);
-		virtual void Run(Scene* scene);
+		virtual void Run(GPUScene* scene);
 
 		virtual void UpdateCamera(PerspectiveCamera& camera);
 		virtual unsigned int GetDisplayTextureId() const { return m_DisplayImage; }

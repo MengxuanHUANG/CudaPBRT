@@ -13,10 +13,13 @@
 
 namespace CudaPBRT
 {
-	class Scene
+    /*
+    ** Scene data used on Cuda kernals
+    */
+	class GPUScene
 	{
 	public:
-        Scene()
+        GPUScene()
             : shapes(nullptr), materials(nullptr), lights(nullptr), 
               vertices(nullptr), normals(nullptr), uvs(nullptr),
               shape_count(0), material_count(0), light_count(0),
@@ -185,4 +188,33 @@ namespace CudaPBRT
         BVHNode* BVH;
         EnvironmentMap envMap;
 	};
+
+    /*
+    ** Scene data that will be maintenanced on CPU
+    */
+    class CPUScene
+    {
+    public:
+        CPUScene() = default;
+        ~CPUScene()
+        {
+            m_Textures.clear();
+            shapeData.clear();
+            materialData.clear();
+            lightData.clear();
+        }
+
+    public:
+        GPUScene m_GPUScene;
+
+        // textures
+        std::vector<uPtr<CudaTexture>> m_Textures;
+
+        // shapes' data
+        std::vector<ShapeData> shapeData;
+        // materials' data
+        std::vector<MaterialData> materialData;
+        // lights' data
+        std::vector<LightData> lightData;
+    };
 }

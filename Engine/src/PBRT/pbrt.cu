@@ -278,7 +278,7 @@ namespace CudaPBRT
 		segment.pixelId = index;
 	}
 
-	__global__ void GlobalSceneIntersection(int max_index, PathSegment* pathSegment, Scene scene)
+	__global__ void GlobalSceneIntersection(int max_index, PathSegment* pathSegment, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 		if (index >= max_index)
@@ -292,7 +292,7 @@ namespace CudaPBRT
 		scene.SceneIntersection(segment.ray, segment.intersection);
 	}
 
-	__global__ void GlobalDisplayNormal(int max_index, PathSegment* pathSegment, Scene scene)
+	__global__ void GlobalDisplayNormal(int max_index, PathSegment* pathSegment, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -320,7 +320,7 @@ namespace CudaPBRT
 		segment.End();
 	}
 
-	__global__ void GlobalNaiveLi(int iteration, int max_index, PathSegment* pathSegment, Scene scene)
+	__global__ void GlobalNaiveLi(int iteration, int max_index, PathSegment* pathSegment, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -372,7 +372,7 @@ namespace CudaPBRT
 		segment.End();
 	}
 	
-	__global__ void GlobalDirectLi(int iteration, int max_index, PathSegment* pathSegment, Scene scene)
+	__global__ void GlobalDirectLi(int iteration, int max_index, PathSegment* pathSegment, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -413,7 +413,7 @@ namespace CudaPBRT
 		segment.End();
 	}
 
-	__global__ void GlobalMIS_Li(int iteration, int max_index, PathSegment* pathSegment, Scene scene)
+	__global__ void GlobalMIS_Li(int iteration, int max_index, PathSegment* pathSegment, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -629,7 +629,7 @@ namespace CudaPBRT
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
-	void CudaPathTracer::Run(Scene* scene)
+	void CudaPathTracer::Run(GPUScene* scene)
 	{
 		int max_count = width * height;
 		

@@ -61,8 +61,8 @@ public:
 	uPtr<PerspectiveCameraController> m_CamController;
 
 protected:
-	Window* window;
-	uPtr<Scene> m_Scene;
+	Window* window; // only a reference to the window
+	uPtr<GPUScene> m_Scene;
 	uPtr<CudaPathTracer> m_CudaPBRT;
 
 	std::vector<uPtr<CudaTexture>> m_Textures;

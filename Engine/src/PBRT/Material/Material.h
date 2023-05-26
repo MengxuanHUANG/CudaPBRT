@@ -124,7 +124,7 @@ namespace CudaPBRT
 			if (m_MaterialData.metallicMapId > 0)
 			{
 				float4 metallic = ReadTexture(m_MaterialData.metallicMapId, uv);
-				return m_MaterialData.metallic;
+				return metallic.x;
 			}
 			else
 			{
@@ -137,7 +137,7 @@ namespace CudaPBRT
 			if (m_MaterialData.roughnessMapId > 0)
 			{
 				float4 roughness = ReadTexture(m_MaterialData.roughnessMapId, uv);
-				return m_MaterialData.roughness;
+				return roughness.x;
 			}
 			else
 			{

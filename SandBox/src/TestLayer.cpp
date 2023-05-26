@@ -36,7 +36,7 @@ TestLayer::TestLayer(const std::string& name)
 	WindowProps* props = window->GetWindowProps();
 	m_Camera = mkU<PerspectiveCamera>(680, 680, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
 	m_CamController = mkU<PerspectiveCameraController>(*m_Camera);
-	m_Scene = mkU<Scene>();
+	m_Scene = mkU<GPUScene>();
 }
 
 TestLayer::~TestLayer()
@@ -324,10 +324,10 @@ void TestLayer::LoadScene()
 	//TestSingleTriangle(shapeData, triangles, vertices, normals, uvs);
 	//AddCornellBox_Triangles(shapeData, triangles, vertices, normals, uvs, matteWhiteId, matteWhiteId);
 
-	shapeData.emplace_back(ShapeType::Sphere, MetallicWfId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(2, 2, 2));
+	//shapeData.emplace_back(ShapeType::Sphere, MetallicWfId, glm::vec3(0, 1.25, 0), glm::vec3(0, 0, 0), glm::vec3(2, 2, 2));
 	//shapeData.emplace_back(ShapeType::Cube, glassId, glm::vec3(2, 0, 3), glm::vec3(0, 27.5, 0), glm::vec3(3, 6, 3)); // Long Cube
 	//shapeData.emplace_back(ShapeType::Cube, matteWhiteId, glm::vec3(-2, -1, 0.75), glm::vec3(0, -17.5, 0), glm::vec3(3, 3, 3)); // Short Cube
-	//LoadObj(shapeData, triangles, vertices, normals, uvs, "E://Projects//CUDA_Projects//CudaPBRT//res//models//Camera.obj");
+	LoadObj(shapeData, triangles, vertices, normals, uvs, "E://Projects//CUDA_Projects//CudaPBRT//res//models//Camera.obj");
 
 	BufferData<glm::vec3>(m_Scene->vertices, vertices.data(), vertices.size());
 	BufferData<glm::vec3>(m_Scene->normals, normals.data(), normals.size());
