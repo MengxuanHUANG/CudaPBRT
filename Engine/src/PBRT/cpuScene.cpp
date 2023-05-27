@@ -152,29 +152,6 @@ namespace CudaPBRT
 			}
 		}
 
-		//materialData.emplace_back(MaterialType::LambertianReflection, glm::vec3(0.63, 0.065, 0.05)); //matteRed
-		//materialData.emplace_back(MaterialType::LambertianReflection, glm::vec3(0.14, 0.45, 0.091)); //matteGreen
-		//materialData.emplace_back(MaterialType::SpecularReflection, glm::vec3(1.f, 1.f, 1.f)); // mirror
-		//materialData.emplace_back(MaterialType::SpecularTransmission, glm::vec3(.9f, .9f, 1.f), 0.f, 0.f, 1.55f); // glass
-		//
-		//const char* cam_albedo_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_COL_2k.png";
-		//const char* cam_nor_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_NRML_2k.png";
-		//const char* cam_metl_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_METL_2k.png";
-		//const char* cam_rougn_path = "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_ROUGH_2k.png";
-		//m_Textures.emplace_back(CudaTexture::CreateCudaTexture(cam_albedo_path, true));
-		//m_Textures.emplace_back(CudaTexture::CreateCudaTexture(cam_nor_path, true));
-		//m_Textures.emplace_back(CudaTexture::CreateCudaTexture(cam_metl_path, true));
-		//m_Textures.emplace_back(CudaTexture::CreateCudaTexture(cam_rougn_path, true));
-		//
-		//
-		//materialData.emplace_back(MaterialType::MetallicWorkflow, m_Textures[0]->GetTextureObject(),
-		//						  m_Textures[1]->GetTextureObject(),
-		//						  m_Textures[2]->GetTextureObject(),
-		//						  m_Textures[3]->GetTextureObject()); // texture MetallicWorkflow
-		//
-		//materialData.emplace_back(MaterialType::MicrofacetReflection, glm::vec3(.8f, .8f, .8f), .5f, 0.5f); // microfacet
-		//materialData.emplace_back(MaterialType::MetallicWorkflow, glm::vec3(.8f, .8f, .8f), 1.0f, 0.0f); // MetallicWorkflow
-
 		// load environment map
 		if (scene_data.contains("environment map"))
 		{
@@ -214,7 +191,7 @@ namespace CudaPBRT
 						obj_data.material_id = DefaultMaterialId;
 					}
 
-					LoadObj("E://Projects//CUDA_Projects//CudaPBRT//res//models//camera.obj", obj_data);
+					LoadObj(path.c_str(), obj_data);
 					
 					objectData.push_back(obj_data);
 				}
@@ -267,6 +244,10 @@ namespace CudaPBRT
 				}
 			}
 		}
+
+		ShapeData areaLightShape(ShapeType::Square, -1, glm::vec3(0, 7.45, 0), glm::vec3(90, 0, 0), glm::vec3(3, 3, 1));
+		Spectrum Le(40);
+		//lightData.emplace_back(LightType::ShapeLight, areaLightShape, Le);
 
 		// create shapes, meterials, and lights on cuda
 		CreateArrayOnCude<Shape, ShapeData>(m_GPUScene.shapes, m_GPUScene.shape_count, shapeData);

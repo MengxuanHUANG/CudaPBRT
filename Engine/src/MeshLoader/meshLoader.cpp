@@ -39,6 +39,10 @@ namespace CudaPBRT
 	{
 		const static int f_start = 1;
 
+		int v_offset = vertices.size();
+		int n_offset = normals.size();
+		int uv_offset = uvs.size();
+
 		for (std::string line; std::getline(in, line);)
 		{
 			if (line.starts_with("vn"))
@@ -76,9 +80,9 @@ namespace CudaPBRT
 				for (int i = 0; i < result.size() - 1; ++i)
 				{
 					std::vector<std::string> ids = StringUtility::Split(result[i + 1], "/");
-					v_id[i]		= std::stoi(ids[0]) - f_start;
-					uv_id[i]	= std::stoi(ids[1]) - f_start;
-					n_id[i]		= std::stoi(ids[2]) - f_start;
+					v_id[i]		= v_offset + std::stoi(ids[0]) - f_start;
+					uv_id[i]	= uv_offset + std::stoi(ids[1]) - f_start;
+					n_id[i]		= n_offset + std::stoi(ids[2]) - f_start;
 				}
 				// naive triangulation
 				for (int i = 1; i < result.size() - 2; ++i)

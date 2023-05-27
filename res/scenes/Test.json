@@ -1,0 +1,42 @@
+{
+    "camera" : {
+        "ref" : [0, 2.5, 0],
+        "pos" : [0, 5.5, -30],
+        "up" : [0, 1, 0],
+        "fovy" : 19.5,
+        "width" : 680,
+        "height": 680
+    },
+    "scene" : {
+      "objects" : [
+        {
+          "type" : "obj",
+          "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//models//sphere.obj",
+          "translation" : [2, 0, 0],
+          "rotation" : [0, 0, 0],
+          "scale" : [1, 1, 1]
+        },
+        {
+            "type" : "obj",
+            "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//models//sphere.obj",
+            "translation" : [-2, 0, 0],
+            "rotation" : [0, 0, 0],
+            "scale" : [1, 1, 1],
+            "material" : "metallic workflow"
+          }
+      ],
+      "materials" : [
+        {
+          "type" : "MetallicWorkflow",
+          "name" : "metallic workflow",
+          "albedo": [0.8, 0.8, 0.8],
+          "metallic": 1.0,
+          "roughness": 0.0
+        }
+      ],
+      "environment map":{
+        "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//interior_atelier_soft_daylight.hdr"
+      }
+    }
+}
+  

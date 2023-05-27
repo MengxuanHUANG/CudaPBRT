@@ -59,17 +59,6 @@ void TestLayer::OnAttach()
 	m_CudaPBRT->InitCuda(*(m_Scene->camera));
 
 	m_SelectedMaterial = m_Scene->materialData.size() - 1;
-
-	std::ifstream in("E://Projects//CUDA_Projects//CudaPBRT//res//scenes//Cornel.json");
-	if (in.is_open())
-	{
-		JSON json = JSON::parse(in);
-
-		JSON frames_arr = json["frames"];
-		JSON scene_arr = frames_arr[0]["scene"];
-		//std::cout << scene_arr["camera"]["width"] << std::endl;
-		std::cout << frames_arr[0]["frameNumber"] << std::endl;
-	}
 }
 void TestLayer::OnDetach()
 {

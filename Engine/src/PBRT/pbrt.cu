@@ -181,7 +181,7 @@ namespace CudaPBRT
 	void CreateArrayOnCude<T, DataType>(T**& dev_array, size_t& count, std::vector<DataType>& host_data)
 	{
 		count = host_data.size();
-		if (count > 0)
+		if (count > 0 && dev_array == nullptr)
 		{
 			DataType* device_data;
 			cudaMalloc((void**)&device_data, sizeof(DataType) * count);
@@ -191,6 +191,12 @@ namespace CudaPBRT
 			CUDA_CHECK_ERROR();
 
 			cudaMalloc((void**)&dev_array, sizeof(T*) * count);
+			CUDA_CHECK_ERROR();
+
+			std::vector<T*> nullptr_arr;
+			nullptr_arr.resize(count, nullptr);
+
+			cudaMemcpy(dev_array, nullptr_arr.data(), sizeof(T*) * count, cudaMemcpyHostToDevice);
 			CUDA_CHECK_ERROR();
 
 			// Launch a kernel on the GPU with one thread for each element.
@@ -663,7 +669,6 @@ namespace CudaPBRT
 
 			cudaDeviceSynchronize();
 			CUDA_CHECK_ERROR();
-
 
 			devTerminatedThr = thrust::remove_copy_if(devPathsThr, devPathsThr + max_count, devTerminatedThr, CompactTerminatedPaths());
 			auto end = thrust::remove_if(devPathsThr, devPathsThr + max_count, RemoveInvalidPaths());
