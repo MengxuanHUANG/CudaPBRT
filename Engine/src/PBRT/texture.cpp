@@ -27,7 +27,10 @@ namespace CudaPBRT
         stbi_set_flip_vertically_on_load(flip_v);
 
         float* image_data = stbi_loadf(path, &m_Width, &m_Height, NULL, 4);
-        ASSERT(image_data);
+        if (!image_data)
+        {
+            printf("Cannot open %s!\n", path);
+        }
 
         // Allocate CUDA array in device memory
         cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat);

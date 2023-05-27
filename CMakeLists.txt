@@ -48,8 +48,6 @@ find_package(GLM REQUIRED)
 set(IMGUI_ROOT_DIR ${EXTERNAL})
 find_package(IMGUI REQUIRED)
 
-message(${IMGUI_INCLUDE_DIRS})
-
 # ImGui Library
 file(GLOB imgui_headers 
     "${IMGUI_INCLUDE_DIRS}/imgui/*.cpp" 

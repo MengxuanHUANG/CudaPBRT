@@ -1,5 +1,7 @@
 #pragma once
 
+
+
 #include "pbrtDefine.h"
 #include "intersection.h"
 #include "Shape/shape.h"
@@ -7,25 +9,11 @@
 #include "Light/light.h"
 
 #include "BVH/bvh.h"
-
-#include "pbrt.h"
 #include "texture.h"
+#include "pbrt.h"
 
 namespace CudaPBRT
 {
-    struct ObjectData
-    {
-        // triangles start and end id
-        int start_id; 
-        int end_id;
-
-        // translation, rotation, and scale
-        Transform transform;
-
-        // material_id
-        int material_id;
-    };
-
     /*
     ** Scene data used on Cuda kernals
     */
@@ -201,58 +189,4 @@ namespace CudaPBRT
         BVHNode* BVH;
         EnvironmentMap envMap;
 	};
-
-    /*
-    ** Scene data that will be maintenanced on CPU
-    */
-    class CPUScene
-    {
-    public:
-        CPUScene() = default;
-        CPUScene(const char* path);
-        ~CPUScene()
-        {
-            ClearScene();
-        }
-
-        inline void ClearScene()
-        {
-            m_GPUScene.FreeDataOnCuda();
-
-            m_Textures.clear();
-            shapeData.clear();
-            materialData.clear();
-            lightData.clear();
-        }
-
-        void LoadSceneFromJSON(const char* path);
-
-        void LoadObj(const char* path, ObjectData& obj_data);
-
-        void CreateBoundingBox(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices);
-
-    public:
-        GPUScene m_GPUScene;
-
-        std::vector<ObjectData> objectData;
-
-        // textures
-        std::vector<uPtr<CudaTexture>> m_Textures;
-
-        // shapes' data
-        std::vector<ShapeData> shapeData;
-
-        // materials' data
-        std::vector<MaterialData> materialData;
-
-        // lights' data
-        std::vector<LightData> lightData;
-
-    protected:
-        // shapes' data
-        std::vector<glm::vec3> vertices;
-        std::vector<glm::vec3> normals;
-        std::vector<glm::vec2> uvs;
-        std::vector<TriangleData> triangles;
-    };
 }

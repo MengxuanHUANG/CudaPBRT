@@ -1,5 +1,4 @@
 # This file uses centimeters as units for non-parametric coordinates.
-FStart 1
 g default
 v 1.806371 -2.949735 0.984058
 v 1.771416 -2.769024 0.946100

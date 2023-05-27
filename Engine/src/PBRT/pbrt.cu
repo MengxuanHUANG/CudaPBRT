@@ -3,7 +3,7 @@
 #include "spectrum.h"
 
 #include "pathSegment.h"
-#include "scene.h"
+#include "gpuScene.h"
 
 #include "texture.h"
 

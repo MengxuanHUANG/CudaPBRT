@@ -1,7 +1,8 @@
 #pragma once
 
-#include <ranges>
+#include <string>
 #include <vector>
+#include <ranges>
 #include <string_view>
 
 namespace CudaPBRT
@@ -17,6 +18,18 @@ namespace CudaPBRT
 			auto v = str | std::views::split(delim) | std::views::transform(transform_func);
 
 			return { v.begin(), v.end() };
+		}
+
+		inline constexpr auto hash_djb2a(const std::string_view sv) {
+			unsigned long hash{ 43933 };
+			for (unsigned char c : sv) {
+				hash = ((hash << 6) + hash) ^ c;
+			}
+			return hash;
+		}
+		
+		inline constexpr auto operator"" _sh(const char* str, size_t len) {
+			return hash_djb2a(std::string_view{ str, len });
 		}
 	}
 }

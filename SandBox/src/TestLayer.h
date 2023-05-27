@@ -1,11 +1,6 @@
 #pragma once
 
 #include "Core/Layer.h"
-#include "Window/Window.h"
-#include "Camera/Camera.h"
-#include "Camera/CameraController.h"
-
-#include "PBRT/scene.h"
 
 using namespace CudaPBRT;
 
@@ -13,6 +8,8 @@ namespace CudaPBRT
 {
 	class CudaPathTracer;
 	class CudaTexture;
+	class Window;
+	class CPUScene;
 }
 
 class TestLayer : public Layer
@@ -31,10 +28,6 @@ public:
 
 protected:
 	bool OnWindowResize(WindowResizeEvent& event);
-
-public:
-	uPtr<PerspectiveCamera> m_Camera;
-	uPtr<PerspectiveCameraController> m_CamController;
 
 protected:
 	Window* window; // only a reference to the window

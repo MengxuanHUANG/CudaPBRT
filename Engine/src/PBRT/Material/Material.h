@@ -1,11 +1,12 @@
 #pragma once
-#include "PBRT/pbrtDefine.h"
 #include "materialUtilities.h"
 
 #include "bsdf.h"
 
 namespace CudaPBRT
 {
+	//using namespace StringUtility;
+
 	enum class MaterialType : unsigned char
 	{
 		Specular = BIT(7),
@@ -17,6 +18,8 @@ namespace CudaPBRT
 		MicrofacetReflection	= 5U,
 		MetallicWorkflow		= 6U
 	};
+	
+	MaterialType FromString(const char* str);
 
 	INLINE CPU_GPU bool MaterialIs(MaterialType type, MaterialType flag)
 	{
