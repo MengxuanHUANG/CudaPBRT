@@ -16,6 +16,20 @@
           "rotation" : [0, 0, 0],
           "scale" : [1, 1, 1],
           "material" : "metallic workflow"
+        },
+        {
+          "type" : "Cube",
+          "name" : "Long Cube",
+          "translation" : [2, 0, 3],
+          "rotation" : [0, 27.5, 0],
+          "scale" : [3, 6, 3]
+        },
+        {
+          "type" : "Cube",
+          "name" : "Short Cube",
+          "translation" : [-2, -1, 0.75],
+          "rotation" : [0, -17.5, 0],
+          "scale" : [3, 3, 3]
         }
       ],
       "lights" : [
@@ -79,7 +93,7 @@
         }
       ],
       "environment map":{
-        "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//interior_atelier_soft_daylight.hdr"
+        "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//fireplace_4k.hdr"
       }
     }
 }

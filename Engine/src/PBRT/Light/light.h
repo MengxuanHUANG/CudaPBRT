@@ -18,6 +18,8 @@ namespace CudaPBRT
 		PointLight,
 		SpotLight
 	};
+	
+	LightType Str2LightType(const char* str);
 
 	struct LightSample 
 	{

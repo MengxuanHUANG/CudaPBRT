@@ -49,11 +49,14 @@ namespace CudaPBRT
             lightData.clear();
         }
 
-        bool LoadCameraFromJSON(JSON& json_data);
+        bool LoadCameraFromJSON(const JSON& json_data);
+        bool LoadMaterialFromJSON(const JSON& json_data);
+        bool LoadShapeFromJSON(const JSON& json_data);
+        bool LoadLightFromJSON(const JSON& json_data);
 
-        bool LoadSceneFromJSON(const char* path);
+        bool LoadSceneFromJsonFile(const char* path);
 
-        bool LoadObj(const char* path, ObjectData& obj_data);
+        bool LoadMeshFromFile(const char* path, ObjectData& obj_data);
 
         void CreateBoundingBox(std::vector<ShapeData>& shapeData, std::vector<glm::vec3>& vertices);
 

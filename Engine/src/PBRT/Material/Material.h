@@ -19,7 +19,7 @@ namespace CudaPBRT
 		MetallicWorkflow		= 6U
 	};
 	
-	MaterialType FromString(const char* str);
+	MaterialType Str2MaterialType(const char* str);
 
 	INLINE CPU_GPU bool MaterialIs(MaterialType type, MaterialType flag)
 	{

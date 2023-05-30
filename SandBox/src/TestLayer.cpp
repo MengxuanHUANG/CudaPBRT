@@ -53,7 +53,7 @@ TestLayer::~TestLayer()
 
 void TestLayer::OnAttach()
 {
-	m_Scene->LoadSceneFromJSON("E://Projects//CUDA_Projects//CudaPBRT//res//scenes//Cornel.json");
+	m_Scene->LoadSceneFromJsonFile("E://Projects//CUDA_Projects//CudaPBRT//res//scenes//CornellBox.json");
 
 	m_CudaPBRT = mkU<CudaPathTracer>();
 	m_CudaPBRT->InitCuda(*(m_Scene->camera));

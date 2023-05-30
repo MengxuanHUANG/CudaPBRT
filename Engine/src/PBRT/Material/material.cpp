@@ -6,7 +6,7 @@ namespace CudaPBRT
 {
 	using namespace StringUtility;
 
-	MaterialType FromString(const char* str)
+	MaterialType Str2MaterialType(const char* str)
 	{
 		switch (StringUtility::hash_djb2a(str))
 		{

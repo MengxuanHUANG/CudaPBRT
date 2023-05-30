@@ -19,10 +19,10 @@ namespace CudaPBRT
 		camera = mkU<PerspectiveCamera>(680, 680, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
 		camController = mkU<PerspectiveCameraController>(*camera);
 
-		LoadSceneFromJSON(path);
+		LoadSceneFromJsonFile(path);
 	}
 
-	bool CPUScene::LoadCameraFromJSON(JSON& json_data)
+	bool CPUScene::LoadCameraFromJSON(const JSON& json_data)
 	{
 		SafeGetVec3(camera->ref, json_data, "ref");
 		SafeGetVec3(camera->position, json_data, "pos");
@@ -39,7 +39,187 @@ namespace CudaPBRT
 		return true;
 	}
 
-	bool CPUScene::LoadSceneFromJSON(const char* path)
+	bool CPUScene::LoadMaterialFromJSON(const JSON& material)
+	{
+		std::string type_str;
+		SafeGet(type_str, material, "type", std::string);
+		MaterialType type = Str2MaterialType(type_str.c_str());
+		if (type == MaterialType::None)
+		{
+			return false;
+		}
+
+		std::string name;
+		SafeGet(name, material, "name", std::string);
+
+		// read albedo, roughness, metallic, eta
+		glm::vec3 albedo(0.f);
+		SafeGetVec3(albedo, material, "albedo");
+
+		float roughness = 0.5f, metallic = 0.5f, eta = AirETA;
+
+		SafeGet(roughness, material, "roughness", float);
+		SafeGet(metallic, material, "metallic", float);
+		SafeGet(eta, material, "eta", float);
+
+		materialData.emplace_back(type, albedo, roughness, metallic, eta); //matteRed
+		materials_map.emplace(name, materialData.size() - 1);
+
+		MaterialData& material_data = materialData.back();
+
+		// try to read textures
+		if (material.contains("albedo_map"))
+		{
+			JSON texture_data = material["albedo_map"];
+
+			std::string albedo_map_path;
+			SafeGet(albedo_map_path, texture_data, "path", std::string);
+
+			bool flip_v = false;
+			SafeGet(flip_v, texture_data, "flip_v", bool);
+
+			m_Textures.emplace_back(CudaTexture::CreateCudaTexture(albedo_map_path.c_str(), flip_v));
+			material_data.albedoMapId = m_Textures.back()->GetTextureObject();
+		}
+
+		if (material.contains("normal_map"))
+		{
+			JSON texture_data = material["normal_map"];
+
+			std::string normal_map_path;
+			SafeGet(normal_map_path, texture_data, "path", std::string);
+
+			bool flip_v = false;
+			SafeGet(flip_v, texture_data, "flip_v", bool);
+
+			m_Textures.emplace_back(CudaTexture::CreateCudaTexture(normal_map_path.c_str(), flip_v));
+			material_data.normalMapId = m_Textures.back()->GetTextureObject();
+		}
+
+		if (material.contains("roughness_map"))
+		{
+			JSON texture_data = material["roughness_map"];
+
+			std::string roughness_map_path;
+			SafeGet(roughness_map_path, texture_data, "path", std::string);
+
+			bool flip_v = false;
+			SafeGet(flip_v, texture_data, "flip_v", bool);
+
+			m_Textures.emplace_back(CudaTexture::CreateCudaTexture(roughness_map_path.c_str(), flip_v));
+			material_data.roughnessMapId = m_Textures.back()->GetTextureObject();
+		}
+
+		if (material.contains("roughness_map"))
+		{
+			JSON texture_data = material["metallic_map"];
+
+			std::string metallic_map_path;
+			SafeGet(metallic_map_path, texture_data, "path", std::string);
+
+			bool flip_v = false;
+			SafeGet(flip_v, texture_data, "flip_v", bool);
+
+			m_Textures.emplace_back(CudaTexture::CreateCudaTexture(metallic_map_path.c_str(), flip_v));
+			material_data.metallicMapId = m_Textures.back()->GetTextureObject();
+		}
+		return true;
+	}
+
+	bool CPUScene::LoadShapeFromJSON(const JSON& object)
+	{
+		static const int DefaultMaterialId = 0;
+
+		std::string type_str;
+		SafeGet(type_str, object, "type", std::string);
+
+		if (type_str == "obj")
+		{
+			std::string path;
+			SafeGet(path, object, "path", std::string);
+
+			ObjectData obj_data;
+			SafeGetVec3(obj_data.transform.translation, object, "translation");
+			SafeGetVec3(obj_data.transform.rotation, object, "rotation");
+			SafeGetVec3(obj_data.transform.scale, object, "scale");
+
+			std::string material_name;
+			SafeGet(material_name, object, "material", std::string);
+			obj_data.material_id = DefaultMaterialId;
+			
+			if (materials_map.find(material_name) != materials_map.end())
+			{
+				obj_data.material_id = materials_map[material_name];
+			}
+
+			LoadMeshFromFile(path.c_str(), obj_data);
+
+			objectData.push_back(obj_data);
+		}
+		else
+		{
+			ShapeType type = Str2ShapeType(type_str.c_str());
+			
+			if (type == ShapeType::None)
+			{
+				return false;
+			}
+
+			int material_id = DefaultMaterialId;;
+			std::string material_name;
+			SafeGet(material_name, object, "material", std::string);
+			if (materials_map.find(material_name) != materials_map.end())
+			{
+				material_id = materials_map[material_name];
+			}
+			
+			glm::vec3 translation(0.f), rotation(0.f), scale(1.f);
+			SafeGetVec3(translation, object, "translation");
+			SafeGetVec3(rotation, object, "rotation");
+			SafeGetVec3(scale, object, "scale");
+
+			shapeData.emplace_back(type, material_id, translation, rotation, scale);
+		}
+		return true;
+	}
+
+	bool CPUScene::LoadLightFromJSON(const JSON& light)
+	{
+		std::string type_str;
+		SafeGet(type_str, light, "type", std::string);
+
+		LightType type = Str2LightType(type_str.c_str());
+
+		switch(type)
+		{
+		case LightType::ShapeLight:
+		{
+			std::string shape_str;
+			SafeGet(shape_str, light, "shape", std::string);
+			ShapeType shape_type = Str2ShapeType(shape_str.c_str());
+			
+			glm::vec3 translation(0.f), rotation(0.f), scale(1.f);
+			SafeGetVec3(translation, light, "translation");
+			SafeGetVec3(rotation, light, "rotation");
+			SafeGetVec3(scale, light, "scale");
+
+			ShapeData light_shape(shape_type, -1, translation, rotation, scale);
+
+			float Le;
+			SafeGet(Le, light, "Le", float);
+
+			lightData.emplace_back(type, light_shape, Spectrum(Le));
+
+			return true;
+		}
+		default:
+			return false;
+		}
+
+		return true;
+	}
+
+	bool CPUScene::LoadSceneFromJsonFile(const char* path)
 	{
 		// clear previous scene data
 		ClearScene();
@@ -58,6 +238,7 @@ namespace CudaPBRT
 		JSON scene_data = json_data["scene"];
 
 		// load materials
+		// default material
 		materialData.emplace_back(MaterialType::LambertianReflection, glm::vec3(0.85, 0.81, 0.78)); //matteWhite, default material
 		materials_map.emplace("default", 0);
 		int DefaultMaterialId = 0;
@@ -67,88 +248,7 @@ namespace CudaPBRT
 			JSON materials_list = scene_data["materials"];
 			for (const auto& material : materials_list)
 			{
-				std::string type_str;
-				SafeGet(type_str, material, "type", std::string);
-				MaterialType type = FromString(type_str.c_str());
-				if (type == MaterialType::None)
-				{
-					continue;
-				}
-
-				std::string name;
-				SafeGet(name, material, "name", std::string);
-
-				// read albedo, roughness, metallic, eta
-				glm::vec3 albedo(0.f);
-				SafeGetVec3(albedo, material, "albedo");
-
-				float roughness = 0.5f, metallic = 0.5f, eta = AirETA;
-
-				SafeGet(roughness, material, "roughness", float);
-				SafeGet(metallic, material, "metallic", float);
-				SafeGet(eta, material, "eta", float);
-
-				materialData.emplace_back(type, albedo, roughness, metallic, eta); //matteRed
-				materials_map.emplace(name, materialData.size() - 1);
-
-				MaterialData& material_data = materialData.back();
-				
-				// try to read textures
-				if (material.contains("albedo_map"))
-				{
-					JSON texture_data = material["albedo_map"];
-
-					std::string albedo_map_path;
-					SafeGet(albedo_map_path, texture_data, "path", std::string);
-
-					bool flip_v = false;
-					SafeGet(flip_v, texture_data, "flip_v", bool);
-
-					m_Textures.emplace_back(CudaTexture::CreateCudaTexture(albedo_map_path.c_str(), flip_v));
-					material_data.albedoMapId = m_Textures.back()->GetTextureObject();
-				}
-
-				if (material.contains("normal_map"))
-				{
-					JSON texture_data = material["normal_map"];
-
-					std::string normal_map_path;
-					SafeGet(normal_map_path, texture_data, "path", std::string);
-
-					bool flip_v = false;
-					SafeGet(flip_v, texture_data, "flip_v", bool);
-
-					m_Textures.emplace_back(CudaTexture::CreateCudaTexture(normal_map_path.c_str(), flip_v));
-					material_data.normalMapId = m_Textures.back()->GetTextureObject();
-				}
-
-				if (material.contains("roughness_map"))
-				{
-					JSON texture_data = material["roughness_map"];
-
-					std::string roughness_map_path;
-					SafeGet(roughness_map_path, texture_data, "path", std::string);
-
-					bool flip_v = false;
-					SafeGet(flip_v, texture_data, "flip_v", bool);
-
-					m_Textures.emplace_back(CudaTexture::CreateCudaTexture(roughness_map_path.c_str(), flip_v));
-					material_data.roughnessMapId = m_Textures.back()->GetTextureObject();
-				}
-
-				if (material.contains("roughness_map"))
-				{
-					JSON texture_data = material["metallic_map"];
-
-					std::string metallic_map_path;
-					SafeGet(metallic_map_path, texture_data, "path", std::string);
-
-					bool flip_v = false;
-					SafeGet(flip_v, texture_data, "flip_v", bool);
-
-					m_Textures.emplace_back(CudaTexture::CreateCudaTexture(metallic_map_path.c_str(), flip_v));
-					material_data.metallicMapId = m_Textures.back()->GetTextureObject();
-				}
+				LoadMaterialFromJSON(material);
 			}
 		}
 
@@ -167,34 +267,7 @@ namespace CudaPBRT
 			JSON objects_list = scene_data["objects"];
 			for (const auto& object : objects_list)
 			{
-				std::string type_str;
-				SafeGet(type_str, object, "type", std::string);
-
-				if (type_str == "obj")
-				{
-					std::string path;
-					SafeGet(path, object, "path", std::string);
-
-					ObjectData obj_data;
-					SafeGetVec3(obj_data.transform.translation, object, "translation");
-					SafeGetVec3(obj_data.transform.rotation, object, "rotation");
-					SafeGetVec3(obj_data.transform.scale, object, "scale");
-
-					std::string material_name;
-					SafeGet(material_name, object, "material", std::string);
-					if (materials_map.find(material_name) != materials_map.end())
-					{
-						obj_data.material_id = materials_map[material_name];
-					}
-					else
-					{
-						obj_data.material_id = DefaultMaterialId;
-					}
-
-					LoadObj(path.c_str(), obj_data);
-					
-					objectData.push_back(obj_data);
-				}
+				LoadShapeFromJSON(object);
 			}
 		}
 
@@ -220,34 +293,9 @@ namespace CudaPBRT
 			JSON lights_list = scene_data["lights"];
 			for (const auto& light : lights_list)
 			{
-				std::string type_str;
-				SafeGet(type_str, light, "type", std::string);
-
-				if (type_str == "ShapeLight")
-				{
-					std::string shape;
-					SafeGet(shape, light, "shape", std::string);
-
-					// TODO: create shape
-
-					glm::vec3 translation, rotation, scale;
-
-					SafeGetVec3(translation, light, "translation");
-					SafeGetVec3(rotation, light, "rotation");
-					SafeGetVec3(scale, light, "scale");
-
-					float Le;
-
-					SafeGet(Le, light, "Le", float);
-
-					//lightData.emplace_back(LightType::ShapeLight, areaLightShape, Le)
-				}
+				LoadLightFromJSON(light);
 			}
 		}
-
-		ShapeData areaLightShape(ShapeType::Square, -1, glm::vec3(0, 7.45, 0), glm::vec3(90, 0, 0), glm::vec3(3, 3, 1));
-		Spectrum Le(40);
-		//lightData.emplace_back(LightType::ShapeLight, areaLightShape, Le);
 
 		// create shapes, meterials, and lights on cuda
 		CreateArrayOnCude<Shape, ShapeData>(m_GPUScene.shapes, m_GPUScene.shape_count, shapeData);
@@ -257,7 +305,7 @@ namespace CudaPBRT
 		return true;
 	}
 
-	bool CPUScene::LoadObj(const char* path, ObjectData& obj_data)
+	bool CPUScene::LoadMeshFromFile(const char* path, ObjectData& obj_data)
 	{
 		// try to open file
 		uPtr<MeshLoader> mesh_loader = MeshLoader::CreateMeshLoad(path);

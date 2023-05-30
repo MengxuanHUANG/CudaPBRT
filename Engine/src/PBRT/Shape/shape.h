@@ -35,6 +35,8 @@ namespace CudaPBRT
 		Square,
 	};
 
+	ShapeType Str2ShapeType(const char* str);
+
 	struct ShapeData
 	{
 		ShapeType type = ShapeType::None;
