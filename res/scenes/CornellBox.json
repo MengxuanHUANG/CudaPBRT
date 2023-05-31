@@ -88,12 +88,10 @@
           "translation" : [0, 7.45, 0],
           "rotation" : [90, 0, 0],
           "scale" : [3, 3, 1],
-          "Le" : 40
+          "Le" : 40,
+          "doubleSide" : false
         }
-      ],
-      "environment map":{
-        "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//interior_atelier_soft_daylight.hdr"
-      }
+      ]
     }
 }
   

@@ -81,6 +81,50 @@ namespace CudaPBRT
             }
         }
         
+        CPU_GPU virtual float SimpleIntersection(const Ray& ray) const override
+        {
+            // Moller¨CTrumbore intersection
+            glm::vec2 uv;
+
+            const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
+
+            glm::vec3 edge01 = m_Vertices[m_Triangle.vId[1]] - v0;
+            glm::vec3 edge02 = m_Vertices[m_Triangle.vId[2]] - v0;
+            glm::vec3 pvec = glm::cross(ray.DIR, edge02);
+
+            float det = glm::dot(pvec, edge01);
+
+            if (glm::abs(det) < CudaPBRT::FloatEpsilon) // ray is perpendicular to the plane contain the triangle
+            {
+                return false;
+            }
+
+            glm::vec3 tvec = ray.O - v0;
+            if (det < 0.f)
+            {
+                det = -det;
+                tvec = -tvec;
+            }
+
+            uv.x = glm::dot(tvec, pvec);
+            if (uv.x < 0.f || uv.x > det)
+            {
+                return false;
+            }
+
+            glm::vec3 qvec = glm::cross(tvec, edge01);
+
+            uv.y = glm::dot(ray.DIR, qvec);
+            if (uv.y < 0.f || uv.x + uv.y > det)
+            {
+                return false;
+            }
+            float inv_det = 1.f / det;
+            uv *= inv_det;
+
+            return glm::dot(edge02, qvec) * inv_det;
+        }
+
         CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const override
         {
             const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];

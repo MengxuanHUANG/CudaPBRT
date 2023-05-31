@@ -205,10 +205,15 @@ namespace CudaPBRT
 
 			ShapeData light_shape(shape_type, -1, translation, rotation, scale);
 
-			float Le;
+			float Le = 0.f;
 			SafeGet(Le, light, "Le", float);
 
-			lightData.emplace_back(type, light_shape, Spectrum(Le));
+			bool double_side = false;
+			SafeGet(double_side, light, "doubleSide", bool);
+			
+			
+
+			lightData.emplace_back(type, light_shape, Spectrum(Le), double_side);
 
 			return true;
 		}

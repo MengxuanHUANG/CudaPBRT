@@ -37,7 +37,7 @@ namespace CudaPBRT
             float t0 = glm::max(glm::max(tmin.x, tmin.y), tmin.z);
             float t1 = glm::min(glm::min(tmax.x, tmax.y), tmax.z);
 
-            if (t0 > t1) return false;
+            if (t0 > t1) return false; // no intersection
             
             if (t0 > 0.f)
             {
@@ -65,6 +65,31 @@ namespace CudaPBRT
             return false;
         }
     
+        CPU_GPU virtual float SimpleIntersection(const Ray& ray) const override
+        {
+            glm::vec3 local_origin = glm::vec3(m_TransformInv * glm::vec4(ray.O, 1.0f));
+            glm::vec3 local_dir = glm::vec3(m_TransformInv * glm::vec4(ray.DIR, 0.0f));
+
+            Ray localRay(local_origin, local_dir);
+
+            glm::vec3 pMin(-0.5f);
+            glm::vec3 pMax(0.5f);
+
+            glm::vec3 invDir = 1.f / localRay.DIR;
+            glm::vec3 tNear = (pMin - localRay.O) * invDir;
+            glm::vec3 tFar = (pMax - localRay.O) * invDir;
+
+            glm::vec3 tmin = glm::min(tNear, tFar);
+            glm::vec3 tmax = glm::max(tNear, tFar);
+
+            float t0 = glm::max(glm::max(tmin.x, tmin.y), tmin.z);
+            float t1 = glm::min(glm::min(tmax.x, tmax.y), tmax.z);
+
+            if (t0 > t1) return -1.f; // no intersection
+
+            return (t0 > 0.f ? t0 : (t1 > 0.f ? t1 : -1.f));
+        }
+
         CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const
         {
             return ComputeNormal(p);

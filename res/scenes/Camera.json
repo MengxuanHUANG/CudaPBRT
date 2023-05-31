@@ -11,35 +11,11 @@
       "objects" : [
         {
           "type" : "obj",
-          "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//models//sphere.obj",
+          "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//models//Camera.obj",
           "translation" : [0, 0, 0],
           "rotation" : [0, 0, 0],
-          "scale" : [1, 1, 1],
-          "material" : "metallic workflow"
-        },
-        {
-          "type" : "Cube",
-          "name" : "Long Cube",
-          "translation" : [2, 0, 3],
-          "rotation" : [0, 27.5, 0],
-          "scale" : [3, 6, 3]
-        },
-        {
-          "type" : "Cube",
-          "name" : "Short Cube",
-          "translation" : [-2, -1, 0.75],
-          "rotation" : [0, -17.5, 0],
-          "scale" : [3, 3, 3]
-        }
-      ],
-      "lights" : [
-        {
-          "type" : "ShapeLight",
-          "shape": "square",
-          "translation" : [0, 7.45, 0],
-          "rotation" : [90, 0, 0],
-          "scale" : [3, 3, 1],
-          "Le" : 40
+          "scale" : [0.6, 0.6, 0.6],
+          "material" : "camera material"
         }
       ],
       "materials" : [

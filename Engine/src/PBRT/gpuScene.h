@@ -38,9 +38,8 @@ namespace CudaPBRT
             ASSERT(light_count < 10);
             int light_id = static_cast<int>(glm::floor(rand * 10.f)) % light_count;
             sample = lights[light_id]->Sample_Li(p, normal, xi);
-            
-            Intersection shadow_intersect;
-            return (SceneIntersection(sample.shadowRay, shadow_intersect) && shadow_intersect.isLight && shadow_intersect.id == light_id);
+
+            return (sample.pdf > 0.01f) && !Occluded(sample.t, sample.shadowRay);
         }
 
         INLINE CPU_GPU float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)
@@ -170,6 +169,53 @@ namespace CudaPBRT
             }
 
             return !(intersection.id < 0);
+        }
+
+        INLINE CPU_GPU bool Occluded(const float& min_t, const Ray& ray)
+        {
+            // BVH intersection
+            int to_visit[64];
+            int current_node = 0;
+            int next_visit = 0;
+
+            glm::vec3 invDir(glm::vec3(1.f) / ray.DIR);
+            bool dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
+            int max_it = 0;
+            while (true)
+            {
+                const BVHNode& node = BVH[current_node];
+                const BoundingBox& bounding = boundings[node.boundingBoxId];
+
+                float t;
+
+                if (bounding.IntersectP(ray, invDir, t) && t < min_t)
+                {
+                    if (node.primitiveId >= 0) // leaf node
+                    {
+                        for (int i = 0; i < node.primitiveCount; ++i)
+                        {
+                            if (float dis = shapes[i + node.primitiveId]->SimpleIntersection(ray) > 0.f && dis < min_t)
+                            {
+                                return true;
+                            }
+                        }
+                        if (next_visit == 0) break;
+                        current_node = to_visit[--next_visit];
+                    }
+                    else
+                    {
+                        current_node = dirIsNeg[node.splitAxis] ? node.next : node.next + 1;
+                        to_visit[next_visit++] = dirIsNeg[node.splitAxis] ? node.next + 1 : node.next;
+                    }
+                }
+                else
+                {
+                    if (next_visit == 0) break;
+                    current_node = to_visit[--next_visit];
+                }
+            }
+
+            return false;
         }
 
 	public:

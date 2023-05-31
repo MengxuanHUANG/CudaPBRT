@@ -1,6 +1,8 @@
 #pragma once
 
 #include "PBRT/pbrtDefine.h"
+#include "PBRT/pbrtUtilities.h"
+
 #include "PBRT/spectrum.h"
 #include "PBRT/intersection.h"
 #include "PBRT/ray.h"
@@ -25,25 +27,27 @@ namespace CudaPBRT
 	{
 		Spectrum Le = Spectrum(0.f);
 		glm::vec3 wiW = glm::vec3(0.f);
-		float pdf = 0.f;
+		float pdf = -1.f;
+		float t = -1.f;
 		Ray shadowRay = Ray();
 		
 		CPU_GPU LightSample()
 		{}
 
-		CPU_GPU LightSample(const Spectrum& Le, const glm::vec3& wiW, float pdf, const Ray& ray)
-			: Le(Le), wiW(wiW), pdf(pdf), shadowRay(ray)
+		CPU_GPU LightSample(const Spectrum& Le, const glm::vec3& wiW, float pdf, float t, const Ray& ray)
+			: Le(Le), wiW(wiW), pdf(pdf), t(t), shadowRay(ray)
 		{}
 	};
 
 	struct LightData
 	{
 		LightType type;
+		bool doubleSide;
 		ShapeData shapeData;
 		Spectrum Le;
 
-		LightData(LightType type, const ShapeData& shapeData, const Spectrum& Le)
-			: type(type), shapeData(shapeData), Le(Le)
+		LightData(LightType type, const ShapeData& shapeData, const Spectrum& Le, bool doubleSide = false)
+			: type(type), doubleSide(doubleSide), shapeData(shapeData), Le(Le)
 		{}
 	};
 
@@ -58,11 +62,12 @@ namespace CudaPBRT
 		CPU_GPU virtual float PDF(const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal) const = 0;
 	};
 
-	class ShapeLight : public Light {
+	class ShapeLight : public Light 
+	{
 	public:
 		// AreaLight Interface
 		CPU_GPU ShapeLight(const LightData& data)
-			: Le(data.Le)
+			: Le(data.Le), m_DoubleSide(data.doubleSide)
 		{
 			m_Shape = Create(data.shapeData);
 		}
@@ -87,9 +92,11 @@ namespace CudaPBRT
 
 			// compute r, wiW
 			glm::vec3 r = sampled_point - p;
+			
 			glm::vec3 wiW = glm::normalize(r);
+			float t = glm::length(r);
 
-			return { Le , wiW, ComputePDF(p, wiW, glm::length(r)), Ray::SpawnRay(p, wiW) };
+			return { Le , wiW, ComputePDF(p, wiW, t), t, Ray::SpawnRay(p, wiW) };
 		}
 
 		CPU_GPU virtual float PDF(const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal) const override
@@ -104,10 +111,15 @@ namespace CudaPBRT
 			glm::vec3 p_normal = m_Shape->GetNormal(p);
 
 			float cosTheta = glm::dot(-wiW, p_normal);
+			if (m_DoubleSide)
+			{
+				cosTheta = glm::abs(cosTheta);
+			}
 			return (t * t / (cosTheta * area));
 		}
 	protected:
 		Spectrum Le;
 		Shape* m_Shape;
+		bool m_DoubleSide;
 	};
 }

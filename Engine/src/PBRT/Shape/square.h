@@ -59,6 +59,21 @@ namespace CudaPBRT
             }
         }
         
+        CPU_GPU virtual float SimpleIntersection(const Ray& ray) const override
+        {
+            glm::vec3 local_origin = glm::vec3(m_TransformInv * glm::vec4(ray.O, 1.0f));
+            glm::vec3 local_dir = glm::vec3(m_TransformInv * glm::vec4(ray.DIR, 0.0f));
+
+            Ray localRay(local_origin, local_dir);
+
+            glm::vec3 normal = glm::vec3(0, 0, 1);
+
+            float dt = glm::dot(normal, localRay.DIR);
+
+            if (dt > 0.0) return -1.f;
+            return -glm::dot(normal, localRay.O) / dt;
+        }
+
         CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const override
         {
             return ComputeNormal();

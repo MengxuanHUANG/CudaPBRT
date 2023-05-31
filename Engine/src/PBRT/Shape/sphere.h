@@ -45,6 +45,24 @@ namespace CudaPBRT
             return false;
 		}
 
+        CPU_GPU virtual float SimpleIntersection(const Ray& ray) const override
+        {
+            glm::vec3 local_origin = glm::vec3(m_TransformInv * glm::vec4(ray.O, 1.0f));
+            glm::vec3 local_dir = glm::vec3(m_TransformInv * glm::vec4(ray.DIR, 0.0f));
+
+            Ray localRay(local_origin, local_dir);
+
+            // calculate intersection for sphere and the ray
+            float A = glm::dot(localRay.DIR, localRay.DIR);
+            float B = 2.f * glm::dot(localRay.DIR, localRay.O);
+            float C = glm::dot(localRay.O, localRay.O) - 1.f;
+            float t0 = 0.f, t1 = 0.f;
+
+            SolveQuadratic(A, B, C, t0, t1);
+
+            return (t0 > 0.f ? t0 : (t1 > 0.f ? t1 : -1.f));
+        }
+
         CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const override
         {
             return ComputeNormal(p);
