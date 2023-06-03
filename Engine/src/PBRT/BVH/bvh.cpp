@@ -216,19 +216,19 @@ namespace CudaPBRT
 
 		shapeData.swap(ordered_primitives);
 
-		PerspectiveCamera camera(680, 680, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
-
-		int w = 350;
-		int h = 350;
-		Ray ray = CastRay(camera, { w, h });
-		glm::vec3 invDir(glm::vec3(1.f) / ray.DIR);
-		bool dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
-
-		int to_visit[64];
-		int current_node = 0;
-		int next_visit = 0;
-
-		float closest_t = FloatMax;
+		//PerspectiveCamera camera(680, 680, 19.5f, glm::vec3(0, 5.5, -30), glm::vec3(0, 2.5, 0));
+		//
+		//int w = 350;
+		//int h = 350;
+		//Ray ray = CastRay(camera, { w, h });
+		//glm::vec3 invDir(glm::vec3(1.f) / ray.DIR);
+		//bool dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
+		//
+		//int to_visit[64];
+		//int current_node = 0;
+		//int next_visit = 0;
+		//
+		//float closest_t = FloatMax;
 	/*
 		while (true)
 		{

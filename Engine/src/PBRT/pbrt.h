@@ -12,8 +12,9 @@ namespace CudaPBRT
 {
 	class GPUScene;
 	class CudaTexture;
+	class RNG;
 
-	CPU_GPU Ray CastRay(const PerspectiveCamera& camera, const glm::vec2& p);
+	CPU_GPU Ray CastRay(const PerspectiveCamera& camera, const glm::vec2& p, RNG& rng);
 
 	struct PathSegment;
 	template<typename T>

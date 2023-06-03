@@ -97,9 +97,9 @@ namespace CudaPBRT
 		}
 	}
 
-	CPU_GPU Ray CastRay(const PerspectiveCamera& camera, const glm::vec2& p)
+	CPU_GPU Ray CastRay(const PerspectiveCamera& camera, const glm::vec2& p, RNG& rng)
 	{
-		glm::vec2 ndc = 2.f * p / glm::vec2(camera.width, camera.height);
+		glm::vec2 ndc = 2.f * (p + glm::vec2(rng.rand(), rng.rand())) / glm::vec2(camera.width, camera.height);
 		ndc.x = ndc.x - 1.f;
 		ndc.y = 1.f - ndc.y;
 
@@ -107,14 +107,26 @@ namespace CudaPBRT
 
 		// point in camera space
 		float radian = glm::radians(camera.fovy * 0.5f);
-		glm::vec3 pCamera = glm::vec3(
+		glm::vec3 p_camera = glm::vec3(
 			ndc.x * glm::tan(radian) * aspect,
 			ndc.y * glm::tan(radian),
 			1.f
 		);
 
-		Ray ray(glm::vec3(0), pCamera);
+		Ray ray(glm::vec3(0), p_camera);
 
+		if (camera.lensRadius > 0.f)
+		{
+			glm::vec2 p_lens(rng.rand(), rng.rand());
+			p_lens = camera.lensRadius * Sampler::SquareToDiskConcentric(p_lens);
+			glm::vec3 p_focus = camera.focalDistance * p_camera;
+
+			ray.O.x = p_lens.x;
+			ray.O.y = p_lens.y;
+			ray.DIR = glm::normalize(p_focus - ray.O);
+		}
+
+		// transform to world space
 		ray.O = camera.position + ray.O.x * camera.right + ray.O.y * camera.up;
 		ray.DIR = glm::normalize(ray.DIR.z * camera.forward +
 								 ray.DIR.y * camera.up +
@@ -280,7 +292,7 @@ namespace CudaPBRT
 		segment.Reset();
 
 		CudaRNG rng(iteration, index, 1);
-		segment.ray = CastRay(*camera, { x + rng.rand(), y + rng.rand() });
+		segment.ray = CastRay(*camera, { x, y }, rng);
 		segment.pixelId = index;
 	}
 

@@ -90,12 +90,18 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 	ImGui::End();
 
 	ImGui::Begin("Camera Control");
-	if (ImGui::DragFloat3("Ref position", reinterpret_cast<float*>(&(camera.ref)), 0.1f))
+	bool cam_is_edited = false;
+	cam_is_edited |= ImGui::DragFloat3("Ref position", reinterpret_cast<float*>(&(camera.ref)), 0.1f);
+	cam_is_edited |= ImGui::DragFloat("Len Radius", &(camera.lensRadius), 0.01f, 0.f, 0.5f);
+	cam_is_edited |= ImGui::DragFloat("Focal Distance", &(camera.focalDistance), 0.1f, 1.f, 100.f);
+
+	if (cam_is_edited)
 	{
 		camera.RecomputeAttributes();
 		m_CudaPBRT->UpdateCamera(camera);
 		m_CudaPBRT->ResetPRBT();
 	}
+
 	if (ImGui::Button("Save Image"))
 	{
 		stbi_write_png("C://Users//admas//Downloads//save.png", camera.width, camera.height, 4, m_CudaPBRT->host_image, camera.width * 4);

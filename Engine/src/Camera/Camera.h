@@ -14,7 +14,7 @@ namespace CudaPBRT
 						  const glm::vec3& ref = glm::vec3(0, 0, 0),
 						  const glm::vec3& worldUp = glm::vec3(0, 1, 0),
 						  float lenRadius = 0.f,
-						  float focalDistance = 0.f);
+						  float focalDistance = 1.f);
 		PerspectiveCamera(const PerspectiveCamera& c);
 
 		void RecomputeAttributes();
