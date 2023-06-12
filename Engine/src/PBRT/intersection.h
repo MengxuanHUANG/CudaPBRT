@@ -9,7 +9,6 @@ namespace CudaPBRT
 	{
 		int id = -1;;
 		int material_id = -1;
-		bool isLight = false;
 
 		float t = CudaPBRT::FloatMax;
 		glm::vec3 p = glm::vec3(0.f);
@@ -30,7 +29,6 @@ namespace CudaPBRT
 		{
 			id = -1;;
 			material_id = -1;
-			isLight = false;
 
 			t = CudaPBRT::FloatMax;
 			p = glm::vec3(0.f);

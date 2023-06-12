@@ -32,6 +32,8 @@ namespace CudaPBRT
 		glm::vec3 albedo = glm::vec3(1.f); // default color is white
 		float metallic = 0.5f;
 		float roughness = 0.5f;
+		
+		glm::vec3 Le = glm::vec3(0.f);
 
 		float eta = AirETA; // IOR of air
 
@@ -44,11 +46,13 @@ namespace CudaPBRT
 					 const glm::vec3& albedo = glm::vec3(1.f),
 					 float metallic = 0.5f,
 					 float roughness = 0.5f,
+					 const glm::vec3& Le = glm::vec3(0.f),
 					 float eta = AirETA)
 			: type(type), 
 			  albedo(albedo), 
 			  metallic(metallic), 
-			  roughness(roughness), 
+			  roughness(roughness),
+			  Le(Le),
 			  eta(eta), 
 			  albedoMapId(0), 
 			  normalMapId(0), 
@@ -146,6 +150,11 @@ namespace CudaPBRT
 			{
 				return m_MaterialData.roughness;
 			}
+		}
+
+		INLINE GPU_ONLY glm::vec3 GetLe(const glm::vec2& uv = glm::vec2(0, 0)) const
+		{
+			return m_MaterialData.Le;
 		}
 
 	public:

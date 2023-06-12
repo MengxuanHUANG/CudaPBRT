@@ -3,7 +3,7 @@
 #include "MeshLoader/meshLoader.h"
 
 #define SafeGet(attr, json, str, type) if(json.contains(str)) { attr = json[str].get<type>(); }
-#define SafeGetVec3(attr, json, str) if(json.contains(str)) \
+#define SafeGetFloat3(attr, json, str) if(json.contains(str)) \
 									{ JSON arr = json[str]; attr = glm::vec3(arr[0].get<float>(), arr[1].get<float>(), arr[2].get<float>()); }
 
 namespace CudaPBRT
@@ -24,9 +24,9 @@ namespace CudaPBRT
 
 	bool CPUScene::LoadCameraFromJSON(const JSON& json_data)
 	{
-		SafeGetVec3(camera->ref, json_data, "ref");
-		SafeGetVec3(camera->position, json_data, "pos");
-		SafeGetVec3(camera->up, json_data, "up");
+		SafeGetFloat3(camera->ref, json_data, "ref");
+		SafeGetFloat3(camera->position, json_data, "pos");
+		SafeGetFloat3(camera->up, json_data, "up");
 
 		SafeGet(camera->fovy, json_data, "fovy", float);
 		SafeGet(camera->focalDistance, json_data, "focalDistance", float);
@@ -54,15 +54,17 @@ namespace CudaPBRT
 
 		// read albedo, roughness, metallic, eta
 		glm::vec3 albedo(0.f);
-		SafeGetVec3(albedo, material, "albedo");
+		SafeGetFloat3(albedo, material, "albedo");
 
 		float roughness = 0.5f, metallic = 0.5f, eta = AirETA;
+		glm::vec3 Le(0.f);
 
 		SafeGet(roughness, material, "roughness", float);
 		SafeGet(metallic, material, "metallic", float);
+		SafeGetFloat3(Le, material, "Le");
 		SafeGet(eta, material, "eta", float);
 
-		materialData.emplace_back(type, albedo, roughness, metallic, eta); //matteRed
+		materialData.emplace_back(type, albedo, roughness, metallic, Le, eta); //matteRed
 		materials_map.emplace(name, materialData.size() - 1);
 
 		MaterialData& material_data = materialData.back();
@@ -126,7 +128,7 @@ namespace CudaPBRT
 		return true;
 	}
 
-	bool CPUScene::LoadShapeFromJSON(const JSON& object)
+	unsigned int CPUScene::LoadShapeFromJSON(const JSON& object)
 	{
 		static const int DefaultMaterialId = 0;
 
@@ -139,9 +141,9 @@ namespace CudaPBRT
 			SafeGet(path, object, "path", std::string);
 
 			ObjectData obj_data;
-			SafeGetVec3(obj_data.transform.translation, object, "translation");
-			SafeGetVec3(obj_data.transform.rotation, object, "rotation");
-			SafeGetVec3(obj_data.transform.scale, object, "scale");
+			SafeGetFloat3(obj_data.transform.translation, object, "translation");
+			SafeGetFloat3(obj_data.transform.rotation, object, "rotation");
+			SafeGetFloat3(obj_data.transform.scale, object, "scale");
 
 			std::string material_name;
 			SafeGet(material_name, object, "material", std::string);
@@ -155,6 +157,7 @@ namespace CudaPBRT
 			LoadMeshFromFile(path.c_str(), obj_data);
 
 			objectData.push_back(obj_data);
+			return (obj_data.end_id - obj_data.start_id);
 		}
 		else
 		{
@@ -162,7 +165,7 @@ namespace CudaPBRT
 			
 			if (type == ShapeType::None)
 			{
-				return false;
+				return 0;
 			}
 
 			int material_id = DefaultMaterialId;;
@@ -172,18 +175,20 @@ namespace CudaPBRT
 			{
 				material_id = materials_map[material_name];
 			}
-			
+
 			glm::vec3 translation(0.f), rotation(0.f), scale(1.f);
-			SafeGetVec3(translation, object, "translation");
-			SafeGetVec3(rotation, object, "rotation");
-			SafeGetVec3(scale, object, "scale");
+			SafeGetFloat3(translation, object, "translation");
+			SafeGetFloat3(rotation, object, "rotation");
+			SafeGetFloat3(scale, object, "scale");
 
 			shapeData.emplace_back(type, material_id, translation, rotation, scale);
+			return 1;
 		}
-		return true;
 	}
 
-	bool CPUScene::LoadLightFromJSON(const JSON& light)
+	bool CPUScene::LoadLightFromJSON(const JSON& light, 
+									 std::vector<LightData>& temp_shape_lights,
+									 std::vector<TempTriangleLight>& temp_triangles_lights)
 	{
 		std::string type_str;
 		SafeGet(type_str, light, "type", std::string);
@@ -194,34 +199,40 @@ namespace CudaPBRT
 		{
 		case LightType::ShapeLight:
 		{
-			std::string shape_str;
-			SafeGet(shape_str, light, "shape", std::string);
-			ShapeType shape_type = Str2ShapeType(shape_str.c_str());
-			
-			glm::vec3 translation(0.f), rotation(0.f), scale(1.f);
-			SafeGetVec3(translation, light, "translation");
-			SafeGetVec3(rotation, light, "rotation");
-			SafeGetVec3(scale, light, "scale");
+			JSON shape = light["shape"];
+			int count = LoadShapeFromJSON(shape);
+			if (count > 0)
+			{
+				if (count > 1) // triangles
+				{
+					glm::vec3 Le = materialData[objectData.back().material_id].Le;
 
-			ShapeData light_shape(shape_type, -1, translation, rotation, scale);
+					SafeGetFloat3(Le, light, "Le");
 
-			float Le = 0.f;
-			SafeGet(Le, light, "Le", float);
+					bool double_side = false;
+					SafeGet(double_side, light, "doubleSide", bool);
 
-			bool double_side = false;
-			SafeGet(double_side, light, "doubleSide", bool);
-			
-			
+					temp_triangles_lights.emplace_back(objectData.size() - 1, Le, double_side);
+				}
+				else
+				{
+					glm::vec3 Le = materialData[shapeData.back().material_id].Le;
 
-			lightData.emplace_back(type, light_shape, Spectrum(Le), double_side);
+					SafeGetFloat3(Le, light, "Le");
 
+					bool double_side = false;
+					SafeGet(double_side, light, "doubleSide", bool);
+
+					temp_shape_lights.emplace_back(type, nullptr, shapeData.size() - 1, Spectrum(Le), double_side);
+				}
+			}
 			return true;
 		}
 		default:
-			return false;
+			printf("Unknown LightType!\n");
 		}
 
-		return true;
+		return false;
 	}
 
 	bool CPUScene::LoadSceneFromJsonFile(const char* path)
@@ -276,35 +287,66 @@ namespace CudaPBRT
 			}
 		}
 
-		// buffer shape datas
+		// load lights
+		std::vector<LightData> temp_shape_lights; // temp array for shape lights
+		std::vector<TempTriangleLight> temp_triangles_lights; // temp array for shape lights with triangles
+		
+		if (scene_data.contains("lights"))
+		{
+			JSON lights_list = scene_data["lights"];
+			for (const auto& light : lights_list)
+			{
+				LoadLightFromJSON(light, temp_shape_lights, temp_triangles_lights);
+			}
+		}
+
+		// buffer triangle datas (obtain triangles' GPU pointers)
 		BufferData<glm::vec3>(m_GPUScene.vertices, vertices.data(), vertices.size());
 		BufferData<glm::vec3>(m_GPUScene.normals, normals.data(), normals.size());
 		BufferData<glm::vec2>(m_GPUScene.uvs, uvs.data(), uvs.size());
 
-		for (const ObjectData& data : objectData)
+		// trianglues must be emplaced after obtaining triangles' GPU pointers
+		for (ObjectData& data : objectData)
 		{
+			int start = shapeData.size();
 			for (int i = data.start_id; i < data.end_id; ++i)
 			{
 				shapeData.emplace_back(data.material_id, triangles[i], m_GPUScene.vertices, m_GPUScene.normals, m_GPUScene.uvs);
+			}
+
+			// update start_id and end_id to record id in shape array
+			data.start_id = start;
+			data.end_id = shapeData.size();
+		}
+
+		// emplace triangle lights
+		for (const TempTriangleLight& tri_light : temp_triangles_lights)
+		{
+			for (int i = objectData[tri_light.obj_id].start_id; i < objectData[tri_light.obj_id].end_id; ++i)
+			{
+				temp_shape_lights.emplace_back(LightType::ShapeLight, 
+											   nullptr, 
+											   i, 
+											   Spectrum(tri_light.Le), 
+											   tri_light.double_side);
 			}
 		}
 
 		// shapeData's order will be changed 
 		CreateBoundingBox(shapeData, vertices);
 
-		// load lights
-		if (scene_data.contains("lights"))
-		{
-			JSON lights_list = scene_data["lights"];
-			for (const auto& light : lights_list)
-			{
-				LoadLightFromJSON(light);
-			}
-		}
-
 		// create shapes, meterials, and lights on cuda
-		CreateArrayOnCude<Shape, ShapeData>(m_GPUScene.shapes, m_GPUScene.shape_count, shapeData);
 		CreateArrayOnCude<Material, MaterialData>(m_GPUScene.materials, m_GPUScene.material_count, materialData);
+
+		// buffer Shape datas (obtain shapes' GPU pointers)
+		CreateArrayOnCude<Shape, ShapeData>(m_GPUScene.shapes, m_GPUScene.shape_count, shapeData);
+
+		// shape lights must be emplaced after obtaining shapes' GPU pointers
+		for (LightData& shape_light_data : temp_shape_lights)
+		{
+			lightData.emplace_back(shape_light_data, m_GPUScene.shapes);
+		}
+		
 		CreateArrayOnCude<Light, LightData>(m_GPUScene.lights, m_GPUScene.light_count, lightData);
 
 		return true;
@@ -354,10 +396,15 @@ namespace CudaPBRT
 	{
 		std::vector<BoundingBox> boundingBoxes;
 		std::vector<BVHNode> bvh_nodes;
+		std::vector<int> bvh_shape_map;
 
-		CreateBVH(shapeData, vertices, boundingBoxes, bvh_nodes);
+		bvh_shape_map.resize(shapeData.size());
+		for (int i = 0; i < shapeData.size(); ++i) bvh_shape_map[i] = i;
+
+		CreateBVH(shapeData, vertices, boundingBoxes, bvh_nodes, bvh_shape_map);
 
 		BufferData<BoundingBox>(m_GPUScene.boundings, boundingBoxes.data(), boundingBoxes.size());
 		BufferData<BVHNode>(m_GPUScene.BVH, bvh_nodes.data(), bvh_nodes.size());
+		BufferData<int>(m_GPUScene.BVHShapeMap, bvh_shape_map.data(), bvh_shape_map.size());
 	}
 }

@@ -323,17 +323,10 @@ namespace CudaPBRT
 		Intersection& intersection = segment.intersection;
 		if (intersection.id >= 0)
 		{
-			if (intersection.isLight)
-			{
-				segment.radiance = Spectrum(1.f);
-			}
-			else
-			{
-				Material* material = scene.materials[intersection.material_id];
-				segment.surfaceNormal = material->GetNormal(intersection.normal, intersection.uv);
-				//glm::vec3 wo = WorldToLocal(segment.surfaceNormal) * (-segment.ray.DIR);
-				segment.radiance = 0.5f * (segment.surfaceNormal + 1.f);
-			}
+			Material* material = scene.materials[intersection.material_id];
+			segment.surfaceNormal = material->GetNormal(intersection.normal, intersection.uv);
+			//glm::vec3 wo = WorldToLocal(segment.surfaceNormal) * (-segment.ray.DIR);
+			segment.radiance = 0.5f * (segment.surfaceNormal + 1.f);
 		}
 		segment.End();
 	}
@@ -352,10 +345,13 @@ namespace CudaPBRT
 		Ray& ray = segment.ray;
 		if (intersection.id >= 0)
 		{
-			if (intersection.isLight)
+			Material* material = scene.materials[intersection.material_id];
+			glm::vec3 Le = material->GetLe();
+
+			if (glm::length(Le) > 0.f)
 			{
 				// hit light source
-				segment.throughput *= scene.lights[intersection.id]->GetLe();
+				segment.throughput *= Le;
 				segment.radiance += segment.throughput;
 			}
 			else
@@ -405,10 +401,13 @@ namespace CudaPBRT
 
 		if(intersection.id >= 0.f)
 		{
-			if (intersection.isLight)
+			Material* material = scene.materials[intersection.material_id];
+			glm::vec3 Le = material->GetLe();
+
+			if (glm::length(Le) > 0.f)
 			{
 				// hit light source
-				segment.throughput *= scene.lights[intersection.id]->GetLe();
+				segment.throughput *= Le;
 				segment.radiance += segment.throughput;
 			}
 			else
@@ -446,9 +445,12 @@ namespace CudaPBRT
 		const EnvironmentMap& env_map = scene.envMap;
 		if (intersection.id >= 0)
 		{
-			if (intersection.isLight)
+			Material* material = scene.materials[intersection.material_id];
+			glm::vec3 Le = material->GetLe();
+
+			if (glm::length(Le) > 0.f)
 			{
-				segment.throughput *= scene.lights[intersection.id]->GetLe();
+				segment.throughput *= Le;
 
 				if (segment.depth > 0 && !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
@@ -459,7 +461,6 @@ namespace CudaPBRT
 			}
 			else
 			{
-				Material* material = scene.materials[intersection.material_id];
 				Spectrum albedo = material->GetAlbedo(intersection.uv);
 				BSDF& bsdf = material->GetBSDF();
 				segment.materialType = material->m_MaterialData.type;

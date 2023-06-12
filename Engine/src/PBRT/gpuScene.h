@@ -24,7 +24,7 @@ namespace CudaPBRT
             : shapes(nullptr), materials(nullptr), lights(nullptr), 
               vertices(nullptr), normals(nullptr), uvs(nullptr),
               shape_count(0), material_count(0), light_count(0),
-              boundings(nullptr), BVH(nullptr),
+              boundings(nullptr), BVH(nullptr), BVHShapeMap(nullptr),
               envMap(0)
         {
         }
@@ -35,16 +35,22 @@ namespace CudaPBRT
             {
                 return false;
             }
-            ASSERT(light_count < 10);
-            int light_id = static_cast<int>(glm::floor(rand * 10.f)) % light_count;
-            sample = lights[light_id]->Sample_Li(p, normal, xi);
 
-            return (sample.pdf > 0.01f) && !Occluded(sample.t, sample.shadowRay);
+            int light_id = static_cast<int>(glm::floor(rand * 100000.f)) % light_count;
+            sample = lights[light_id]->Sample_Li(p, normal, xi);
+            sample.pdf /= static_cast<float>(light_count);
+
+            return (sample.pdf > 0.01f) && !Occluded(sample.t, lights[light_id]->GetShapeId(), sample.shadowRay);
         }
 
         INLINE CPU_GPU float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)
         {
-            return (lights[light_id]->PDF(p, wiW, t, normal) / static_cast<float>(light_count));
+            float area = shapes[light_id]->Area();
+
+            glm::vec3 p_normal = shapes[light_id]->GetNormal(p);
+
+            float cosTheta = glm::dot(-wiW, p_normal);
+            return (t * t / (cosTheta * area));
         }
 
         void FreeDataOnCuda()
@@ -69,6 +75,8 @@ namespace CudaPBRT
             CUDA_CHECK_ERROR();
             CUDA_FREE(BVH);
             CUDA_CHECK_ERROR();
+            CUDA_FREE(BVHShapeMap);
+            CUDA_CHECK_ERROR();
             printf("end free BVH arrays on cuda\n");
 
             printf("end free cuda\n");
@@ -85,16 +93,6 @@ namespace CudaPBRT
 
 		INLINE CPU_GPU bool IntersectionNaive(const Ray& ray, Intersection& intersection)
 		{
-            for (int i = 0; i < light_count; ++i)
-            {
-                Intersection it;
-                if (lights[i]->IntersectionP(ray, it) && it < intersection)
-                {
-                    intersection = it;
-                    intersection.isLight = true;
-                    intersection.id = i;
-                }
-            }
             for (int i = 0; i < shape_count; ++i)
             {
                 Intersection it;
@@ -102,7 +100,6 @@ namespace CudaPBRT
                 {
                     intersection = it;
                     intersection.id = i;
-                    intersection.isLight = false;
                     intersection.material_id = shapes[i]->material_id;
                 }
             }
@@ -111,17 +108,6 @@ namespace CudaPBRT
 
         INLINE CPU_GPU bool BVHIntersection(const Ray& ray, Intersection& intersection)
         {
-            for (int i = 0; i < light_count; ++i)
-            {
-                Intersection it;
-                if (lights[i]->IntersectionP(ray, it) && it < intersection)
-                {
-                    intersection = it;
-                    intersection.isLight = true;
-                    intersection.id = i;
-                }
-            }
-
             // BVH intersection
             int to_visit[64];
             int current_node = 0;
@@ -144,12 +130,11 @@ namespace CudaPBRT
                         Intersection it;
                         for (int i = 0; i < node.primitiveCount; ++i)
                         {
-                            if (shapes[i + node.primitiveId]->IntersectionP(ray, it) && it < intersection)
+                            if (shapes[BVHShapeMap[node.primitiveId + i]]->IntersectionP(ray, it) && it < intersection)
                             {
                                 intersection = it;
                                 intersection.id = node.primitiveId;
-                                intersection.isLight = false;
-                                intersection.material_id = shapes[node.primitiveId + i]->material_id;
+                                intersection.material_id = shapes[BVHShapeMap[node.primitiveId + i]]->material_id;
                             }
                         }
                         if (next_visit == 0) break;
@@ -171,7 +156,7 @@ namespace CudaPBRT
             return !(intersection.id < 0);
         }
 
-        INLINE CPU_GPU bool Occluded(const float& min_t, const Ray& ray)
+        INLINE CPU_GPU bool Occluded(const float& min_t, const int& light_shape_id, const Ray& ray)
         {
             // BVH intersection
             int to_visit[64];
@@ -194,7 +179,10 @@ namespace CudaPBRT
                     {
                         for (int i = 0; i < node.primitiveCount; ++i)
                         {
-                            if (float dis = shapes[i + node.primitiveId]->SimpleIntersection(ray) > 0.f && dis < min_t)
+                            float dist = -1.f;
+                            if ((BVHShapeMap[node.primitiveId + i] != light_shape_id) 
+                                && (dist = shapes[BVHShapeMap[node.primitiveId + i]]->SimpleIntersection(ray) > 0.f) 
+                                && dist < min_t)
                             {
                                 return true;
                             }
@@ -233,6 +221,8 @@ namespace CudaPBRT
         // BVH
         BoundingBox* boundings;
         BVHNode* BVH;
+        int* BVHShapeMap;
+
         EnvironmentMap envMap;
 	};
 }

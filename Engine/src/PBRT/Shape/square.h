@@ -30,9 +30,9 @@ namespace CudaPBRT
             float dt = glm::dot(normal, localRay.DIR);
 
             // use the following for one-sided rectangle
-            if (dt > 0.0) return false;
+            if (dt > 0.f) return false;
             float t = -glm::dot(normal, localRay.O) / dt;
-            if (t < 0.0) return false;
+            if (t < 0.f) return false;
 
             glm::vec3 hit = localRay * t; // local hit point
             glm::vec3 vi = hit;

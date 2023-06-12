@@ -128,10 +128,37 @@ namespace CudaPBRT
         CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const override
         {
             const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
+
+            glm::vec3 edge01 = m_Vertices[m_Triangle.vId[1]] - v0;
+            glm::vec3 edge02 = m_Vertices[m_Triangle.vId[2]] - v0;
+
+            return glm::normalize(glm::cross(edge01, edge02));
+        }
+        
+        CPU_GPU virtual glm::vec3 Sample(const glm::vec2& xi) const override
+        {
+            const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
+
+            glm::vec3 edge01 = m_Vertices[m_Triangle.vId[1]] - v0;
+            glm::vec3 edge02 = m_Vertices[m_Triangle.vId[2]] - v0;
+
+            if (xi.x + xi.y <= 1.f)
+            {
+                return xi.x * edge02 + xi.y * edge01 + v0;
+            }
+            else
+            {
+                return (1.f - xi.x) * edge02 + (1.f - xi.y) * edge01 + v0;
+            }
+        }
+
+        CPU_GPU virtual float Area() const
+        {
+            const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
             const glm::vec3& v1 = m_Vertices[m_Triangle.vId[1]];
             const glm::vec3& v2 = m_Vertices[m_Triangle.vId[2]];
 
-            return glm::normalize(glm::cross(v1 - v0, v2 - v0));
+            return glm::length(glm::cross(v1 - v0, v2 - v0));
         }
 
         INLINE CPU_ONLY static BoundingBox GetWorldBounding(const std::array<glm::vec3, 3>& v)

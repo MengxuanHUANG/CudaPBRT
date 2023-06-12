@@ -42,12 +42,17 @@ namespace CudaPBRT
 	struct LightData
 	{
 		LightType type;
+		Shape** shapes;
+		int shapeId;
 		bool doubleSide;
-		ShapeData shapeData;
 		Spectrum Le;
 
-		LightData(LightType type, const ShapeData& shapeData, const Spectrum& Le, bool doubleSide = false)
-			: type(type), doubleSide(doubleSide), shapeData(shapeData), Le(Le)
+		LightData(LightType type, Shape** shapes, int shape_id, const Spectrum& Le, bool doubleSide = false)
+			: type(type), shapes(shapes), shapeId(shape_id), doubleSide(doubleSide), Le(Le)
+		{}
+
+		LightData(const LightData& other, Shape** shapes)
+			: type(other.type), shapes(shapes), shapeId(other.shapeId), doubleSide(other.doubleSide), Le(other.Le)
 		{}
 	};
 
@@ -57,6 +62,7 @@ namespace CudaPBRT
 		CPU_GPU virtual ~Light() {}
 		CPU_GPU virtual Spectrum GetLe() = 0;
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const { return false; }
+		CPU_GPU virtual int GetShapeId() const { return -1; }
 
 		CPU_GPU virtual LightSample Sample_Li(const glm::vec3& p, const glm::vec3& normal, const glm::vec2& xi) const = 0;
 		CPU_GPU virtual float PDF(const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal) const = 0;
@@ -67,13 +73,8 @@ namespace CudaPBRT
 	public:
 		// AreaLight Interface
 		CPU_GPU ShapeLight(const LightData& data)
-			: Le(data.Le), m_DoubleSide(data.doubleSide)
+			: Le(data.Le), m_ShapeId(data.shapeId), m_Shapes(data.shapes), m_DoubleSide(data.doubleSide)
 		{
-			m_Shape = Create(data.shapeData);
-		}
-		CPU_GPU ~ShapeLight()
-		{
-			delete m_Shape;
 		}
 
 		CPU_GPU virtual Spectrum GetLe() override
@@ -81,14 +82,16 @@ namespace CudaPBRT
 			return Le;
 		}
 
+		CPU_GPU virtual int GetShapeId() const override { return m_ShapeId; }
+
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const
 		{
-			return m_Shape->IntersectionP(ray, intersection);
+			return m_Shapes[m_ShapeId]->IntersectionP(ray, intersection);
 		}
 	
 		CPU_GPU virtual LightSample Sample_Li(const glm::vec3& p, const glm::vec3& normal, const glm::vec2& xi) const override
 		{
-			glm::vec3 sampled_point = m_Shape->Sample(xi);
+			glm::vec3 sampled_point = m_Shapes[m_ShapeId]->Sample(xi);
 
 			// compute r, wiW
 			glm::vec3 r = sampled_point - p;
@@ -106,9 +109,9 @@ namespace CudaPBRT
 	protected:
 		INLINE CPU_GPU float ComputePDF(const glm::vec3& p, const glm::vec3& wiW, float t) const
 		{
-			float area = m_Shape->Area();
+			float area = m_Shapes[m_ShapeId]->Area();
 			
-			glm::vec3 p_normal = m_Shape->GetNormal(p);
+			glm::vec3 p_normal = m_Shapes[m_ShapeId]->GetNormal(p);
 
 			float cosTheta = glm::dot(-wiW, p_normal);
 			if (m_DoubleSide)
@@ -119,7 +122,8 @@ namespace CudaPBRT
 		}
 	protected:
 		Spectrum Le;
-		Shape* m_Shape;
+		int m_ShapeId;
+		Shape** m_Shapes;
 		bool m_DoubleSide;
 	};
 }

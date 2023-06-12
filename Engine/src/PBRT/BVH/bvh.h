@@ -25,8 +25,9 @@ namespace CudaPBRT
 		{}
 	};
 
-	void CreateBVH(std::vector<ShapeData>& shapeData, 
+	void CreateBVH(const std::vector<ShapeData>& shapeData, 
 				   const std::vector<glm::vec3>& vertices,
 				   std::vector<BoundingBox>& bounding_boxes, 
-				   std::vector<BVHNode>& BVH);
+				   std::vector<BVHNode>& BVH,
+				   std::vector<int>& BVHShapeMap);
 }

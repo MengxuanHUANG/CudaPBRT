@@ -15,14 +15,21 @@ namespace CudaPBRT
     struct ObjectData
     {
         // triangles start and end id
-        int start_id;
-        int end_id;
+        int start_id = -1;
+        int end_id = -1;
 
         // translation, rotation, and scale
         Transform transform;
 
         // material_id
-        int material_id;
+        int material_id = 0;
+    };
+
+    struct TempTriangleLight
+    {
+        int obj_id = -1;
+        glm::vec3 Le = glm::vec3(0.f);
+        bool double_side = false;
     };
 
     /*
@@ -51,8 +58,10 @@ namespace CudaPBRT
 
         bool LoadCameraFromJSON(const JSON& json_data);
         bool LoadMaterialFromJSON(const JSON& json_data);
-        bool LoadShapeFromJSON(const JSON& json_data);
-        bool LoadLightFromJSON(const JSON& json_data);
+        unsigned int LoadShapeFromJSON(const JSON& json_data);
+        bool LoadLightFromJSON(const JSON& json_data, 
+                                std::vector<LightData>& temp_shape_lights, 
+                                std::vector<TempTriangleLight>& temp_triangles_lights);
 
         bool LoadSceneFromJsonFile(const char* path);
 

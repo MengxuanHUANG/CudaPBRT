@@ -62,40 +62,57 @@
           "scale" : [3, 3, 3]
         }
       ],
-      "materials": [
+      "materials" : [
         {
-          "type": "LambertianReflection",
-          "name": "light_material",
-          "Le": [ 40, 40, 40 ]
+          "type" : "LambertianReflection",
+          "name" : "red_light_material",
+          "Le": [ 17, 12, 4 ]
         },
         {
-          "type": "LambertianReflection",
-          "name": "matteRed",
-          "albedo": [ 0.63, 0.065, 0.05 ]
+          "type" : "LambertianReflection",
+          "name" : "blue_light_material",
+          "Le": [ 4, 12, 17 ]
         },
         {
-          "type": "LambertianReflection",
-          "name": "matteGreen",
-          "albedo": [ 0.14, 0.45, 0.091 ]
+          "type" : "LambertianReflection",
+          "name" : "matteRed",
+          "albedo" : [0.63, 0.065, 0.05]
         },
         {
-          "type": "MetallicWorkflow",
-          "name": "metallic workflow",
-          "albedo": [ 0.8, 0.8, 0.8 ],
+          "type" : "LambertianReflection",
+          "name" : "matteGreen",
+          "albedo" : [0.14, 0.45, 0.091]
+        },
+        {
+          "type" : "MetallicWorkflow",
+          "name" : "metallic workflow",
+          "albedo": [0.8, 0.8, 0.8],
           "metallic": 1.0,
           "roughness": 0.0
         }
       ],
-      "lights": [
+      "lights" : [
         {
           "type": "ShapeLight",
           "shape": {
             "type": "Square",
             "name": "Light",
-            "translation": [ 0, 7.45, 0 ],
+            "translation": [ 2, 7.45, 0 ],
             "rotation": [ 90, 0, 0 ],
             "scale": [ 3, 3, 1 ],
-            "material": "light_material"
+            "material": "red_light_material"
+          },
+          "doubleSide": false
+        },
+        {
+          "type": "ShapeLight",
+          "shape": {
+            "type": "Square",
+            "name": "Light",
+            "translation": [ -2, 7.45, 0 ],
+            "rotation": [ 90, 0, 0 ],
+            "scale": [ 3, 3, 1 ],
+            "material": "blue_light_material"
           },
           "doubleSide": false
         }
