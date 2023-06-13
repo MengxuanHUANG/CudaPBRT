@@ -323,9 +323,18 @@ namespace CudaPBRT
 		Intersection& intersection = segment.intersection;
 		if (intersection.id >= 0)
 		{
-			Material* material = scene.materials[intersection.material_id];
-			segment.surfaceNormal = material->GetNormal(intersection.normal, intersection.uv);
-			//glm::vec3 wo = WorldToLocal(segment.surfaceNormal) * (-segment.ray.DIR);
+			Material* material = scene.materials[scene.shapes[intersection.id]->material_id];
+			float Lv = material->GetLv(intersection.uv);
+			if (Lv > 0.f)
+			{
+				glm::vec2 uv = scene.shapes[intersection.id]->GetUV(intersection.p);
+				segment.surfaceNormal = material->GetNormal(scene.shapes[intersection.id]->GetNormal(intersection.p), uv);
+			}
+			else
+			{
+				segment.surfaceNormal = material->GetNormal(intersection.normal, intersection.uv);
+				//glm::vec3 wo = WorldToLocal(segment.surfaceNormal) * (-segment.ray.DIR);
+			}
 			segment.radiance = 0.5f * (segment.surfaceNormal + 1.f);
 		}
 		segment.End();
@@ -346,12 +355,12 @@ namespace CudaPBRT
 		if (intersection.id >= 0)
 		{
 			Material* material = scene.materials[intersection.material_id];
-			glm::vec3 Le = material->GetLe();
+			float Lv = material->GetLv(intersection.uv);
 
-			if (glm::length(Le) > 0.f)
+			if (Lv > 0.f)
 			{
 				// hit light source
-				segment.throughput *= Le;
+				segment.throughput *= material->GetIrradiance(intersection.uv);
 				segment.radiance += segment.throughput;
 			}
 			else
@@ -399,15 +408,15 @@ namespace CudaPBRT
 		Intersection& intersection = segment.intersection;
 		Ray& ray = segment.ray;
 
-		if(intersection.id >= 0.f)
+		if(intersection.id >= 0)
 		{
 			Material* material = scene.materials[intersection.material_id];
-			glm::vec3 Le = material->GetLe();
+			float Lv = material->GetLv(intersection.uv);
 
-			if (glm::length(Le) > 0.f)
+			if (Lv > 0.f)
 			{
 				// hit light source
-				segment.throughput *= Le;
+				segment.throughput *= material->GetIrradiance(intersection.uv);
 				segment.radiance += segment.throughput;
 			}
 			else
@@ -421,7 +430,7 @@ namespace CudaPBRT
 
 				if (scene.Sample_Li(rng.rand(), { rng.rand(), rng.rand() }, ray * intersection.t, normal, sample))
 				{
-					segment.throughput *= material->GetAlbedo() * sample.Le * AbsDot(sample.wiW, normal) / sample.pdf;
+					segment.throughput *= material->GetAlbedo() * sample.light->GetLe(sample.shadowRay * sample.t) * AbsDot(sample.wiW, normal) / sample.pdf;
 					
 					segment.radiance += segment.throughput;
 				}
@@ -446,11 +455,11 @@ namespace CudaPBRT
 		if (intersection.id >= 0)
 		{
 			Material* material = scene.materials[intersection.material_id];
-			glm::vec3 Le = material->GetLe();
+			float Lv = material->GetLv(intersection.uv);
 
-			if (glm::length(Le) > 0.f)
+			if (Lv > 0.f)
 			{
-				segment.throughput *= Le;
+				segment.throughput *= material->GetIrradiance(intersection.uv);
 
 				if (segment.depth > 0 && !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
@@ -486,7 +495,7 @@ namespace CudaPBRT
 						float scattering_pdf = bsdf.PDF(bsdf_data , -ray.DIR, light_sample.wiW);// evaluate scattering pdf
 						if (scattering_pdf > 0.f)
 						{
-							segment.radiance += light_sample.Le * scattering_f * segment.throughput *
+							segment.radiance += light_sample.light->GetLe(light_sample.shadowRay * light_sample.t) * scattering_f * segment.throughput *
 								CudaPBRT::PowerHeuristic(1, light_sample.pdf, 1, scattering_pdf) * AbsDot(light_sample.wiW, normal) / light_sample.pdf;
 						}
 					}

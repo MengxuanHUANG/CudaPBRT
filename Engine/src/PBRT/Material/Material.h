@@ -33,7 +33,7 @@ namespace CudaPBRT
 		float metallic = 0.5f;
 		float roughness = 0.5f;
 		
-		glm::vec3 Le = glm::vec3(0.f);
+		float Lv = 0.f;
 
 		float eta = AirETA; // IOR of air
 
@@ -41,23 +41,25 @@ namespace CudaPBRT
 		CudaTexObj normalMapId		= 0;
 		CudaTexObj metallicMapId	= 0;
 		CudaTexObj roughnessMapId	= 0;
+		CudaTexObj LvMapId			= 0;
 
 		MaterialData(MaterialType type, 
 					 const glm::vec3& albedo = glm::vec3(1.f),
 					 float metallic = 0.5f,
 					 float roughness = 0.5f,
-					 const glm::vec3& Le = glm::vec3(0.f),
+					 float Lv = 0.f,
 					 float eta = AirETA)
 			: type(type), 
 			  albedo(albedo), 
 			  metallic(metallic), 
 			  roughness(roughness),
-			  Le(Le),
+			  Lv(Lv),
 			  eta(eta), 
 			  albedoMapId(0), 
 			  normalMapId(0), 
 			  metallicMapId(0), 
-			  roughnessMapId(0)
+			  roughnessMapId(0),
+			  LvMapId(0)
 		{}
 
 		MaterialData(MaterialType type,
@@ -65,6 +67,7 @@ namespace CudaPBRT
 					 CudaTexObj normal_map_id = 0,
 					 CudaTexObj metallic_map_id = 0,
 					 CudaTexObj roughness_map_id = 0,
+					 CudaTexObj Lv_map_id = 0,
 					 float eta = AirETA)
 			: type(type),
 			  albedo(glm::vec3(1.f)),
@@ -74,7 +77,8 @@ namespace CudaPBRT
 			  albedoMapId(albedo_map_id),
 			  normalMapId(normal_map_id),
 			  metallicMapId(metallic_map_id),
-			  roughnessMapId(roughness_map_id)
+			  roughnessMapId(roughness_map_id),
+			  LvMapId(Lv_map_id)
 		{}
 	};
 
@@ -152,9 +156,22 @@ namespace CudaPBRT
 			}
 		}
 
-		INLINE GPU_ONLY glm::vec3 GetLe(const glm::vec2& uv = glm::vec2(0, 0)) const
+		INLINE GPU_ONLY float GetLv(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			return m_MaterialData.Le;
+			if (m_MaterialData.LvMapId > 0)
+			{
+				float4 Lv = ReadTexture(m_MaterialData.LvMapId, uv);
+				return Lv.x;
+			}
+			else
+			{
+				return m_MaterialData.Lv;
+			}
+		}
+
+		INLINE GPU_ONLY Spectrum GetIrradiance(const glm::vec2& uv = glm::vec2(0, 0)) const
+		{
+			return GetLv(uv) * GetAlbedo(uv);
 		}
 
 	public:

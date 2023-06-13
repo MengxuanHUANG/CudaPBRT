@@ -68,6 +68,11 @@ namespace CudaPBRT
             return ComputeNormal(p);
         }
 
+        CPU_GPU virtual glm::vec2 GetUV(const glm::vec3& p) const override
+        {
+            return glm::vec2(0.f);
+        }
+
         INLINE CPU_ONLY static BoundingBox GetWorldBounding(const ShapeData& data)
         {
             BoundingBox box;

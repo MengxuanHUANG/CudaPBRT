@@ -127,12 +127,19 @@ namespace CudaPBRT
 
         CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const override
         {
-            const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
+            if (m_Triangle.nId[0] >= 0)
+            {
+                return glm::normalize(GetBarycentricInterpolation<glm::vec3>(m_Normals[m_Triangle.nId[0]], m_Normals[m_Triangle.nId[1]], m_Normals[m_Triangle.nId[2]], p));
+            }
+            else
+            {
+                const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
 
-            glm::vec3 edge01 = m_Vertices[m_Triangle.vId[1]] - v0;
-            glm::vec3 edge02 = m_Vertices[m_Triangle.vId[2]] - v0;
+                glm::vec3 edge01 = m_Vertices[m_Triangle.vId[1]] - v0;
+                glm::vec3 edge02 = m_Vertices[m_Triangle.vId[2]] - v0;
 
-            return glm::normalize(glm::cross(edge01, edge02));
+                return glm::normalize(glm::cross(edge01, edge02));
+            }
         }
         
         CPU_GPU virtual glm::vec3 Sample(const glm::vec2& xi) const override
@@ -152,7 +159,7 @@ namespace CudaPBRT
             }
         }
 
-        CPU_GPU virtual float Area() const
+        CPU_GPU virtual float Area() const override
         {
             const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
             const glm::vec3& v1 = m_Vertices[m_Triangle.vId[1]];
@@ -161,9 +168,30 @@ namespace CudaPBRT
             return glm::length(glm::cross(v1 - v0, v2 - v0));
         }
 
+        CPU_GPU virtual glm::vec2 GetUV(const glm::vec3& p) const override
+        {
+            return GetBarycentricInterpolation<glm::vec2>(m_UVs[m_Triangle.uvId[0]], m_UVs[m_Triangle.uvId[1]], m_UVs[m_Triangle.uvId[2]], p);
+        }
+
         INLINE CPU_ONLY static BoundingBox GetWorldBounding(const std::array<glm::vec3, 3>& v)
         { 
             return { glm::min(glm::min(v[0], v[1]), v[2]), glm::max(glm::max(v[0], v[1]), v[2]) };
+        }
+
+    protected:
+        template<typename T>
+        INLINE CPU_GPU T GetBarycentricInterpolation(const T& x0, const T& x1, const T& x2, const glm::vec3& p) const
+        {
+            const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
+            const glm::vec3& v1 = m_Vertices[m_Triangle.vId[1]];
+            const glm::vec3& v2 = m_Vertices[m_Triangle.vId[2]];
+
+            float a = Area();
+            float a0 = glm::length(glm::cross(v1 - p, v2 - p)) / a;
+            float a1 = glm::length(glm::cross(v2 - p, v0 - p)) / a;
+            float a2 = glm::length(glm::cross(v0 - p, v1 - p)) / a;
+
+            return a0 * x0 + a1 * x1 + a2 * x2;
         }
     protected:
         glm::vec3* m_Vertices;

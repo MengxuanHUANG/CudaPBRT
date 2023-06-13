@@ -65,13 +65,15 @@
       "materials" : [
         {
           "type" : "LambertianReflection",
-          "name" : "red_light_material",
-          "Le": [ 17, 12, 4 ]
+          "name": "red_light_material",
+          "albedo": [ 17, 12, 4 ],
+          "Lv": 1
         },
         {
-          "type" : "LambertianReflection",
-          "name" : "blue_light_material",
-          "Le": [ 4, 12, 17 ]
+          "type": "LambertianReflection",
+          "name": "blue_light_material",
+          "albedo": [ 4, 12, 17 ],
+          "Lv": 1
         },
         {
           "type" : "LambertianReflection",

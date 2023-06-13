@@ -78,6 +78,11 @@ namespace CudaPBRT
         {
             return ComputeNormal();
         }
+        
+        CPU_GPU virtual glm::vec2 GetUV(const glm::vec3& p) const override
+        {
+            return glm::vec2(0.f);
+        }
 
         CPU_GPU virtual float Area() const 
         {

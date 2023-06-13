@@ -53,12 +53,12 @@ TestLayer::~TestLayer()
 
 void TestLayer::OnAttach()
 {
-	m_Scene->LoadSceneFromJsonFile("E://Projects//CUDA_Projects//CudaPBRT//res//scenes//CornellBox_MultiLights.json");
+	m_Scene->LoadSceneFromJsonFile("E://Projects//CUDA_Projects//CudaPBRT//res//scenes//Camera.json");
 
 	m_CudaPBRT = mkU<CudaPathTracer>();
 	m_CudaPBRT->InitCuda(*(m_Scene->camera));
 
-	m_SelectedMaterial = m_Scene->materialData.size() - 1;
+	m_SelectedMaterial = 1;// m_Scene->materialData.size() - 1;
 }
 void TestLayer::OnDetach()
 {
@@ -115,6 +115,7 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 	is_edited |= ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&(mdata.albedo)));
 	is_edited |= ImGui::DragFloat("Metallic", &(mdata.metallic), 0.01f, 0.f, 1.f);
 	is_edited |= ImGui::DragFloat("Roughness", &(mdata.roughness), 0.01f, 0.f, 1.f);
+	is_edited |= ImGui::DragFloat("Lv", &(mdata.Lv), 0.1f, 0.f, 100.f);
 
 	if (is_edited)
 	{

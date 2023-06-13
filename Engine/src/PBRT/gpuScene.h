@@ -29,25 +29,27 @@ namespace CudaPBRT
         {
         }
 
-        INLINE CPU_GPU bool Sample_Li(float rand, const glm::vec2& xi, const glm::vec3& p, const glm::vec3& normal, LightSample& sample)
+        INLINE GPU_ONLY bool Sample_Li(float rand, const glm::vec2& xi, const glm::vec3& p, const glm::vec3& normal, LightSample& sample)
         {
             if (light_count <= 0.f)
             {
                 return false;
             }
 
-            int light_id = static_cast<int>(glm::floor(rand * 100000.f)) % light_count;
+            int light_id = static_cast<int>(glm::floor(rand * 10000.f)) % light_count;
             sample = lights[light_id]->Sample_Li(p, normal, xi);
             sample.pdf /= static_cast<float>(light_count);
 
             return (sample.pdf > 0.01f) && !Occluded(sample.t, lights[light_id]->GetShapeId(), sample.shadowRay);
         }
 
-        INLINE CPU_GPU float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)
+        INLINE GPU_ONLY float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)
         {
             float area = shapes[light_id]->Area();
 
             glm::vec3 p_normal = shapes[light_id]->GetNormal(p);
+            // apply normal map
+            p_normal = materials[shapes[light_id]->material_id]->GetNormal(p_normal, shapes[light_id]->GetUV(p));
 
             float cosTheta = glm::dot(-wiW, p_normal);
             return (t * t / (cosTheta * area));
@@ -133,7 +135,7 @@ namespace CudaPBRT
                             if (shapes[BVHShapeMap[node.primitiveId + i]]->IntersectionP(ray, it) && it < intersection)
                             {
                                 intersection = it;
-                                intersection.id = node.primitiveId;
+                                intersection.id = BVHShapeMap[node.primitiveId + i];
                                 intersection.material_id = shapes[BVHShapeMap[node.primitiveId + i]]->material_id;
                             }
                         }

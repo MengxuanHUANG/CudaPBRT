@@ -57,14 +57,14 @@ namespace CudaPBRT
 		SafeGetFloat3(albedo, material, "albedo");
 
 		float roughness = 0.5f, metallic = 0.5f, eta = AirETA;
-		glm::vec3 Le(0.f);
+		float Lv(0.f);
 
 		SafeGet(roughness, material, "roughness", float);
 		SafeGet(metallic, material, "metallic", float);
-		SafeGetFloat3(Le, material, "Le");
+		SafeGet(Lv, material, "Lv", float);
 		SafeGet(eta, material, "eta", float);
 
-		materialData.emplace_back(type, albedo, roughness, metallic, Le, eta); //matteRed
+		materialData.emplace_back(type, albedo, roughness, metallic, Lv, eta); //matteRed
 		materials_map.emplace(name, materialData.size() - 1);
 
 		MaterialData& material_data = materialData.back();
@@ -112,7 +112,7 @@ namespace CudaPBRT
 			material_data.roughnessMapId = m_Textures.back()->GetTextureObject();
 		}
 
-		if (material.contains("roughness_map"))
+		if (material.contains("metallic_map"))
 		{
 			JSON texture_data = material["metallic_map"];
 
@@ -125,6 +125,21 @@ namespace CudaPBRT
 			m_Textures.emplace_back(CudaTexture::CreateCudaTexture(metallic_map_path.c_str(), flip_v));
 			material_data.metallicMapId = m_Textures.back()->GetTextureObject();
 		}
+
+		if (material.contains("Lv_map"))
+		{
+			JSON texture_data = material["Lv_map"];
+
+			std::string Lv_map_path;
+			SafeGet(Lv_map_path, texture_data, "path", std::string);
+
+			bool flip_v = false;
+			SafeGet(flip_v, texture_data, "flip_v", bool);
+
+			m_Textures.emplace_back(CudaTexture::CreateCudaTexture(Lv_map_path.c_str(), flip_v));
+			material_data.LvMapId = m_Textures.back()->GetTextureObject();
+		}
+
 		return true;
 	}
 
@@ -205,25 +220,25 @@ namespace CudaPBRT
 			{
 				if (count > 1) // triangles
 				{
-					glm::vec3 Le = materialData[objectData.back().material_id].Le;
+					float Lv = materialData[objectData.back().material_id].Lv;
 
-					SafeGetFloat3(Le, light, "Le");
+					SafeGet(Lv, light, "Lv", float);
 
 					bool double_side = false;
 					SafeGet(double_side, light, "doubleSide", bool);
 
-					temp_triangles_lights.emplace_back(objectData.size() - 1, Le, double_side);
+					temp_triangles_lights.emplace_back(objectData.size() - 1, Lv, double_side);
 				}
 				else
 				{
-					glm::vec3 Le = materialData[shapeData.back().material_id].Le;
+					float Lv = materialData[shapeData.back().material_id].Lv;
 
-					SafeGetFloat3(Le, light, "Le");
+					SafeGet(Lv, light, "Lv", float);
 
 					bool double_side = false;
 					SafeGet(double_side, light, "doubleSide", bool);
 
-					temp_shape_lights.emplace_back(type, nullptr, shapeData.size() - 1, Spectrum(Le), double_side);
+					temp_shape_lights.emplace_back(type, nullptr, nullptr, shapeData.size() - 1, Spectrum(Lv), double_side);
 				}
 			}
 			return true;
@@ -326,8 +341,9 @@ namespace CudaPBRT
 			{
 				temp_shape_lights.emplace_back(LightType::ShapeLight, 
 											   nullptr, 
+											   nullptr,
 											   i, 
-											   Spectrum(tri_light.Le), 
+											   Spectrum(tri_light.Lv), 
 											   tri_light.double_side);
 			}
 		}
@@ -344,7 +360,7 @@ namespace CudaPBRT
 		// shape lights must be emplaced after obtaining shapes' GPU pointers
 		for (LightData& shape_light_data : temp_shape_lights)
 		{
-			lightData.emplace_back(shape_light_data, m_GPUScene.shapes);
+			lightData.emplace_back(shape_light_data, m_GPUScene.shapes, m_GPUScene.materials);
 		}
 		
 		CreateArrayOnCude<Light, LightData>(m_GPUScene.lights, m_GPUScene.light_count, lightData);

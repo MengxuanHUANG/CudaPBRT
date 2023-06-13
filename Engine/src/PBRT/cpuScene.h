@@ -28,7 +28,7 @@ namespace CudaPBRT
     struct TempTriangleLight
     {
         int obj_id = -1;
-        glm::vec3 Le = glm::vec3(0.f);
+        float Lv = 0.f;
         bool double_side = false;
     };
 

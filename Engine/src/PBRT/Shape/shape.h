@@ -78,9 +78,11 @@ namespace CudaPBRT
 		{}
 
 		CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const = 0;
+		CPU_GPU virtual glm::vec2 GetUV(const glm::vec3& p) const = 0;
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const = 0;
 		CPU_GPU virtual float SimpleIntersection(const Ray& ray) const = 0;
-
+		
+		// TODO: change to pure virtual functions
 		CPU_GPU virtual float Area() const { return 0.f; }
 		CPU_GPU virtual glm::vec3 Sample(const glm::vec2& xi) const { return glm::vec3(0.f); }
 

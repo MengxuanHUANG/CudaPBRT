@@ -7,70 +7,95 @@
         "width" : 680,
         "height": 680
     },
-    "scene" : {
-      "objects" : [
-        {
-          "type" : "obj",
-          "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//models//Camera.obj",
-          "translation" : [0, 0, 0],
-          "rotation" : [0, 0, 0],
-          "scale" : [0.6, 0.6, 0.6],
-          "material" : "camera material"
-        }
-      ],
-      "materials" : [
-        {
-          "type" : "LambertianReflection",
-          "name" : "matteRed",
-          "albedo" : [0.63, 0.065, 0.05]
-        },
-        {
-          "type" : "LambertianReflection",
-          "name" : "matteGreen",
-          "albedo" : [0.14, 0.45, 0.091]
-        },
-        {
-          "type" : "SpecularReflection",
-          "name" : "mirror",
-          "albedo" : [1.0, 1.0, 1.0]
-        },
-        {
-          "type" : "Glass",
-          "name" : "glass",
-          "albedo" : [1.0, 1.0, 1.0],
-          "eta" : 1.55
-        },
-        {
-          "type" : "MetallicWorkflow",
-          "name" : "camera material",
-          "albedo_map" : {
-            "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_COL_2k.png",
-            "flip_v" : true
-          },
-          "normal_map" : {
-            "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_NRML_2k.png",
-            "flip_v" : true
-          },
-          "roughness_map" : {
-            "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_ROUGH_2k.png",
-            "flip_v" : true
-          },
-          "metallic_map" : {
-            "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_METL_2k.png",
-            "flip_v" : true
-          }
-        },
-        {
-          "type" : "MetallicWorkflow",
-          "name" : "metallic workflow",
-          "albedo": [0.8, 0.8, 0.8],
-          "metallic": 1.0,
-          "roughness": 0.0
-        }
-      ],
-      "environment map":{
-        "path" : "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//fireplace_4k.hdr"
+  "scene": {
+    "objects": [
+      {
+        "type": "obj",
+        "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//Camera.obj",
+        "translation": [ 0, 0, 0 ],
+        "rotation": [ 0, 0, 0 ],
+        "scale": [ 0.6, 0.6, 0.6 ],
+        "material": "camera material"
       }
+    ],
+    "materials": [
+      {
+        "type": "LambertianReflection",
+        "name": "matteRed",
+        "albedo": [ 0.63, 0.065, 0.05 ]
+      },
+      {
+        "type": "LambertianReflection",
+        "name": "matteGreen",
+        "albedo": [ 0.14, 0.45, 0.091 ]
+      },
+      {
+        "type": "SpecularReflection",
+        "name": "mirror",
+        "albedo": [ 1.0, 1.0, 1.0 ]
+      },
+      {
+        "type": "Glass",
+        "name": "glass",
+        "albedo": [ 1.0, 1.0, 1.0 ],
+        "eta": 1.55
+      },
+      {
+        "type": "MetallicWorkflow",
+        "name": "camera material",
+        "albedo_map": {
+          "path": "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_COL_2k.png",
+          "flip_v": true
+        },
+        "normal_map": {
+          "path": "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_NRML_2k.png",
+          "flip_v": true
+        },
+        "roughness_map": {
+          "path": "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_ROUGH_2k.png",
+          "flip_v": true
+        },
+        "metallic_map": {
+          "path": "E://Projects//CUDA_Projects//CudaPBRT//res//textures//#CAM0001_Textures_METL_2k.png",
+          "flip_v": true
+        }
+      },
+      {
+        "type": "MetallicWorkflow",
+        "name": "metallic workflow",
+        "albedo": [ 0.8, 0.8, 0.8 ],
+        "metallic": 1.0,
+        "roughness": 0.0
+      },
+      {
+        "type": "LambertianReflection",
+        "name": "light_material",
+        "albedo": [ 1, 1, 1 ],
+        "albedo_map": {
+          "path": "E://Projects//CUDA_Projects//CudaPBRT//res//textures//pxrRamp.png",
+          "flip_v": true
+        },
+        "Lv": 40.0
+      }
+    ],
+    "lights" : [
+        {
+          "type": "ShapeLight",
+          "shape": {
+            "type": "obj",
+            "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane_50x50.obj",
+            "name": "Light",
+            "translation": [ 0, 15, 0 ],
+            "rotation": [ 0, 0, 0 ],
+            "scale": [ 5, 1, 5 ],
+            "material": "light_material"
+          },
+          "doubleSide": true
+        }
+      ],
+    "environment map": {
+      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//interior_atelier_soft_daylight.hdr"
     }
+  }
 }
   
