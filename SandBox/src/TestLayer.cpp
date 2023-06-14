@@ -53,12 +53,12 @@ TestLayer::~TestLayer()
 
 void TestLayer::OnAttach()
 {
-	m_Scene->LoadSceneFromJsonFile("E://Projects//CUDA_Projects//CudaPBRT//res//scenes//Camera.json");
+	m_Scene->LoadSceneFromJsonFile("E://Projects//CUDA_Projects//CudaPBRT//res//scenes//CornellBox_MultiLights.json");
 
 	m_CudaPBRT = mkU<CudaPathTracer>();
 	m_CudaPBRT->InitCuda(*(m_Scene->camera));
 
-	m_SelectedMaterial = 1;// m_Scene->materialData.size() - 1;
+	m_SelectedMaterial = m_Scene->materialData.size() - 1;
 }
 void TestLayer::OnDetach()
 {
@@ -105,6 +105,19 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 	if (ImGui::Button("Save Image"))
 	{
 		stbi_write_png("C://Users//admas//Downloads//save.png", camera.width, camera.height, 4, m_CudaPBRT->host_image, camera.width * 4);
+		
+		float3* host_hdr = new float3[camera.width * camera.height];
+		
+		// Copy rendered result to CPU.
+		//cudaMemcpy(host_hdr, m_CudaPBRT->device_hdr_image, sizeof(float3) * camera.width * camera.height, cudaMemcpyDeviceToHost);
+		//CUDA_CHECK_ERROR();
+		//
+		//stbi_write_hdr("C://Users//admas//Downloads//save.hdr", camera.width, camera.height, 3, reinterpret_cast<float*>(&(host_hdr[0].x)));
+		//
+		//if (host_hdr)
+		//{
+		//	delete[] host_hdr;
+		//}
 	}
 	ImGui::End();
 

@@ -75,7 +75,8 @@
           "path": "E://Projects//CUDA_Projects//CudaPBRT//res//textures//pxrRamp.png",
           "flip_v": true
         },
-        "Lv": 40.0
+        "Lv": 40.0,
+        "lightMaterial": true
       }
     ],
     "lights" : [

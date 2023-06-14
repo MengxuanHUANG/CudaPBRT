@@ -43,12 +43,15 @@ namespace CudaPBRT
 		CudaTexObj roughnessMapId	= 0;
 		CudaTexObj LvMapId			= 0;
 
+		bool lightMaterial			= false;
+
 		MaterialData(MaterialType type, 
 					 const glm::vec3& albedo = glm::vec3(1.f),
 					 float metallic = 0.5f,
 					 float roughness = 0.5f,
 					 float Lv = 0.f,
-					 float eta = AirETA)
+					 float eta = AirETA,
+					 bool light_material = false)
 			: type(type), 
 			  albedo(albedo), 
 			  metallic(metallic), 
@@ -59,7 +62,8 @@ namespace CudaPBRT
 			  normalMapId(0), 
 			  metallicMapId(0), 
 			  roughnessMapId(0),
-			  LvMapId(0)
+			  LvMapId(0),
+			  lightMaterial(light_material)
 		{}
 
 		MaterialData(MaterialType type,
@@ -68,7 +72,8 @@ namespace CudaPBRT
 					 CudaTexObj metallic_map_id = 0,
 					 CudaTexObj roughness_map_id = 0,
 					 CudaTexObj Lv_map_id = 0,
-					 float eta = AirETA)
+					 float eta = AirETA,
+					 bool light_material = false)
 			: type(type),
 			  albedo(glm::vec3(1.f)),
 			  metallic(0.f),
@@ -78,7 +83,8 @@ namespace CudaPBRT
 			  normalMapId(normal_map_id),
 			  metallicMapId(metallic_map_id),
 			  roughnessMapId(roughness_map_id),
-			  LvMapId(Lv_map_id)
+			  LvMapId(Lv_map_id),
+			  lightMaterial(light_material)
 		{}
 	};
 

@@ -56,15 +56,16 @@ namespace CudaPBRT
 		glm::vec3 albedo(0.f);
 		SafeGetFloat3(albedo, material, "albedo");
 
-		float roughness = 0.5f, metallic = 0.5f, eta = AirETA;
-		float Lv(0.f);
+		float roughness = 0.5f, metallic = 0.5f, eta = AirETA, Lv = 0.f;
+		bool light_material = false;
 
 		SafeGet(roughness, material, "roughness", float);
 		SafeGet(metallic, material, "metallic", float);
 		SafeGet(Lv, material, "Lv", float);
 		SafeGet(eta, material, "eta", float);
+		SafeGet(light_material, material, "lightMaterial", bool);
 
-		materialData.emplace_back(type, albedo, roughness, metallic, Lv, eta); //matteRed
+		materialData.emplace_back(type, albedo, roughness, metallic, Lv, eta, light_material);
 		materials_map.emplace(name, materialData.size() - 1);
 
 		MaterialData& material_data = materialData.back();
@@ -168,7 +169,7 @@ namespace CudaPBRT
 			{
 				obj_data.material_id = materials_map[material_name];
 			}
-
+			ASSERT(!materialData[objectData.back().material_id].lightMaterial);
 			LoadMeshFromFile(path.c_str(), obj_data);
 
 			objectData.push_back(obj_data);
@@ -220,6 +221,8 @@ namespace CudaPBRT
 			{
 				if (count > 1) // triangles
 				{
+					ASSERT(materialData[objectData.back().material_id].lightMaterial);
+
 					float Lv = materialData[objectData.back().material_id].Lv;
 
 					SafeGet(Lv, light, "Lv", float);

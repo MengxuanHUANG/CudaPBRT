@@ -455,13 +455,14 @@ namespace CudaPBRT
 		if (intersection.id >= 0)
 		{
 			Material* material = scene.materials[intersection.material_id];
-			float Lv = material->GetLv(intersection.uv);
 
-			if (Lv > 0.f)
+			if ((material->m_MaterialData.lightMaterial) || material->GetLv(intersection.uv) > 0.f)
 			{
 				segment.throughput *= material->GetIrradiance(intersection.uv);
 
-				if (segment.depth > 0 && !MaterialIs(segment.materialType, MaterialType::Specular))
+				if (material->m_MaterialData.lightMaterial 
+					&& segment.depth > 0 
+					&& !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
 					float light_pdf = scene.PDF_Li(intersection.id, ray * intersection.t, ray.DIR, intersection.t, segment.surfaceNormal);
 					segment.throughput *= CudaPBRT::PowerHeuristic(1, segment.bsdfPdf, 1, light_pdf);
@@ -556,9 +557,15 @@ namespace CudaPBRT
 		color = glm::mix(glm::vec3(0.f), glm::vec3(255.f), color);
 		int index = x + y * width;
 		
-		img[index].x = static_cast<int>(color.r);
-		img[index].y = static_cast<int>(color.g);
-		img[index].z = static_cast<int>(color.b);
+		float a = static_cast<float>(x) / static_cast<float>(width);
+
+		hdr_img[index].x = glm::mix(0.f, 40.f, 1.f - a);
+		hdr_img[index].y = glm::mix(0.f, 40.f, 1.f - a);
+		hdr_img[index].z = glm::mix(0.f, 40.f, 1.f - a);
+
+		img[index].x = 255;//static_cast<int>(color.r);
+		img[index].y = 255;//static_cast<int>(color.g);
+		img[index].z = 255;//static_cast<int>(color.b);
 		img[index].w = 255;
 	}
 

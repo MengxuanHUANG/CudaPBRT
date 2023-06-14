@@ -67,7 +67,8 @@
           "type": "LambertianReflection",
           "name": "light_material",
           "albedo": [ 1, 1, 1 ],
-          "Lv": 40
+          "Lv": 40,
+          "lightMaterial": true
         },
         {
           "type": "LambertianReflection",
