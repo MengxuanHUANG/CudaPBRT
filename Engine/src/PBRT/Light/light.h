@@ -79,25 +79,28 @@ namespace CudaPBRT
 	public:
 		// AreaLight Interface
 		CPU_GPU ShapeLight(const LightData& data)
-			: m_Materials(data.materials), m_ShapeId(data.shapeId), m_Shapes(data.shapes), m_DoubleSide(data.doubleSide)
+			: m_ShapeId(data.shapeId), 
+			  m_Shape(data.shapes[data.shapeId]), 
+			  m_Material(data.materials[m_Shape->material_id]), 
+			  m_DoubleSide(data.doubleSide)
 		{
 		}
 
 		GPU_ONLY virtual Spectrum GetLe(const glm::vec3& p = glm::vec3(0.f)) const override
 		{
-			return m_Materials[m_Shapes[m_ShapeId]->material_id]->GetIrradiance(m_Shapes[m_ShapeId]->GetUV(p));
+			return m_Material->GetIrradiance(p, m_Shape);
 		}
 
 		CPU_GPU virtual int GetShapeId() const override { return m_ShapeId; }
 
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const
 		{
-			return m_Shapes[m_ShapeId]->IntersectionP(ray, intersection);
+			return m_Shape->IntersectionP(ray, intersection);
 		}
 	
 		GPU_ONLY virtual LightSample Sample_Li(const glm::vec3& p, const glm::vec3& normal, const glm::vec2& xi) const override
 		{
-			glm::vec3 sampled_point = m_Shapes[m_ShapeId]->Sample(xi);
+			glm::vec3 sampled_point = m_Shape->Sample(xi);
 
 			// compute r, wiW
 			glm::vec3 r = sampled_point - p;
@@ -119,23 +122,18 @@ namespace CudaPBRT
 	protected:
 		INLINE GPU_ONLY float ComputePDF(const glm::vec3& p, const glm::vec3& wiW, float t) const
 		{
-			float area = m_Shapes[m_ShapeId]->Area();
+			float area = m_Shape->Area();
 			
-			glm::vec3 p_normal = m_Shapes[m_ShapeId]->GetNormal(p);
-			// apply normal map
-			p_normal = m_Materials[m_Shapes[m_ShapeId]->material_id]->GetNormal(p_normal, m_Shapes[m_ShapeId]->GetUV(p));
+			glm::vec3 p_normal = m_Shape->GetNormal(p);
 
-			float cosTheta = glm::dot(-wiW, p_normal);
-			if (m_DoubleSide)
-			{
-				cosTheta = glm::abs(cosTheta);
-			}
+			float cosTheta = (m_DoubleSide ? AbsDot(-wiW, p_normal) : glm::dot(-wiW, p_normal));
+
 			return (t * t / (cosTheta * area));
 		}
 	public:
 		int m_ShapeId;
-		Shape** m_Shapes;
-		Material** m_Materials;
+		Shape* m_Shape;
+		Material* m_Material;
 		bool m_DoubleSide;
 	};
 }

@@ -367,7 +367,6 @@ namespace CudaPBRT
 		}
 		
 		CreateArrayOnCude<Light, LightData>(m_GPUScene.lights, m_GPUScene.light_count, lightData);
-
 		return true;
 	}
 

@@ -13,9 +13,9 @@ namespace CudaPBRT
 		CPU_GPU BSDF() {}
 		CPU_GPU virtual ~BSDF() {}
 
-		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const = 0;
-		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& woW, RNG& rng) const = 0;
-		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const = 0;
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const = 0;
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const = 0;
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const = 0;
 	};
 
 	class SingleBSDF : public BSDF
@@ -30,29 +30,18 @@ namespace CudaPBRT
 			SAFE_FREE(m_BxDF);
 		}
 
-		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const override
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
-			glm::mat3 toLocal = WorldToLocal(data.normal);
-
-			glm::vec3 wo = glm::normalize(toLocal * woW);
-			glm::vec3 wi = glm::normalize(toLocal * wiW);
-
 			return m_BxDF->f(data, wo, wi);
 		}
 
-		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& woW, RNG& rng) const override
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const override
 		{
-			glm::vec3 wo = glm::normalize(WorldToLocal(data.normal) * woW);
-
 			return m_BxDF->Sample_f(data, wo, rng);
 		}
 
-		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const override
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
-			glm::mat3 toLocal = WorldToLocal(data.normal);
-			glm::vec3 wo = glm::normalize(toLocal * woW);
-			glm::vec3 wi = glm::normalize(toLocal * wiW);
-
 			return m_BxDF->PDF(data, wo, wi);
 		}
 
@@ -76,19 +65,13 @@ namespace CudaPBRT
 			SAFE_FREE(m_BxDFs[1]);
 		}
 
-		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const
 		{
-			glm::mat3 toLocal = WorldToLocal(data.normal);
-
-			glm::vec3 wo = glm::normalize(toLocal * woW);
-			glm::vec3 wi = glm::normalize(toLocal * wiW);
-
 			return m_BxDFs[0]->f(data, wo, wi);
 		}
 
-		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& woW, RNG& rng) const
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const
 		{
-			glm::vec3 wo = glm::normalize(WorldToLocal(data.normal) * woW);
 			const float etaA = data.eta;
 
 			float F = FresnelDielectric(etaA, etaB, CosTheta(wo));
@@ -102,12 +85,8 @@ namespace CudaPBRT
 			}
 		}
 
-		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& woW, const glm::vec3& wiW) const
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const
 		{
-			glm::mat3 toLocal = WorldToLocal(data.normal);
-			glm::vec3 wo = glm::normalize(toLocal * woW);
-			glm::vec3 wi = glm::normalize(toLocal * wiW);
-
 			return m_BxDFs[0]->PDF(data, wo, wi);
 		}
 

@@ -10,11 +10,10 @@ namespace CudaPBRT
     {
     public:
         CPU_GPU Triangle(const ShapeData& data)
-            : Shape(data), 
-              m_Vertices(data.vertices), 
-              m_Normals(data.normals),
-              m_UVs(data.uvs),
-              m_Triangle(data.triangle)
+            : Shape(data),
+              m_V{ data.vertices + data.triangle.vId[0], data.vertices + data.triangle.vId[1], data.vertices + data.triangle.vId[2] },
+              m_N{ data.normals + data.triangle.nId[0], data.normals + data.triangle.nId[1], data.normals + data.triangle.nId[2] },
+              m_UV{ data.uvs + data.triangle.uvId[0], data.uvs + data.triangle.uvId[1], data.uvs + data.triangle.uvId[2] }
         {}
 
         CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const override
@@ -22,10 +21,8 @@ namespace CudaPBRT
             // Moller¨CTrumbore intersection
             glm::vec2 uv;
 
-            const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
-            
-            glm::vec3 edge01 = m_Vertices[m_Triangle.vId[1]] - v0;
-            glm::vec3 edge02 = m_Vertices[m_Triangle.vId[2]] - v0;
+            glm::vec3 edge01 = *m_V[1] - *m_V[0];
+            glm::vec3 edge02 = *m_V[2] - *m_V[0];
             glm::vec3 pvec = glm::cross(ray.DIR, edge02);
 
             float det = glm::dot(pvec, edge01);
@@ -35,7 +32,7 @@ namespace CudaPBRT
                 return false;
             }
             
-            glm::vec3 tvec = ray.O - v0;
+            glm::vec3 tvec = ray.O - *m_V[0];
             if (det < 0.f)
             {
                 det = -det;
@@ -61,18 +58,13 @@ namespace CudaPBRT
 
             if (t > 0.f)
             {
-                intersection.normal = m_Triangle.nId[0] >= 0 ? BarycentricInterpolation<glm::vec3>(m_Normals[m_Triangle.nId[1]],
-                                                                                                   m_Normals[m_Triangle.nId[2]],
-                                                                                                   m_Normals[m_Triangle.nId[0]], uv.x, uv.y):
-                                                               glm::cross(edge01, edge02);
-                intersection.normal = glm::normalize(intersection.normal);
+                intersection.normal = glm::normalize(BarycentricInterpolation<glm::vec3>(*m_N[1], *m_N[2], *m_N[0], uv.x, uv.y));
+
                 intersection.t = t;
                 intersection.p = ray * t;
 
-                intersection.uv = m_Triangle.uvId[0] >= 0 ? BarycentricInterpolation<glm::vec2>(m_UVs[m_Triangle.uvId[1]],
-                                                                                                m_UVs[m_Triangle.uvId[2]],
-                                                                                                m_UVs[m_Triangle.uvId[0]], uv.x, uv.y) :
-                                                            uv;
+                intersection.uv = BarycentricInterpolation<glm::vec2>(*m_UV[1], *m_UV[2], *m_UV[0], uv.x, uv.y);
+
                 return true;
             }
             else
@@ -86,10 +78,8 @@ namespace CudaPBRT
             // Moller¨CTrumbore intersection
             glm::vec2 uv;
 
-            const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
-
-            glm::vec3 edge01 = m_Vertices[m_Triangle.vId[1]] - v0;
-            glm::vec3 edge02 = m_Vertices[m_Triangle.vId[2]] - v0;
+            glm::vec3 edge01 = *m_V[1] - *m_V[0];
+            glm::vec3 edge02 = *m_V[2] - *m_V[0];
             glm::vec3 pvec = glm::cross(ray.DIR, edge02);
 
             float det = glm::dot(pvec, edge01);
@@ -99,7 +89,7 @@ namespace CudaPBRT
                 return false;
             }
 
-            glm::vec3 tvec = ray.O - v0;
+            glm::vec3 tvec = ray.O - *m_V[0];
             if (det < 0.f)
             {
                 det = -det;
@@ -127,50 +117,24 @@ namespace CudaPBRT
 
         CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const override
         {
-            if (m_Triangle.nId[0] >= 0)
-            {
-                return glm::normalize(GetBarycentricInterpolation<glm::vec3>(m_Normals[m_Triangle.nId[0]], m_Normals[m_Triangle.nId[1]], m_Normals[m_Triangle.nId[2]], p));
-            }
-            else
-            {
-                const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
-
-                glm::vec3 edge01 = m_Vertices[m_Triangle.vId[1]] - v0;
-                glm::vec3 edge02 = m_Vertices[m_Triangle.vId[2]] - v0;
-
-                return glm::normalize(glm::cross(edge01, edge02));
-            }
+            return glm::normalize(GetBarycentricInterpolation<glm::vec3>(*m_N[0], *m_N[1], *m_N[2], p));
         }
         
-        CPU_GPU virtual glm::vec3 Sample(const glm::vec2& xi) const override
+        CPU_GPU virtual glm::vec3 Sample(glm::vec2 xi) const override
         {
-            const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
+            xi = (xi.x + xi.y > 1.f ? 1.f - xi : xi);
 
-            glm::vec3 edge01 = m_Vertices[m_Triangle.vId[1]] - v0;
-            glm::vec3 edge02 = m_Vertices[m_Triangle.vId[2]] - v0;
-
-            if (xi.x + xi.y <= 1.f)
-            {
-                return xi.x * edge02 + xi.y * edge01 + v0;
-            }
-            else
-            {
-                return (1.f - xi.x) * edge02 + (1.f - xi.y) * edge01 + v0;
-            }
+            return xi.x * *m_V[2] + xi.y * *m_V[1] + (1.f - xi.x - xi.y) * *m_V[0];
         }
 
         CPU_GPU virtual float Area() const override
         {
-            const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
-            const glm::vec3& v1 = m_Vertices[m_Triangle.vId[1]];
-            const glm::vec3& v2 = m_Vertices[m_Triangle.vId[2]];
-
-            return glm::length(glm::cross(v1 - v0, v2 - v0));
+            return glm::length(glm::cross(*m_V[1] - *m_V[0], *m_V[2] - *m_V[0]));
         }
 
         CPU_GPU virtual glm::vec2 GetUV(const glm::vec3& p) const override
         {
-            return GetBarycentricInterpolation<glm::vec2>(m_UVs[m_Triangle.uvId[0]], m_UVs[m_Triangle.uvId[1]], m_UVs[m_Triangle.uvId[2]], p);
+            return GetBarycentricInterpolation<glm::vec2>(*m_UV[0], *m_UV[1], *m_UV[2], p);
         }
 
         INLINE CPU_ONLY static BoundingBox GetWorldBounding(const std::array<glm::vec3, 3>& v)
@@ -182,22 +146,16 @@ namespace CudaPBRT
         template<typename T>
         INLINE CPU_GPU T GetBarycentricInterpolation(const T& x0, const T& x1, const T& x2, const glm::vec3& p) const
         {
-            const glm::vec3& v0 = m_Vertices[m_Triangle.vId[0]];
-            const glm::vec3& v1 = m_Vertices[m_Triangle.vId[1]];
-            const glm::vec3& v2 = m_Vertices[m_Triangle.vId[2]];
-
             float a = Area();
-            float a0 = glm::length(glm::cross(v1 - p, v2 - p)) / a;
-            float a1 = glm::length(glm::cross(v2 - p, v0 - p)) / a;
-            float a2 = glm::length(glm::cross(v0 - p, v1 - p)) / a;
+            float a0 = glm::length(glm::cross(*m_V[1] - p, *m_V[2] - p)) / a;
+            float a1 = glm::length(glm::cross(*m_V[2] - p, *m_V[0] - p)) / a;
+            float a2 = glm::length(glm::cross(*m_V[0] - p, *m_V[1] - p)) / a;
 
             return a0 * x0 + a1 * x1 + a2 * x2;
         }
     protected:
-        glm::vec3* m_Vertices;
-        glm::vec3* m_Normals;
-        glm::vec2* m_UVs;
-
-        TriangleData m_Triangle;
+        const glm::vec3 const* m_V[3];
+        const glm::vec3 const* m_N[3];
+        const glm::vec2 const* m_UV[3];
     };
 }

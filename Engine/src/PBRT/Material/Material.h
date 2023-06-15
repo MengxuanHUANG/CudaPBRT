@@ -1,12 +1,11 @@
 #pragma once
 #include "materialUtilities.h"
+#include "PBRT/Shape/shape.h"
 
 #include "bsdf.h"
 
 namespace CudaPBRT
 {
-	//using namespace StringUtility;
-
 	enum class MaterialType : unsigned char
 	{
 		Specular = BIT(7),
@@ -105,74 +104,27 @@ namespace CudaPBRT
 
 		INLINE GPU_ONLY Spectrum GetAlbedo(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			if (m_MaterialData.albedoMapId > 0)
-			{
-				float4 color = ReadTexture(m_MaterialData.albedoMapId, uv);
-				glm::vec3 albedo(color.x, color.y, color.z);
-				//albedo = glm::pow(albedo, glm::vec3(2.2f));
-				return Spectrum(albedo);
-			}
-			else
-			{
-				return Spectrum(m_MaterialData.albedo);
-			}
+			return (m_MaterialData.albedoMapId > 0 ? GetAlbedoMap(uv) : Spectrum(m_MaterialData.albedo));
 		}
 
 		INLINE GPU_ONLY glm::vec3 GetNormal(const glm::vec3& normal, const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			if (m_MaterialData.normalMapId > 0)
-			{
-				// TODO: recompute normal
-				float4 nor = ReadTexture(m_MaterialData.normalMapId, uv);
-				glm::vec3 tan, bitan;
-
-				CoordinateSystem(normal, tan, bitan);
-
-				return glm::normalize(nor.x * tan + nor.y * bitan + nor.z * normal);
-			}
-			else
-			{
-				return normal;
-			}
+			return (m_MaterialData.normalMapId > 0 ? GetNormalMap(normal, uv) : normal);
 		}
 
 		INLINE GPU_ONLY float GetMetallic(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			if (m_MaterialData.metallicMapId > 0)
-			{
-				float4 metallic = ReadTexture(m_MaterialData.metallicMapId, uv);
-				return metallic.x;
-			}
-			else
-			{
-				return m_MaterialData.metallic;
-			}
+			return (m_MaterialData.metallicMapId > 0 ? ReadTexture(m_MaterialData.metallicMapId, uv).x : m_MaterialData.metallic);
 		}
 
 		INLINE GPU_ONLY float GetRoughness(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			if (m_MaterialData.roughnessMapId > 0)
-			{
-				float4 roughness = ReadTexture(m_MaterialData.roughnessMapId, uv);
-				return roughness.x;
-			}
-			else
-			{
-				return m_MaterialData.roughness;
-			}
+			return (m_MaterialData.roughnessMapId > 0 ? ReadTexture(m_MaterialData.roughnessMapId, uv).x : m_MaterialData.roughness);
 		}
 
 		INLINE GPU_ONLY float GetLv(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
-			if (m_MaterialData.LvMapId > 0)
-			{
-				float4 Lv = ReadTexture(m_MaterialData.LvMapId, uv);
-				return Lv.x;
-			}
-			else
-			{
-				return m_MaterialData.Lv;
-			}
+			return (m_MaterialData.LvMapId > 0 ? ReadTexture(m_MaterialData.LvMapId, uv).x : m_MaterialData.Lv);
 		}
 
 		INLINE GPU_ONLY Spectrum GetIrradiance(const glm::vec2& uv = glm::vec2(0, 0)) const
@@ -180,6 +132,38 @@ namespace CudaPBRT
 			return GetLv(uv) * GetAlbedo(uv);
 		}
 
+		INLINE GPU_ONLY Spectrum GetAlbedo(const glm::vec3& p, Shape* shape) const
+		{
+			return (m_MaterialData.albedoMapId > 0 ? GetAlbedoMap(shape->GetUV(p)) : Spectrum(m_MaterialData.albedo));
+		}
+
+		INLINE GPU_ONLY float GetLv(const glm::vec3& p, Shape* shape) const
+		{
+			return (m_MaterialData.LvMapId > 0 ? ReadTexture(m_MaterialData.LvMapId, shape->GetUV(p)).x : m_MaterialData.Lv);
+		}
+
+		INLINE GPU_ONLY Spectrum GetIrradiance(const glm::vec3& p, Shape* shape) const
+		{
+			return GetLv(p, shape) * GetAlbedo(p, shape);
+		}
+
+	protected:
+		INLINE GPU_ONLY Spectrum GetAlbedoMap(const glm::vec2& uv) const
+		{
+			float4 color = ReadTexture(m_MaterialData.albedoMapId, uv);
+			glm::vec3 albedo(color.x, color.y, color.z);
+			return Spectrum(albedo);
+		}
+		
+		INLINE GPU_ONLY glm::vec3 GetNormalMap(const glm::vec3& normal, const glm::vec2& uv) const
+		{
+			float4 nor = ReadTexture(m_MaterialData.normalMapId, uv);
+			glm::vec3 tan, bitan;
+
+			CoordinateSystem(normal, tan, bitan);
+
+			return glm::normalize(nor.x * tan + nor.y * bitan + nor.z * normal);
+		}
 	public:
 		MaterialData m_MaterialData;
 		BSDF* m_BSDF;

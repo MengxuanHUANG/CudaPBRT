@@ -89,7 +89,7 @@ namespace CudaPBRT
             return glm::abs(shapeData.scale.x * shapeData.scale.y);
         }
 
-        CPU_GPU virtual glm::vec3 Sample(const glm::vec2& xi) const override
+        CPU_GPU virtual glm::vec3 Sample(glm::vec2 xi) const override
         {
             glm::vec2 local_p = (xi - 0.5f); // map point to [-1, 1]
             return glm::vec3(m_Transform * glm::vec4(local_p, 0.f, 1.f)); // transform from local to world

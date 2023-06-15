@@ -54,6 +54,7 @@ TestLayer::~TestLayer()
 void TestLayer::OnAttach()
 {
 	m_Scene->LoadSceneFromJsonFile("E://Projects//CUDA_Projects//CudaPBRT//res//scenes//CornellBox_MultiLights.json");
+	m_Scene->m_GPUScene.M = 20;
 
 	m_CudaPBRT = mkU<CudaPathTracer>();
 	m_CudaPBRT->InitCuda(*(m_Scene->camera));
@@ -102,7 +103,7 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 		m_CudaPBRT->ResetPRBT();
 	}
 
-	if (ImGui::Button("Save Image"))
+	if (ImGui::Button("Save Image") || m_CudaPBRT->m_Iteration == 60)
 	{
 		stbi_write_png("C://Users//admas//Downloads//save.png", camera.width, camera.height, 4, m_CudaPBRT->host_image, camera.width * 4);
 		

@@ -84,7 +84,7 @@ namespace CudaPBRT
 		
 		// TODO: change to pure virtual functions
 		CPU_GPU virtual float Area() const { return 0.f; }
-		CPU_GPU virtual glm::vec3 Sample(const glm::vec2& xi) const { return glm::vec3(0.f); }
+		CPU_GPU virtual glm::vec3 Sample(glm::vec2 xi) const { return glm::vec3(0.f); }
 
 	public:
 		INLINE CPU_GPU static void ComputeTransforms(const glm::vec3& translate,

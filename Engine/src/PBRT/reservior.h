@@ -12,11 +12,11 @@ namespace CudaPBRT
 			: weightSum(0.f), M(0), W(0.f)
 		{}
 
-		CPU_GPU void Update(float rand_num, const T& xi, float weight)
+		INLINE CPU_GPU void Update(float rand_num, const T& xi, float weight)
 		{
 			weightSum += weight;
 			M += 1;
-			if (rand_num < (weight / weightSum)) y = xi;
+			if (rand_num <= (weight / weightSum)) y = xi;
 		}
 
 	public:

@@ -25,22 +25,18 @@ namespace CudaPBRT
               vertices(nullptr), normals(nullptr), uvs(nullptr),
               shape_count(0), material_count(0), light_count(0),
               boundings(nullptr), BVH(nullptr), BVHShapeMap(nullptr),
-              envMap(0)
+              envMap(0), M(1)
         {
         }
 
-        INLINE GPU_ONLY bool Sample_Li(float rand, const glm::vec2& xi, const glm::vec3& p, const glm::vec3& normal, LightSample& sample)
+        INLINE GPU_ONLY bool Sample_Li(RNG& rng, const glm::vec3& p, const glm::vec3& normal, LightSample& sample)
         {
-            if (light_count <= 0.f)
-            {
-                return false;
-            }
-
-            int light_id = static_cast<int>(glm::floor(rand * 10000.f)) % light_count;
-            sample = lights[light_id]->Sample_Li(p, normal, xi);
+            int light_id = static_cast<int>(glm::floor(rng.rand() * 100000.f)) % light_count;
+            Light* light = lights[light_id];
+            sample = light->Sample_Li(p, normal, { rng.rand() , rng.rand() });
             sample.pdf /= static_cast<float>(light_count);
 
-            return (sample.pdf > 0.01f) && !Occluded(sample.t, lights[light_id]->GetShapeId(), sample.shadowRay);
+            return (sample.pdf > 0.01f) && !Occluded(sample.t, light->GetShapeId(), sample.shadowRay);
         }
 
         INLINE GPU_ONLY float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)
@@ -48,8 +44,6 @@ namespace CudaPBRT
             float area = shapes[light_id]->Area();
 
             glm::vec3 p_normal = shapes[light_id]->GetNormal(p);
-            // apply normal map
-            p_normal = materials[shapes[light_id]->material_id]->GetNormal(p_normal, shapes[light_id]->GetUV(p));
 
             float cosTheta = glm::dot(-wiW, p_normal);
             return (t * t / (cosTheta * area));
@@ -219,6 +213,8 @@ namespace CudaPBRT
         size_t shape_count;
         size_t material_count;
 		size_t light_count;
+
+        int M;
 
         // BVH
         BoundingBox* boundings;
