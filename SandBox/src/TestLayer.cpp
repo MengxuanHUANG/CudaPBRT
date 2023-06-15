@@ -37,6 +37,9 @@
 #include <string>
 #include <string_view>
 
+std::string TestLayer::JSON_PATH = "E://Projects//CUDA_Projects//CudaPBRT//res//scenes//";
+std::string TestLayer::IMG_SAVE_PATH = "C://Users//admas//Downloads//";
+
 TestLayer::TestLayer(const std::string& name)
 	:Layer(name)
 {
@@ -53,7 +56,9 @@ TestLayer::~TestLayer()
 
 void TestLayer::OnAttach()
 {
-	m_Scene->LoadSceneFromJsonFile("E://Projects//CUDA_Projects//CudaPBRT//res//scenes//Camera.json");
+	m_CurrentFile = "CornellBox_MultiLights.json";
+
+	m_Scene->LoadSceneFromJsonFile((JSON_PATH + m_CurrentFile).c_str());
 	m_Scene->m_GPUScene.M = 1;
 
 	m_CudaPBRT = mkU<CudaPathTracer>();
@@ -105,7 +110,10 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 
 	if (ImGui::Button("Save Image") || m_CudaPBRT->m_Iteration == 60)
 	{
-		stbi_write_png("C://Users//admas//Downloads//save.png", camera.width, camera.height, 4, m_CudaPBRT->host_image, camera.width * 4);
+		std::string str = std::vformat("_M{}_it{}", std::make_format_args(m_Scene->m_GPUScene.M, m_CudaPBRT->m_Iteration));
+		std::string extension = ".png";
+
+		stbi_write_png((IMG_SAVE_PATH + m_CurrentFile + str + extension).c_str(), camera.width, camera.height, 4, m_CudaPBRT->host_image, camera.width * 4);
 		
 		float3* host_hdr = new float3[camera.width * camera.height];
 		

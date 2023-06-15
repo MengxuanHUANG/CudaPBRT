@@ -1,6 +1,7 @@
 #include "pbrt.h"
 
 #include "spectrum.h"
+#include "reservior.h"
 
 #include "pathSegment.h"
 #include "gpuScene.h"
@@ -439,13 +440,31 @@ namespace CudaPBRT
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
 				if (scene.light_count > 0 && !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
-					LightSample sample;
+					Reservior<LightSample> light_sample_reservior;
 
-					if (scene.Sample_Li(rng, ray * intersection.t, normal, sample))
+					for (int i = 0; i < scene.M; ++i)
 					{
-						glm::vec3 wi = glm::normalize(world_to_local * sample.wiW);
-						segment.throughput *= bsdf.f(bsdf_data, wo, wi) * sample.light->GetLe(sample.shadowRay * sample.t) * AbsDot(sample.wiW, normal) / sample.pdf;
+						LightSample light_sample;
+						scene.Sample_Li(rng, ray * intersection.t, normal, light_sample);
 
+						glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
+
+						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
+
+						light_sample_reservior.Update(rng.rand(), light_sample, glm::length(scattering_f) / light_sample.pdf);
+					}
+					
+					const LightSample& light_sample = light_sample_reservior.y;
+
+					if (!scene.Occluded(light_sample.t, light_sample.light->GetShapeId(), light_sample.shadowRay))
+					{
+						glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
+
+						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
+
+						light_sample_reservior.W = light_sample_reservior.weightSum / (light_sample_reservior.M * glm::length(scattering_f));
+						
+						segment.throughput *= scattering_f * light_sample.light->GetLe(light_sample.shadowRay * light_sample.t) * light_sample_reservior.W;
 						segment.radiance += segment.throughput;
 					}
 				}
@@ -712,8 +731,8 @@ namespace CudaPBRT
 			//GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, *scene);
 
 			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			//GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			//GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
 
 			cudaDeviceSynchronize();
 			CUDA_CHECK_ERROR();
