@@ -31,7 +31,10 @@ namespace CudaPBRT
 
         INLINE GPU_ONLY bool Sample_Li(RNG& rng, const glm::vec3& p, const glm::vec3& normal, LightSample& sample)
         {
-            const float light_count_f = static_cast<float>(light_count);
+            int light_id = static_cast<int>(glm::floor(rng.rand() * 100000.f)) % light_count;
+            Light* light = lights[light_id];
+            sample = light->Sample_Li(p, normal, { rng.rand() , rng.rand() });
+            sample.pdf /= static_cast<float>(light_count);
 
             int light_id = static_cast<int>(glm::floor(rng.rand() * (light_count_f - 1.f)));
 
