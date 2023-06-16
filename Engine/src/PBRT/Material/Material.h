@@ -44,6 +44,8 @@ namespace CudaPBRT
 
 		bool lightMaterial			= false;
 
+		MaterialData(){}
+
 		MaterialData(MaterialType type, 
 					 const glm::vec3& albedo = glm::vec3(1.f),
 					 float metallic = 0.5f,
@@ -91,11 +93,14 @@ namespace CudaPBRT
 	class Material
 	{
 	public:
+		CPU_GPU Material()
+		{}
+
 		CPU_GPU Material(const MaterialData& mData)
 			:m_MaterialData(mData)
 		{}
 
-		INLINE CPU_GPU BSDF& GetBSDF() { return m_BSDF; }
+		INLINE CPU_GPU const BSDF& GetBSDF() const { return m_BSDF; }
 
 		INLINE GPU_ONLY Spectrum GetAlbedo(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
@@ -127,17 +132,17 @@ namespace CudaPBRT
 			return GetLv(uv) * GetAlbedo(uv);
 		}
 
-		INLINE GPU_ONLY Spectrum GetAlbedo(const glm::vec3& p, Shape* shape) const
+		INLINE GPU_ONLY Spectrum GetAlbedo(const glm::vec3& p, const Shape& shape) const
 		{
-			return (m_MaterialData.albedoMapId > 0 ? GetAlbedoMap(shape->GetUV(p)) : Spectrum(m_MaterialData.albedo));
+			return (m_MaterialData.albedoMapId > 0 ? GetAlbedoMap(shape.GetUV(p)) : Spectrum(m_MaterialData.albedo));
 		}
 
-		INLINE GPU_ONLY float GetLv(const glm::vec3& p, Shape* shape) const
+		INLINE GPU_ONLY float GetLv(const glm::vec3& p, const Shape& shape) const
 		{
-			return (m_MaterialData.LvMapId > 0 ? ReadTexture(m_MaterialData.LvMapId, shape->GetUV(p)).x : m_MaterialData.Lv);
+			return (m_MaterialData.LvMapId > 0 ? ReadTexture(m_MaterialData.LvMapId, shape.GetUV(p)).x : m_MaterialData.Lv);
 		}
 
-		INLINE GPU_ONLY Spectrum GetIrradiance(const glm::vec3& p, Shape* shape) const
+		INLINE GPU_ONLY Spectrum GetIrradiance(const glm::vec3& p, const Shape& shape) const
 		{
 			return GetLv(p, shape) * GetAlbedo(p, shape);
 		}

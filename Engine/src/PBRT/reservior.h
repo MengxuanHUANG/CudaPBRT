@@ -18,6 +18,12 @@ namespace CudaPBRT
 			M += 1;
 			if (rand_num <= (weight / weightSum)) y = xi;
 		}
+		INLINE CPU_GPU void Merge(float rand_num, const Reservior<T>& other, float target_pdf)
+		{
+			int M0 = M;
+			Update(rand_num, other.y, target_pdf * other.W * other.M);
+			M = M0 + other.M;
+		}
 
 	public:
 		T y;

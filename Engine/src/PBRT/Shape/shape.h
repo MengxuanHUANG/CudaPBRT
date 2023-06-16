@@ -91,14 +91,18 @@ namespace CudaPBRT
 	class Shape
 	{
 	public:
+		CPU_GPU Shape()
+			:material_id(-1)
+		{}
+
 		CPU_GPU Shape(const ShapeData& data)
 			:material_id(data.material_id)
 		{}
 
-		CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const = 0;
-		CPU_GPU virtual glm::vec2 GetUV(const glm::vec3& p) const = 0;
-		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const = 0;
-		CPU_GPU virtual float SimpleIntersection(const Ray& ray) const = 0;
+		CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const { return {}; }
+		CPU_GPU virtual glm::vec2 GetUV(const glm::vec3& p) const { return {}; }
+		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const { return false; }
+		CPU_GPU virtual float SimpleIntersection(const Ray& ray) const { return -1.f; }
 		
 		// TODO: change to pure virtual functions
 		CPU_GPU virtual float Area() const { return 0.f; }

@@ -57,7 +57,7 @@ namespace CudaPBRT
 		virtual void UpdateCamera(PerspectiveCamera& camera);
 		virtual unsigned int GetDisplayTextureId() const { return m_DisplayImage; }
 
-		inline void ResetPRBT() { m_Iteration = 1; }
+		inline void ResetPRBT() { m_Iteration = 0; }
 
 	public:
 		int m_Iteration; // number of iteration

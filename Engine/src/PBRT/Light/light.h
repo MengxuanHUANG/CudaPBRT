@@ -14,7 +14,8 @@ namespace CudaPBRT
 {
 	class Light;
 
-	CPU_GPU Shape* Create(const ShapeData& data);
+	CPU_GPU void Create(Shape* shape_ptr, const ShapeData& data);
+	CPU_GPU void Create(Material* material_ptr, const MaterialData& data);
 
 	enum class LightType : unsigned char
 	{
@@ -29,43 +30,55 @@ namespace CudaPBRT
 	struct LightSample 
 	{
 		const Light* light;
-		glm::vec3 wiW = glm::vec3(0.f);
 		float pdf = -1.f;
-		float t = -1.f;
-		Ray shadowRay = Ray();
+		glm::vec3 p = glm::vec3(0.f);
+		glm::vec3 wiW = glm::vec3(0.f);
 		
 		CPU_GPU LightSample()
 		{}
 
-		CPU_GPU LightSample(const Light* light, const glm::vec3& wiW, float pdf, float t, const Ray& ray)
-			: light(light), wiW(wiW), pdf(pdf), t(t), shadowRay(ray)
+		CPU_GPU LightSample(const Light* light, float pdf, const glm::vec3& p, const glm::vec3& wiW)
+			: light(light), pdf(pdf), p(p), wiW(wiW)
 		{}
 	};
 
 	struct LightData
 	{
 		LightType type;
-		Shape* shapes;
-		Material* materials;
+		ShapeData shape_data;
+		MaterialData material_data;
 		int shapeId;
 		bool doubleSide;
 		Spectrum irradiance;
 
-		LightData(LightType type, Shape* shapes, Material* materials, int shape_id, const Spectrum& irradiance, bool doubleSide = false)
-			: type(type), shapes(shapes), materials(materials), shapeId(shape_id), doubleSide(doubleSide), irradiance(irradiance)
+		LightData(LightType type, const ShapeData& shape_data,  const MaterialData& material_data, int shape_id, const Spectrum& irradiance, bool doubleSide = false)
+			: type(type), shape_data(shape_data), material_data(material_data), shapeId(shape_id), doubleSide(doubleSide), irradiance(irradiance)
 		{}
+	};
 
-		LightData(const LightData& other, Shape* shapes, Material* materials)
-			: type(other.type), 
-			  shapes(shapes), materials(materials), 
-			  shapeId(other.shapeId), doubleSide(other.doubleSide), irradiance(other.irradiance)
-		{}
+	struct ShapeLightUnionData
+	{
+		int shapeId;
+		Shape shape;
+		Material material;
+		bool doubleSide;
+	};
+
+	struct PointLightUnionData
+	{
+		Spectrum irradiance = Spectrum(0.f);
+	};
+
+	union UnionLightData
+	{
+		ShapeLightUnionData shapeLightData;
+		PointLightUnionData pointLightData;
 	};
 
 	class Light
 	{
 	public:
-		CPU_GPU virtual ~Light() {}
+		CPU_GPU Light() {}
 		GPU_ONLY virtual Spectrum GetLe(const glm::vec3& p = glm::vec3(0.f)) const = 0;
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const { return false; }
 		CPU_GPU virtual int GetShapeId() const { return -1; }
@@ -74,68 +87,71 @@ namespace CudaPBRT
 		GPU_ONLY virtual float PDF(const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal) const = 0;
 	
 	public:
-		int m_ShapeId;
-		Shape* m_Shape;
-		Material* m_Material;
-		bool m_DoubleSide;
-
+		ShapeLightUnionData shapeLightData;
 	};
 
 	class ShapeLight : public Light 
 	{
+#define m_ShapeId shapeLightData.shapeId
+#define m_Shape shapeLightData.shape
+#define m_Material shapeLightData.material
+#define m_DoubleSide shapeLightData.doubleSide
 	public:
 		// AreaLight Interface
 		CPU_GPU ShapeLight(const LightData& data)
 		{
 			m_ShapeId = data.shapeId;
-			m_Shape = data.shapes + data.shapeId;
-			m_Material = data.materials + m_Shape->material_id;
+			Create(&m_Shape, data.shape_data);
+			Create(&m_Material, data.material_data);
+
 			m_DoubleSide = data.doubleSide;
 		}
 
 		GPU_ONLY virtual Spectrum GetLe(const glm::vec3& p = glm::vec3(0.f)) const override
 		{
-			return m_Material->GetIrradiance(p, m_Shape);
+			return m_Material.GetIrradiance(p, m_Shape);
 		}
 
 		CPU_GPU virtual int GetShapeId() const override { return m_ShapeId; }
 
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const
 		{
-			return m_Shape->IntersectionP(ray, intersection);
+			return m_Shape.IntersectionP(ray, intersection);
 		}
 	
 		GPU_ONLY virtual LightSample Sample_Li(const glm::vec3& p, const glm::vec3& normal, const glm::vec2& xi) const override
 		{
-			glm::vec3 sampled_point = m_Shape->Sample(xi);
+			glm::vec3 sampled_point = m_Shape.Sample(xi);
 
 			// compute r, wiW
 			glm::vec3 r = sampled_point - p;
 			
 			glm::vec3 wiW = glm::normalize(r);
-			float t = glm::length(r);
+			float t2 = glm::dot(r, r);
 
 			return { this,
-					 wiW, 
-					 ComputePDF(sampled_point, wiW, t),
-					 t, 
-					 Ray::SpawnRay(p, wiW)};
+					 ComputePDF(sampled_point, wiW, t2),
+					 sampled_point,
+				     wiW};
 		}
 
 		GPU_ONLY virtual float PDF(const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal) const override
 		{
-			return ComputePDF(p, wiW, t);
+			return ComputePDF(p, wiW, t * t);
 		}
 	protected:
-		INLINE GPU_ONLY float ComputePDF(const glm::vec3& p, const glm::vec3& wiW, float t) const
+		INLINE GPU_ONLY float ComputePDF(const glm::vec3& p, const glm::vec3& wiW, float t2) const
 		{
-			float area = m_Shape->Area();
-			
-			glm::vec3 p_normal = m_Shape->GetNormal(p);
+			glm::vec3 p_normal = m_Shape.GetNormal(p);
 
 			float cosTheta = (m_DoubleSide ? AbsDot(-wiW, p_normal) : glm::dot(-wiW, p_normal));
 
-			return (t * t / (cosTheta * area));
+			return (t2 / (cosTheta * m_Shape.Area()));
 		}
+
+#undef m_ShapeId
+#undef m_Shape
+#undef m_Material
+#undef m_DoubleSide
 	};
 }

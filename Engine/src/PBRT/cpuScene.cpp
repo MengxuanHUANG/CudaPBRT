@@ -203,7 +203,6 @@ namespace CudaPBRT
 	}
 
 	bool CPUScene::LoadLightFromJSON(const JSON& light, 
-									 std::vector<LightData>& temp_shape_lights,
 									 std::vector<TempTriangleLight>& temp_triangles_lights)
 	{
 		std::string type_str;
@@ -241,7 +240,7 @@ namespace CudaPBRT
 					bool double_side = false;
 					SafeGet(double_side, light, "doubleSide", bool);
 
-					temp_shape_lights.emplace_back(type, nullptr, nullptr, shapeData.size() - 1, Spectrum(Lv), double_side);
+					lightData.emplace_back(type, shapeData.back(), materialData[shapeData.back().material_id], shapeData.size() - 1, Spectrum(Lv), double_side);
 				}
 			}
 			return true;
@@ -306,15 +305,14 @@ namespace CudaPBRT
 		}
 
 		// load lights
-		std::vector<LightData> temp_shape_lights; // temp array for shape lights
-		std::vector<TempTriangleLight> temp_triangles_lights; // temp array for shape lights with triangles
+		std::vector<TempTriangleLight> temp_triangles_lights; // temp array for triangles shape lights
 		
 		if (scene_data.contains("lights"))
 		{
 			JSON lights_list = scene_data["lights"];
 			for (const auto& light : lights_list)
 			{
-				LoadLightFromJSON(light, temp_shape_lights, temp_triangles_lights);
+				LoadLightFromJSON(light, temp_triangles_lights);
 			}
 		}
 
@@ -337,17 +335,12 @@ namespace CudaPBRT
 			data.end_id = shapeData.size();
 		}
 
-		// emplace triangle lights
+		// triangle shape lights must be emplaced after obtaining triangles' GPU pointers
 		for (const TempTriangleLight& tri_light : temp_triangles_lights)
 		{
 			for (int i = objectData[tri_light.obj_id].start_id; i < objectData[tri_light.obj_id].end_id; ++i)
 			{
-				temp_shape_lights.emplace_back(LightType::ShapeLight, 
-											   nullptr, 
-											   nullptr,
-											   i, 
-											   Spectrum(tri_light.Lv), 
-											   tri_light.double_side);
+				lightData.emplace_back(LightType::ShapeLight, shapeData[i], materialData[shapeData[i].material_id], i, Spectrum(tri_light.Lv), tri_light.double_side);
 			}
 		}
 
@@ -359,12 +352,6 @@ namespace CudaPBRT
 
 		// buffer Shape datas (obtain shapes' GPU pointers)
 		CreateArrayOnCuda<Shape, ShapeData>(m_GPUScene.shapes, m_GPUScene.shape_count, shapeData);
-
-		// shape lights must be emplaced after obtaining shapes' GPU pointers
-		for (LightData& shape_light_data : temp_shape_lights)
-		{
-			lightData.emplace_back(shape_light_data, m_GPUScene.shapes, m_GPUScene.materials);
-		}
 		
 		CreateArrayOnCuda<Light, LightData>(m_GPUScene.lights, m_GPUScene.light_count, lightData);
 		return true;

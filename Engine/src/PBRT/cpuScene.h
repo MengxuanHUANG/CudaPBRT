@@ -60,7 +60,6 @@ namespace CudaPBRT
         bool LoadMaterialFromJSON(const JSON& json_data);
         unsigned int LoadShapeFromJSON(const JSON& json_data);
         bool LoadLightFromJSON(const JSON& json_data, 
-                                std::vector<LightData>& temp_shape_lights, 
                                 std::vector<TempTriangleLight>& temp_triangles_lights);
 
         bool LoadSceneFromJsonFile(const char* path);

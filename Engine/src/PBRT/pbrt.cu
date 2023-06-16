@@ -150,7 +150,7 @@ namespace CudaPBRT
 		glm::vec3 color(radiance);
 		glm::vec3 preColor = glm::vec3(hdr_pixel.x, hdr_pixel.y, hdr_pixel.z);
 
-		color = glm::mix(preColor, color, 1.f / float(iteration));
+		color = glm::mix(preColor, color, 1.f / float(iteration + 1));
 		
 		hdr_pixel.x = color.x;
 		hdr_pixel.y = color.y;
@@ -376,7 +376,7 @@ namespace CudaPBRT
 				BSDFData bsdf_data(normal, roughness, metallic, segment.eta, albedo);
 
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
-				BSDF& bsdf = material->GetBSDF();
+				const BSDF& bsdf = material->GetBSDF();
 				BSDFSample bsdf_sample = bsdf.Sample_f(bsdf_data, -ray.DIR, rng);
 
 				if (bsdf_sample.pdf == 0.f && glm::length(bsdf_sample.f) == 0.f)
@@ -406,29 +406,29 @@ namespace CudaPBRT
 		}
 
 		PathSegment& segment = pathSegment[index];
-		Intersection& intersection = segment.intersection;
-		Ray& ray = segment.ray;
+		const Intersection& intersection = segment.intersection;
+		const Ray& ray = segment.ray;
 
 		if(intersection.id >= 0)
 		{
-			Material* material = scene.materials + intersection.material_id;
-			float Lv = material->GetLv(intersection.uv);
+			const Material& material = scene.materials[intersection.material_id];
+			float Lv = material.GetLv(intersection.uv);
 
 			if (Lv > 0.f)
 			{
 				// hit light source
-				segment.throughput *= material->GetIrradiance(intersection.uv);
+				segment.throughput *= material.GetIrradiance(intersection.uv);
 				segment.radiance += segment.throughput;
 			}
 			else
 			{
-				Spectrum albedo = material->GetAlbedo(intersection.uv);
-				BSDF& bsdf = material->GetBSDF();
-				segment.materialType = material->m_MaterialData.type;
+				Spectrum albedo = material.GetAlbedo(intersection.uv);
+				const BSDF& bsdf = material.GetBSDF();
+				segment.materialType = material.m_MaterialData.type;
 
-				segment.surfaceNormal = material->GetNormal(intersection.normal, intersection.uv);
-				float roughness = material->GetRoughness(intersection.uv);
-				float metallic = material->GetMetallic(intersection.uv);
+				segment.surfaceNormal = material.GetNormal(intersection.normal, intersection.uv);
+				float roughness = material.GetRoughness(intersection.uv);
+				float metallic = material.GetMetallic(intersection.uv);
 
 				const glm::vec3& normal = segment.surfaceNormal;
 
@@ -440,33 +440,50 @@ namespace CudaPBRT
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
 				if (scene.light_count > 0 && !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
+					// spatio reuse
+					Reservior<LightSample> spatio_reservior;
+					if (scene.iteration > 0)
+					{
+						// TODO: compute motion vector to locate current pixel in the buffer
+						int pre_index = segment.pixelId; // currently, assume there is no shifting
+
+						// TODO: get reservior from buffer
+					}
+
+					// standard RIS DI
 					Reservior<LightSample> light_sample_reservior;
 
 					for (int i = 0; i < scene.M; ++i)
 					{
 						LightSample light_sample;
-						scene.Sample_Li(rng, ray * intersection.t, normal, light_sample);
+						if (scene.Sample_Li(rng, intersection.p, normal, light_sample))
+						{
+							glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
 
-						glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
+							Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
 
-						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
-
-						light_sample_reservior.Update(rng.rand(), light_sample, glm::length(scattering_f) / light_sample.pdf);
+							light_sample_reservior.Update(rng.rand(), light_sample, glm::length(scattering_f) / light_sample.pdf);
+						}
 					}
 					
 					const LightSample& light_sample = light_sample_reservior.y;
+					float t = glm::length(light_sample.p - intersection.p);
 
-					if (!scene.Occluded(light_sample.t, light_sample.light->GetShapeId(), light_sample.shadowRay))
+					if (light_sample_reservior.M > 0 && !scene.Occluded(t, light_sample.light->GetShapeId(), Ray::SpawnRay(intersection.p, light_sample.wiW)))
 					{
 						glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
 
 						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
 
+						// compute W
 						light_sample_reservior.W = light_sample_reservior.weightSum / (light_sample_reservior.M * glm::length(scattering_f));
 						
-						segment.throughput *= scattering_f * light_sample.light->GetLe(light_sample.shadowRay * light_sample.t) * light_sample_reservior.W;
+						segment.throughput *= scattering_f * light_sample.light->GetLe(light_sample.p) * light_sample_reservior.W;
 						segment.radiance += segment.throughput;
 					}
+
+					// TODO: temporal reuse
+					Reservior<LightSample> temporal_reservior;
 				}
 			}
 		}
@@ -488,13 +505,13 @@ namespace CudaPBRT
 		const EnvironmentMap& env_map = scene.envMap;
 		if (intersection.id >= 0)
 		{
-			Material* material = scene.materials + intersection.material_id;
+			const Material& material = scene.materials[intersection.material_id];
 
-			if ((material->m_MaterialData.lightMaterial) || material->GetLv(intersection.uv) > 0.f)
+			if ((material.m_MaterialData.lightMaterial) || material.GetLv(intersection.uv) > 0.f)
 			{
-				segment.throughput *= material->GetIrradiance(intersection.uv);
+				segment.throughput *= material.GetIrradiance(intersection.uv);
 
-				if (material->m_MaterialData.lightMaterial 
+				if (material.m_MaterialData.lightMaterial 
 					&& segment.depth > 0 
 					&& !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
@@ -505,13 +522,13 @@ namespace CudaPBRT
 			}
 			else
 			{
-				Spectrum albedo = material->GetAlbedo(intersection.uv);
-				BSDF& bsdf = material->GetBSDF();
-				segment.materialType = material->m_MaterialData.type;
+				Spectrum albedo = material.GetAlbedo(intersection.uv);
+				const BSDF& bsdf = material.GetBSDF();
+				segment.materialType = material.m_MaterialData.type;
 
-				segment.surfaceNormal = material->GetNormal(intersection.normal, intersection.uv);
-				float roughness = material->GetRoughness(intersection.uv);
-				float metallic = material->GetMetallic(intersection.uv);
+				segment.surfaceNormal = material.GetNormal(intersection.normal, intersection.uv);
+				float roughness = material.GetRoughness(intersection.uv);
+				float metallic = material.GetMetallic(intersection.uv);
 
 				const glm::vec3& normal = segment.surfaceNormal;
 
@@ -530,33 +547,37 @@ namespace CudaPBRT
 					for (int i = 0; i < scene.M; ++i)
 					{
 						LightSample light_sample;
-						if (scene.Sample_Li(rng, ray * intersection.t, normal, light_sample))
+						if (scene.Sample_Li(rng, intersection.p, normal, light_sample))
 						{
 							glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
 
 							Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
 							float scattering_pdf = bsdf.PDF(bsdf_data, wo, wi);
-
-							light_sample_reservior.Update(rng.rand(), light_sample, CudaPBRT::PowerHeuristic(1, light_sample.pdf, 1, scattering_pdf) * glm::length(scattering_f) / light_sample.pdf);
+							if (scattering_pdf > 0.01f)
+							{
+								light_sample_reservior.Update(rng.rand(), light_sample, CudaPBRT::PowerHeuristic(1, light_sample.pdf, 1, scattering_pdf) * glm::length(scattering_f) / light_sample.pdf);
+							}
 						}
 					}
 
 					const LightSample& light_sample = light_sample_reservior.y;
+					float t = glm::length(light_sample.p - intersection.p);
 
-					if (light_sample_reservior.M > 0 && !scene.Occluded(light_sample.t, light_sample.light->GetShapeId(), light_sample.shadowRay))
+					if (light_sample_reservior.M > 0 && !scene.Occluded(t, light_sample.light->GetShapeId(), Ray::SpawnRay(intersection.p, light_sample.wiW)))
 					{
 						glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
 
 						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
 
 						light_sample_reservior.W = light_sample_reservior.weightSum / (light_sample_reservior.M * glm::length(scattering_f));
-
-						segment.radiance += scattering_f * light_sample.light->GetLe(light_sample.shadowRay * light_sample.t) * segment.throughput * light_sample_reservior.W;
+						if (light_sample_reservior.W > 0.01f)
+						{
+							segment.radiance += scattering_f * light_sample.light->GetLe(light_sample.p) * segment.throughput * light_sample_reservior.W;
+						}
 					}
 				}
 
 				// compute throughput
-				
 				BSDFSample bsdf_sample = bsdf.Sample_f(bsdf_data, wo, rng);
 
 				if (bsdf_sample.pdf > 0.f)
@@ -747,8 +768,8 @@ namespace CudaPBRT
 			//GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, *scene);
 
 			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			//GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			//GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
 
 			cudaDeviceSynchronize();
 			CUDA_CHECK_ERROR();
