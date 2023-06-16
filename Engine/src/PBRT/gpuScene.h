@@ -31,17 +31,14 @@ namespace CudaPBRT
 
         INLINE GPU_ONLY bool Sample_Li(RNG& rng, const glm::vec3& p, const glm::vec3& normal, LightSample& sample)
         {
-            int light_id = static_cast<int>(glm::floor(rng.rand() * 100000.f)) % light_count;
-            Light* light = lights[light_id];
-            sample = light->Sample_Li(p, normal, { rng.rand() , rng.rand() });
-            sample.pdf /= static_cast<float>(light_count);
-
+            float light_count_f = static_cast<float>(light_count);
             int light_id = static_cast<int>(glm::floor(rng.rand() * (light_count_f - 1.f)));
+            Light& light = lights[light_id];
 
-            sample = (lights + light_id)->Sample_Li(p, normal, { rng.rand() , rng.rand() });
+            sample = light.Sample_Li(p, normal, { rng.rand() , rng.rand() });
             sample.pdf /= light_count_f;
 
-            return (sample.pdf > 0.01f);// && !Occluded(sample.t, sample.light->GetShapeId(), sample.shadowRay);
+            return (sample.pdf > 0.01f);// && !Occluded(sample.t, light->GetShapeId(), sample.shadowRay);
         }
 
         INLINE GPU_ONLY float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)
