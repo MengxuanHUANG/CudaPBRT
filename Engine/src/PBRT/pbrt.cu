@@ -525,17 +525,33 @@ namespace CudaPBRT
 				// estimate direct light sample
 				if (scene.light_count > 0 && !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
-					LightSample light_sample;
-					if (scene.Sample_Li(rng, intersection.p, normal, light_sample))
+					Reservior<LightSample> light_sample_reservior;
+
+					for (int i = 0; i < scene.M; ++i)
+					{
+						LightSample light_sample;
+						if (scene.Sample_Li(rng, ray * intersection.t, normal, light_sample))
+						{
+							glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
+
+							Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
+							float scattering_pdf = bsdf.PDF(bsdf_data, wo, wi);
+
+							light_sample_reservior.Update(rng.rand(), light_sample, CudaPBRT::PowerHeuristic(1, light_sample.pdf, 1, scattering_pdf) * glm::length(scattering_f) / light_sample.pdf);
+						}
+					}
+
+					const LightSample& light_sample = light_sample_reservior.y;
+
+					if (light_sample_reservior.M > 0 && !scene.Occluded(light_sample.t, light_sample.light->GetShapeId(), light_sample.shadowRay))
 					{
 						glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
-						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi); // evaluate scattering bsdf
-						float scattering_pdf = bsdf.PDF(bsdf_data , wo, wi);// evaluate scattering pdf
-						if (scattering_pdf > 0.f)
-						{
-							segment.radiance += light_sample.light->GetLe(light_sample.shadowRay * light_sample.t) * scattering_f * segment.throughput *
-								CudaPBRT::PowerHeuristic(1, light_sample.pdf, 1, scattering_pdf) * AbsDot(light_sample.wiW, normal) / light_sample.pdf;
-						}
+
+						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
+
+						light_sample_reservior.W = light_sample_reservior.weightSum / (light_sample_reservior.M * glm::length(scattering_f));
+
+						segment.radiance += scattering_f * light_sample.light->GetLe(light_sample.shadowRay * light_sample.t) * segment.throughput * light_sample_reservior.W;
 					}
 				}
 
@@ -731,8 +747,8 @@ namespace CudaPBRT
 			//GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, *scene);
 
 			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			//GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			//GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
 
 			cudaDeviceSynchronize();
 			CUDA_CHECK_ERROR();

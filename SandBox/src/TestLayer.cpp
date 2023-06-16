@@ -59,7 +59,7 @@ void TestLayer::OnAttach()
 	m_CurrentFile = "CornellBox_MultiLights.json";
 
 	m_Scene->LoadSceneFromJsonFile((JSON_PATH + m_CurrentFile).c_str());
-	m_Scene->m_GPUScene.M = 1;
+	m_Scene->m_GPUScene.M = 5;
 
 	m_CudaPBRT = mkU<CudaPathTracer>();
 	m_CudaPBRT->InitCuda(*(m_Scene->camera));
