@@ -42,9 +42,15 @@ namespace CudaPBRT
 	class BxDF
 	{
 	public:
-		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const = 0;
-		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const = 0;
-		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const = 0;
+		CPU_GPU BxDF()
+			:etaB(AirETA)
+		{}
+		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const { return Spectrum(0.f); }
+		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const { return BSDFSample(); }
+		CPU_GPU virtual float PDF(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const { return 0.f; }
+
+	public:
+		float etaB;
 	};
 
 	class LambertianReflection : public BxDF
@@ -99,8 +105,9 @@ namespace CudaPBRT
 	{
 	public:
 		CPU_GPU SpecularTransmission(float eta)
-			:etaB(eta)
-		{}
+		{
+			etaB = eta;
+		}
 		CPU_GPU virtual Spectrum f(const BSDFData& data, const glm::vec3& wo, const glm::vec3& wi) const override
 		{
 			return Spectrum(0.f);
@@ -132,9 +139,6 @@ namespace CudaPBRT
 		{
 			return 0.f;
 		}
-
-	public:
-		float etaB;
 	};
 
 	// microfacet reflection

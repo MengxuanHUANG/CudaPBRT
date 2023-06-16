@@ -8,67 +8,72 @@
         "height": 680
     },
     "scene" : {
-      "objects" : [
+      "objects": [
         {
-          "type" : "Square",
-          "name" : "Floor",
-          "translation" : [0, -2.5, 0],
-          "rotation" : [-90, 0, 0],
-          "scale" : [10, 10, 1]
+          "type": "obj",
+          "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
+          "name": "Floor",
+          "translation": [ 0, -2.5, 0 ],
+          "rotation": [ -90, 0, 0 ],
+          "scale": [ 10, 10, 1 ]
         },
         {
-          "type" : "Square",
-          "name" : "Red wall",
-          "translation" : [5,2.5,0],
-          "rotation" : [0, -90, 0],
-          "scale" : [10, 10, 1],
-          "material" : "matteRed"
+          "type": "obj",
+          "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
+          "name": "Red wall",
+          "translation": [ 5, 2.5, 0 ],
+          "rotation": [ 0, -90, 0 ],
+          "scale": [ 10, 10, 1 ],
+          "material": "matteRed"
         },
         {
-          "type" : "Square",
-          "name" : "Green Wall",
-          "translation" : [-5, 2.5, 0],
-          "rotation" : [0, 90, 0],
-          "scale" : [10, 10, 1],
-          "material" : "matteGreen"
+          "type": "obj",
+          "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
+          "name": "Green Wall",
+          "translation": [ -5, 2.5, 0 ],
+          "rotation": [ 0, 90, 0 ],
+          "scale": [ 10, 10, 1 ],
+          "material": "matteGreen"
         },
         {
-          "type" : "Square",
-          "name" : "Back Wall",
-          "translation" : [0,2.5,5],
-          "rotation" : [0,180,0],
-          "scale" : [10, 10, 1],
-          "material" : "metallic workflow"
+          "type": "obj",
+          "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
+          "name": "Back Wall",
+          "translation": [ 0, 2.5, 5 ],
+          "rotation": [ 0, 180, 0 ],
+          "scale": [ 10, 10, 1 ],
+          "material": "metallic workflow"
         },
         {
-          "type" : "Square",
-          "name" : "Ceiling Wall",
-          "translation" : [0, 7.5, 0],
-          "rotation" : [90,0,0],
-          "scale" : [10, 10, 1]
+          "type": "obj",
+          "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
+          "name": "Ceiling Wall",
+          "translation": [ 0, 7.5, 0 ],
+          "rotation": [ 90, 0, 0 ],
+          "scale": [ 10, 10, 1 ]
         },
         {
-          "type" : "Cube",
-          "name" : "Long Cube",
-          "translation" : [2, 0, 3],
-          "rotation" : [0, 27.5, 0],
-          "scale" : [3, 6, 3]
+          "type": "Cube",
+          "name": "Long Cube",
+          "translation": [ 2, 0, 3 ],
+          "rotation": [ 0, 27.5, 0 ],
+          "scale": [ 3, 6, 3 ]
         },
         {
-          "type" : "Cube",
-          "name" : "Short Cube",
-          "translation" : [-2, -1, 0.75],
-          "rotation" : [0, -17.5, 0],
-          "scale" : [3, 3, 3]
+          "type": "Cube",
+          "name": "Short Cube",
+          "translation": [ -2, -1, 0.75 ],
+          "rotation": [ 0, -17.5, 0 ],
+          "scale": [ 3, 3, 3 ]
         }
       ],
       "materials" : [
         {
-          "type" : "LambertianReflection",
-          "name" : "red_light_material",
-          "albedo" : [ 17, 12, 4 ],
-          "Lv" : 1,
-          "lightMaterial" : true
+          "type": "LambertianReflection",
+          "name": "yellow_light_material",
+          "albedo": [ 17, 12, 4 ],
+          "Lv": 1,
+          "lightMaterial": true
         },
         {
           "type": "LambertianReflection",
@@ -99,20 +104,22 @@
         {
           "type": "ShapeLight",
           "shape": {
-            "type": "Square",
-            "name": "Light",
+            "type": "obj",
+            "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
+            "name": "YellowLight",
             "translation": [ 2, 7.45, 0 ],
             "rotation": [ 90, 0, 0 ],
             "scale": [ 3, 3, 1 ],
-            "material": "red_light_material"
+            "material": "yellow_light_material"
           },
           "doubleSide": false
         },
         {
           "type": "ShapeLight",
           "shape": {
-            "type": "Square",
-            "name": "Light",
+            "type": "obj",
+            "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
+            "name": "BlueLight",
             "translation": [ -2, 7.45, 0 ],
             "rotation": [ 90, 0, 0 ],
             "scale": [ 3, 3, 1 ],

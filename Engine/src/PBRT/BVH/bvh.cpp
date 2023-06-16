@@ -1,7 +1,6 @@
 #include "bvh.h"
 
 #include "PBRT/Shape/triangle.h"
-#include "PBRT/Shape/square.h"
 #include "PBRT/Shape/cube.h"
 #include "PBRT/Shape/sphere.h"
 
@@ -19,8 +18,6 @@ namespace CudaPBRT
 			return Triangle::GetWorldBounding({ vertices[data.triangle.vId[0]],
 												vertices[data.triangle.vId[1]],
 												vertices[data.triangle.vId[2]] });
-		case ShapeType::Square:
-			return Square::GetWorldBounding(data);
 		case ShapeType::Cube:
 			return Cube::GetWorldBounding(data);
 		case ShapeType::Sphere:

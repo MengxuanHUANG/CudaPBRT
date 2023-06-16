@@ -4,6 +4,9 @@
 
 namespace CudaPBRT
 {
+
+#define m_TransformInv m_UnionData.general_data.matrix4
+
     /**
     * Default position: (0, 0, 0)
     * Default length: 1
@@ -12,9 +15,11 @@ namespace CudaPBRT
     {
     public:
         CPU_GPU Cube(const ShapeData& data)
-            : Shape(data), shapeData(data)
+            : Shape(data)
         {
-            Shape::ComputeTransforms(data.translation, data.rotation, data.scale, m_Transform, m_TransformInv, m_TransformInvTranspose);
+            glm::mat4 tran;
+            glm::mat3 pos;
+            Shape::ComputeTransforms(data.translation, data.rotation, data.scale, tran, m_TransformInv, pos);
         }
 
         CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const override
@@ -45,7 +50,8 @@ namespace CudaPBRT
                 glm::vec3 v2(tmin.z, tmin.x, tmin.y);
 
                 glm::vec3 normal = -glm::sign(localRay.DIR) * glm::step(v1, tmin) * glm::step(v2, tmin);
-                normal = glm::normalize(m_TransformInvTranspose * normal);
+                glm::mat3 inv_transpose = glm::transpose(m_TransformInv);
+                normal = glm::normalize(inv_transpose * normal);
 
                 intersection = Intersection(t0, ray * t0, normal);
                 return true;
@@ -56,7 +62,8 @@ namespace CudaPBRT
                 glm::vec3 v2(tmax.z, tmax.x, tmax.y);
 
                 glm::vec3 normal = -glm::sign(localRay.DIR) * glm::step(tmax, v1) * glm::step(tmax, v2);
-                normal = glm::normalize(m_TransformInvTranspose * normal);
+                glm::mat3 inv_transpose = glm::transpose(m_TransformInv);
+                normal = glm::normalize(inv_transpose * normal);
 
                 intersection = Intersection(t1, ray * t1, normal);
                 return true;
@@ -141,12 +148,8 @@ namespace CudaPBRT
 
             return normal;
         }
-    
-    protected:
-        glm::mat4 m_Transform;
-        glm::mat4 m_TransformInv;
-        glm::mat3 m_TransformInvTranspose;
-
-        ShapeData shapeData;
     };
+
+#undef m_TransformInv
+#undef const_m_TransformInv
 }

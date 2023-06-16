@@ -31,19 +31,21 @@ namespace CudaPBRT
 
         INLINE GPU_ONLY bool Sample_Li(RNG& rng, const glm::vec3& p, const glm::vec3& normal, LightSample& sample)
         {
-            int light_id = static_cast<int>(glm::floor(rng.rand() * 100000.f)) % light_count;
-            Light* light = lights[light_id];
-            sample = light->Sample_Li(p, normal, { rng.rand() , rng.rand() });
-            sample.pdf /= static_cast<float>(light_count);
+            const float light_count_f = static_cast<float>(light_count);
 
-            return (sample.pdf > 0.01f) && !Occluded(sample.t, light->GetShapeId(), sample.shadowRay);
+            int light_id = static_cast<int>(glm::floor(rng.rand() * (light_count_f - 1.f)));
+
+            sample = (lights + light_id)->Sample_Li(p, normal, { rng.rand() , rng.rand() });
+            sample.pdf /= light_count_f;
+
+            return (sample.pdf > 0.01f) && !Occluded(sample.t, sample.light->GetShapeId(), sample.shadowRay);
         }
 
         INLINE GPU_ONLY float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)
         {
-            float area = shapes[light_id]->Area();
+            float area = shapes[light_id].Area();
 
-            glm::vec3 p_normal = shapes[light_id]->GetNormal(p);
+            glm::vec3 p_normal = shapes[light_id].GetNormal(p);
 
             float cosTheta = glm::dot(-wiW, p_normal);
             return (t * t / (cosTheta * area));
@@ -53,11 +55,12 @@ namespace CudaPBRT
         {
             printf("start free cuda\n");
             printf("start free arrays on cuda\n");
-            FreeArrayOnCuda<Shape>(shapes, shape_count);
+            CUDA_FREE(shapes);
             CUDA_CHECK_ERROR();
-            FreeArrayOnCuda<Material>(materials, material_count);
+            CUDA_FREE(materials);
             CUDA_CHECK_ERROR();
-            FreeArrayOnCuda<Light>(lights, light_count);
+            CUDA_FREE(lights);
+            CUDA_CHECK_ERROR();
             printf("end free arrays on cuda\n");
 
             printf("start free BVH arrays on cuda\n");
@@ -92,11 +95,11 @@ namespace CudaPBRT
             for (int i = 0; i < shape_count; ++i)
             {
                 Intersection it;
-                if (shapes[i]->IntersectionP(ray, it) && it < intersection)
+                if (shapes[i].IntersectionP(ray, it) && it < intersection)
                 {
                     intersection = it;
                     intersection.id = i;
-                    intersection.material_id = shapes[i]->material_id;
+                    intersection.material_id = shapes[i].material_id;
                 }
             }
             return !(intersection.id < 0);
@@ -126,11 +129,11 @@ namespace CudaPBRT
                         Intersection it;
                         for (int i = 0; i < node.primitiveCount; ++i)
                         {
-                            if (shapes[BVHShapeMap[node.primitiveId + i]]->IntersectionP(ray, it) && it < intersection)
+                            if (shapes[BVHShapeMap[node.primitiveId + i]].IntersectionP(ray, it) && it < intersection)
                             {
                                 intersection = it;
                                 intersection.id = BVHShapeMap[node.primitiveId + i];
-                                intersection.material_id = shapes[BVHShapeMap[node.primitiveId + i]]->material_id;
+                                intersection.material_id = shapes[BVHShapeMap[node.primitiveId + i]].material_id;
                             }
                         }
                         if (next_visit == 0) break;
@@ -177,7 +180,7 @@ namespace CudaPBRT
                         {
                             float dist = -1.f;
                             if ((BVHShapeMap[node.primitiveId + i] != light_shape_id) 
-                                && (dist = shapes[BVHShapeMap[node.primitiveId + i]]->SimpleIntersection(ray) > 0.f) 
+                                && (dist = shapes[BVHShapeMap[node.primitiveId + i]].SimpleIntersection(ray) > 0.f) 
                                 && dist < min_t)
                             {
                                 return true;
@@ -203,9 +206,9 @@ namespace CudaPBRT
         }
 
 	public:
-        Shape** shapes; // shapes on device
-        Material** materials; // materials on device
-		Light** lights; // lights on device
+        Shape* shapes; // shapes on device
+        Material* materials; // materials on device
+		Light* lights; // lights on device
         glm::vec3* vertices;
         glm::vec3* normals;
         glm::vec2* uvs;

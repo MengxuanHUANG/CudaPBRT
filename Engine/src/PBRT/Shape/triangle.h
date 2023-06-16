@@ -6,15 +6,28 @@
 
 namespace CudaPBRT
 {
+#define m_V m_UnionData.triangle_data.vertices
+#define m_N m_UnionData.triangle_data.normals
+#define m_UV m_UnionData.triangle_data.uvs
+
     class Triangle : public Shape
     {
     public:
         CPU_GPU Triangle(const ShapeData& data)
-            : Shape(data),
-              m_V{ data.vertices + data.triangle.vId[0], data.vertices + data.triangle.vId[1], data.vertices + data.triangle.vId[2] },
-              m_N{ data.normals + data.triangle.nId[0], data.normals + data.triangle.nId[1], data.normals + data.triangle.nId[2] },
-              m_UV{ data.uvs + data.triangle.uvId[0], data.uvs + data.triangle.uvId[1], data.uvs + data.triangle.uvId[2] }
-        {}
+            : Shape(data)
+        {
+            m_V[0] = (data.vertices + data.triangle.vId[0]);
+            m_V[1] = (data.vertices + data.triangle.vId[1]);
+            m_V[2] = (data.vertices + data.triangle.vId[2]);
+
+            m_N[0] = data.normals + data.triangle.nId[0];
+            m_N[1] = data.normals + data.triangle.nId[1];
+            m_N[2] = data.normals + data.triangle.nId[2];
+
+            m_UV[0] = data.uvs + data.triangle.uvId[0];
+            m_UV[1] = data.uvs + data.triangle.uvId[1];
+            m_UV[2] = data.uvs + data.triangle.uvId[2];
+        }
 
         CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const override
         {
@@ -134,7 +147,7 @@ namespace CudaPBRT
 
         CPU_GPU virtual glm::vec2 GetUV(const glm::vec3& p) const override
         {
-            return GetBarycentricInterpolation<glm::vec2>(*m_UV[0], *m_UV[1], *m_UV[2], p);
+            return GetBarycentricInterpolation<glm::vec2>(*m_UV[0], *m_UV[1], *m_UV[0], p);
         }
 
         INLINE CPU_ONLY static BoundingBox GetWorldBounding(const std::array<glm::vec3, 3>& v)
@@ -153,9 +166,9 @@ namespace CudaPBRT
 
             return a0 * x0 + a1 * x1 + a2 * x2;
         }
-    protected:
-        const glm::vec3 const* m_V[3];
-        const glm::vec3 const* m_N[3];
-        const glm::vec2 const* m_UV[3];
     };
+
+#undef m_V
+#undef m_N
+#undef m_UV
 }

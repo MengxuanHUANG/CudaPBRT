@@ -4,6 +4,9 @@
 
 namespace CudaPBRT
 {
+#define m_TransformInv m_UnionData.general_data.matrix4
+#define m_Translation m_UnionData.general_data.vector3
+
     /**
     * Default position: (0, 0, 0)
     * Default radius: 1
@@ -12,9 +15,12 @@ namespace CudaPBRT
 	{
 	public:
         CPU_GPU Sphere(const ShapeData& data)
-			: Shape(data), shapeData(data)
+			: Shape(data)
 		{
-            Shape::ComputeTransforms(data.translation, data.rotation, data.scale, m_Transform, m_TransformInv, m_TransformInvTranspose);
+            glm::mat4 tran;
+            glm::mat3 pos;
+            m_Translation = data.translation;
+            Shape::ComputeTransforms(data.translation, data.rotation, data.scale, tran, m_TransformInv, pos);
         }
 
         CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const override
@@ -36,7 +42,8 @@ namespace CudaPBRT
 
             if (t > 0.f)
             {
-                glm::vec3 normal = glm::normalize(m_TransformInvTranspose * (localRay * t));
+                glm::mat3 inv_transpose = glm::transpose(m_TransformInv);
+                glm::vec3 normal = glm::normalize(inv_transpose * (localRay * t));
 
                 intersection = Intersection(t, ray * t, normal);
                 return true;
@@ -114,15 +121,12 @@ namespace CudaPBRT
         }
         INLINE CPU_GPU glm::vec3 ComputeNormal(const glm::vec3& p) const
         {
-            return glm::normalize(p - shapeData.translation);
+            return glm::normalize(p - m_Translation);
         }
-
-    protected:
-        glm::mat4 m_Transform;
-        glm::mat4 m_TransformInv;
-        glm::mat3 m_TransformInvTranspose;
-
-        ShapeData shapeData;
 	};
 
+#undef m_TransformInv
+#undef m_Translation
+#undef const_m_TransformInv
+#undef const_m_Translation
 }

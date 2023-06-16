@@ -45,17 +45,17 @@ namespace CudaPBRT
 	struct LightData
 	{
 		LightType type;
-		Shape** shapes;
-		Material** materials;
+		Shape* shapes;
+		Material* materials;
 		int shapeId;
 		bool doubleSide;
 		Spectrum irradiance;
 
-		LightData(LightType type, Shape** shapes, Material** materials, int shape_id, const Spectrum& irradiance, bool doubleSide = false)
+		LightData(LightType type, Shape* shapes, Material* materials, int shape_id, const Spectrum& irradiance, bool doubleSide = false)
 			: type(type), shapes(shapes), materials(materials), shapeId(shape_id), doubleSide(doubleSide), irradiance(irradiance)
 		{}
 
-		LightData(const LightData& other, Shape** shapes, Material** materials)
+		LightData(const LightData& other, Shape* shapes, Material* materials)
 			: type(other.type), 
 			  shapes(shapes), materials(materials), 
 			  shapeId(other.shapeId), doubleSide(other.doubleSide), irradiance(other.irradiance)
@@ -72,6 +72,13 @@ namespace CudaPBRT
 
 		GPU_ONLY virtual LightSample Sample_Li(const glm::vec3& p, const glm::vec3& normal, const glm::vec2& xi) const = 0;
 		GPU_ONLY virtual float PDF(const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal) const = 0;
+	
+	public:
+		int m_ShapeId;
+		Shape* m_Shape;
+		Material* m_Material;
+		bool m_DoubleSide;
+
 	};
 
 	class ShapeLight : public Light 
@@ -79,11 +86,11 @@ namespace CudaPBRT
 	public:
 		// AreaLight Interface
 		CPU_GPU ShapeLight(const LightData& data)
-			: m_ShapeId(data.shapeId), 
-			  m_Shape(data.shapes[data.shapeId]), 
-			  m_Material(data.materials[m_Shape->material_id]), 
-			  m_DoubleSide(data.doubleSide)
 		{
+			m_ShapeId = data.shapeId;
+			m_Shape = data.shapes + data.shapeId;
+			m_Material = data.materials + m_Shape->material_id;
+			m_DoubleSide = data.doubleSide;
 		}
 
 		GPU_ONLY virtual Spectrum GetLe(const glm::vec3& p = glm::vec3(0.f)) const override
@@ -130,10 +137,5 @@ namespace CudaPBRT
 
 			return (t * t / (cosTheta * area));
 		}
-	public:
-		int m_ShapeId;
-		Shape* m_Shape;
-		Material* m_Material;
-		bool m_DoubleSide;
 	};
 }

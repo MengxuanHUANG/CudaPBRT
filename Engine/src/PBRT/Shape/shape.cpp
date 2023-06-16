@@ -16,8 +16,6 @@ namespace CudaPBRT
 			return ShapeType::Cube;
 		case "Triangle"_sh:
 			return ShapeType::Triangle;
-		case "Square"_sh:
-			return ShapeType::Square;
 		default:
 			return ShapeType::None;
 		}

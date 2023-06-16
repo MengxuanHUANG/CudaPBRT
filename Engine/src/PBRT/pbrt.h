@@ -34,13 +34,13 @@ namespace CudaPBRT
 	}
 
 	template<typename T, typename DataType>
-	void CreateArrayOnCude(T**& dev_array, size_t& dev_count, std::vector<DataType>& host_data);
+	void CreateArrayOnCuda(T*& dev_array, size_t& dev_count, std::vector<DataType>& host_data);
 
 	template<typename T>
 	void FreeArrayOnCuda(T**& device_array, size_t count);
 
 	template<typename T, typename DataType>
-	void UpdateArrayOnCuda(T**& dev_array, std::vector<DataType>& host_data, size_t start, size_t end);
+	void UpdateArrayOnCuda(T*& dev_array, std::vector<DataType>& host_data, size_t start, size_t end);
 
 	class CudaPathTracer
 	{

@@ -10,7 +10,6 @@
 #include "BVH/boundingBox.h"
 #include "intersection.h"
 #include "Shape/sphere.h"
-#include "Shape/square.h"
 #include "Shape/cube.h"
 #include "Shape/triangle.h"
 
@@ -37,63 +36,73 @@ namespace CudaPBRT
 		}
 	};
 
-	CPU_GPU Shape* Create(const ShapeData& data)
+	CPU_GPU void Create(Shape* shape_ptr, const ShapeData& data)
 	{
 		switch (data.type)
 		{
 		case ShapeType::Sphere:
-			return new Sphere(data);
+			new (shape_ptr) Sphere(data);
+			break;
 		case ShapeType::Cube:
-			return new Cube(data);
-		case ShapeType::Square:
-			return new Square(data);
+			new (shape_ptr) Cube(data);
+			break;
 		case ShapeType::Triangle:
-			return new Triangle(data);
+			new (shape_ptr) Triangle(data);
+			break;
 		default:
 			printf("Unknown ShapeType!\n");
-			return nullptr;
 		}
 	}
-	
-	CPU_GPU Material* Create(const MaterialData& data)
+
+	CPU_GPU void Create(Material* material_ptr, const MaterialData& data)
 	{
-		BSDF* bsdf = nullptr;
 		switch (data.type)
 		{
 		case MaterialType::LambertianReflection:
-			bsdf = new SingleBSDF(new LambertianReflection());
+			new (material_ptr) Material(data);
+			new (&material_ptr->m_BSDF) SingleBSDF();
+			new (&(material_ptr->m_BSDF.m_GeneralData.bxdfs[0])) LambertianReflection();
 			break;
 		case MaterialType::SpecularReflection:
-			bsdf = new SingleBSDF(new SpecularReflection());
+			new (material_ptr) Material(data);
+			new (&material_ptr->m_BSDF) SingleBSDF();
+			new (&(material_ptr->m_BSDF.m_GeneralData.bxdfs[0])) SpecularReflection();
 			break;
 		case MaterialType::SpecularTransmission:
-			bsdf = new SingleBSDF(new SpecularTransmission(data.eta));
+			new (material_ptr) Material(data);
+			new (&material_ptr->m_BSDF) SingleBSDF();
+			new (&(material_ptr->m_BSDF.m_GeneralData.bxdfs[0])) SpecularTransmission(data.eta);
 			break;
 		case MaterialType::Glass:
-			bsdf = new FresnelBSDF(new SpecularReflection(), new SpecularTransmission(data.eta), data.eta);
+			new (material_ptr) Material(data);
+			new (&material_ptr->m_BSDF) FresnelBSDF();
+			new (&(material_ptr->m_BSDF.m_GeneralData.bxdfs[0])) SpecularReflection();
+			new (&(material_ptr->m_BSDF.m_GeneralData.bxdfs[1])) SpecularTransmission(data.eta);
 			break;
 		case MaterialType::MicrofacetReflection:
-			bsdf = new SingleBSDF(new MicrofacetReflection());
+			new (material_ptr) Material(data);
+			new (&material_ptr->m_BSDF) SingleBSDF();
+			new (&(material_ptr->m_BSDF.m_GeneralData.bxdfs[0])) MicrofacetReflection();
 			break;
 		case MaterialType::MetallicWorkflow:
-			bsdf = new SingleBSDF(new MetallicWorkflow());
+			new (material_ptr) Material(data);
+			new (&material_ptr->m_BSDF) SingleBSDF();
+			new (&(material_ptr->m_BSDF.m_GeneralData.bxdfs[0])) MetallicWorkflow();
 			break;
 		default:
 			printf("Unknown MaterialType!\n");
-			return nullptr;
 		}
-		return new Material(data, bsdf);
 	}
 
-	CPU_GPU Light* Create(const LightData& data)
+	CPU_GPU void Create(Light* light_ptr, const LightData& data)
 	{
 		switch (data.type)
 		{
 		case LightType::ShapeLight:
-			return new ShapeLight(data);
+			new (light_ptr) ShapeLight(data);
+			break;
 		default:
 			printf("Unknown LightType!\n");
-			return nullptr;
 		}
 	}
 
@@ -168,16 +177,14 @@ namespace CudaPBRT
 	}
 
 	template<typename T, typename DataType>
-	__global__ void CreateArray(T** device_array, DataType* data, size_t max_count)
+	__global__ void CreateArray(T* device_array, DataType* data, size_t max_count)
 	{
 		int id = blockIdx.x;
 		if (id >= max_count)
 		{
 			return;
 		}
-		SAFE_FREE(device_array[id]);
-
-		device_array[id] = Create(data[id]);
+		Create(device_array + id, data[id]);
 	}
 
 	template<typename T>
@@ -188,9 +195,9 @@ namespace CudaPBRT
 			SAFE_FREE(device_array[i]);
 		}
 	}
-	
+
 	template<typename T, typename DataType>
-	void CreateArrayOnCude<T, DataType>(T**& dev_array, size_t& count, std::vector<DataType>& host_data)
+	void CreateArrayOnCuda<T, DataType>(T*& dev_array, size_t& count, std::vector<DataType>& host_data)
 	{
 		count = host_data.size();
 		if (count > 0 && dev_array == nullptr)
@@ -202,13 +209,7 @@ namespace CudaPBRT
 			cudaMemcpy(device_data, host_data.data(), sizeof(DataType) * count, cudaMemcpyHostToDevice);
 			CUDA_CHECK_ERROR();
 
-			cudaMalloc((void**)&dev_array, sizeof(T*) * count);
-			CUDA_CHECK_ERROR();
-
-			std::vector<T*> nullptr_arr;
-			nullptr_arr.resize(count, nullptr);
-
-			cudaMemcpy(dev_array, nullptr_arr.data(), sizeof(T*) * count, cudaMemcpyHostToDevice);
+			cudaMalloc((void**)&dev_array, sizeof(T) * count);
 			CUDA_CHECK_ERROR();
 
 			// Launch a kernel on the GPU with one thread for each element.
@@ -223,9 +224,9 @@ namespace CudaPBRT
 		}
 	}
 
-	template void CreateArrayOnCude<Light, LightData>(Light**& dev_array, size_t& dev_count, std::vector<LightData>& data);
-	template void CreateArrayOnCude<Shape, ShapeData>(Shape**& dev_array, size_t& dev_count, std::vector<ShapeData>& data);
-	template void CreateArrayOnCude<Material, MaterialData>(Material**& dev_array, size_t& dev_count, std::vector<MaterialData>& data);
+	template void CreateArrayOnCuda<Light, LightData>(Light*& dev_array, size_t& dev_count, std::vector<LightData>& host_data);
+	template void CreateArrayOnCuda<Material, MaterialData>(Material*& dev_array, size_t& dev_count, std::vector<MaterialData>& host_data);
+	template void CreateArrayOnCuda<Shape, ShapeData>(Shape*& dev_array, size_t& dev_count, std::vector<ShapeData>& host_data);
 
 	template<typename T>
 	void FreeArrayOnCuda(T**& device_array, size_t count)
@@ -248,7 +249,7 @@ namespace CudaPBRT
 	template void FreeArrayOnCuda(Light**& device_array, size_t count);
 
 	template<typename T, typename DataType>
-	void UpdateArrayOnCuda(T**& dev_array, std::vector<DataType>& host_data, size_t start, size_t end)
+	void UpdateArrayOnCuda(T*& dev_array, std::vector<DataType>& host_data, size_t start, size_t end)
 	{
 		size_t count = end - start;
 		if (start >= 0 && end <= host_data.size() && count > 0)
@@ -272,9 +273,9 @@ namespace CudaPBRT
 		}
 	}
 
-	template void UpdateArrayOnCuda<Light, LightData>(Light**& dev_array, std::vector<LightData>& data, size_t start, size_t end);
-	template void UpdateArrayOnCuda<Shape, ShapeData>(Shape**& dev_array, std::vector<ShapeData>& data, size_t start, size_t end);
-	template void UpdateArrayOnCuda<Material, MaterialData>(Material**& dev_array, std::vector<MaterialData>& data, size_t start, size_t end);
+	template void UpdateArrayOnCuda<Light, LightData>(Light*& dev_array, std::vector<LightData>& data, size_t start, size_t end);
+	template void UpdateArrayOnCuda<Shape, ShapeData>(Shape*& dev_array, std::vector<ShapeData>& data, size_t start, size_t end);
+	template void UpdateArrayOnCuda<Material, MaterialData>(Material*& dev_array, std::vector<MaterialData>& data, size_t start, size_t end);
 
 	__global__ void GlobalCastRayFromCamera(int iteration, PerspectiveCamera* camera, PathSegment* pathSegment) 
 	{
@@ -323,12 +324,12 @@ namespace CudaPBRT
 		Intersection& intersection = segment.intersection;
 		if (intersection.id >= 0)
 		{
-			Material* material = scene.materials[scene.shapes[intersection.id]->material_id];
+			Material* material = scene.materials + intersection.material_id;
 			float Lv = material->GetLv(intersection.uv);
 			if (Lv > 0.f)
 			{
-				glm::vec2 uv = scene.shapes[intersection.id]->GetUV(intersection.p);
-				segment.surfaceNormal = material->GetNormal(scene.shapes[intersection.id]->GetNormal(intersection.p), uv);
+				glm::vec2 uv = scene.shapes[intersection.id].GetUV(intersection.p);
+				segment.surfaceNormal = material->GetNormal(scene.shapes[intersection.id].GetNormal(intersection.p), uv);
 			}
 			else
 			{
@@ -354,7 +355,7 @@ namespace CudaPBRT
 		Ray& ray = segment.ray;
 		if (intersection.id >= 0)
 		{
-			Material* material = scene.materials[intersection.material_id];
+			Material* material = scene.materials + intersection.material_id;
 			float Lv = material->GetLv(intersection.uv);
 
 			if (Lv > 0.f)
@@ -365,7 +366,6 @@ namespace CudaPBRT
 			}
 			else
 			{
-				Material* material = scene.materials[intersection.material_id];
 				Spectrum albedo = material->GetAlbedo(intersection.uv);
 				segment.materialType = material->m_MaterialData.type;
 
@@ -410,7 +410,7 @@ namespace CudaPBRT
 
 		if(intersection.id >= 0)
 		{
-			Material* material = scene.materials[intersection.material_id];
+			Material* material = scene.materials + intersection.material_id;
 			float Lv = material->GetLv(intersection.uv);
 
 			if (Lv > 0.f)
@@ -469,7 +469,7 @@ namespace CudaPBRT
 		const EnvironmentMap& env_map = scene.envMap;
 		if (intersection.id >= 0)
 		{
-			Material* material = scene.materials[intersection.material_id];
+			Material* material = scene.materials + intersection.material_id;
 
 			if ((material->m_MaterialData.lightMaterial) || material->GetLv(intersection.uv) > 0.f)
 			{
@@ -712,8 +712,8 @@ namespace CudaPBRT
 			//GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, *scene);
 
 			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			//GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			//GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
 
 			cudaDeviceSynchronize();
 			CUDA_CHECK_ERROR();

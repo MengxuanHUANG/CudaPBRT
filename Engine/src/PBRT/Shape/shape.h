@@ -31,8 +31,7 @@ namespace CudaPBRT
 		None = 0,
 		Sphere,
 		Cube,
-		Triangle,
-		Square,
+		Triangle
 	};
 
 	ShapeType Str2ShapeType(const char* str);
@@ -70,6 +69,25 @@ namespace CudaPBRT
 		{}
 	};
 
+	struct TriangleUnionData
+	{
+		glm::vec3* vertices[3];
+		glm::vec3* normals[3];
+		glm::vec2* uvs[3];
+	};
+
+	struct GeneralShapeUnionData
+	{
+		glm::mat4 matrix4;
+		glm::vec3 vector3;
+	};
+
+	union ShapeUnionData
+	{
+		TriangleUnionData triangle_data;
+		GeneralShapeUnionData general_data;
+	};
+
 	class Shape
 	{
 	public:
@@ -85,6 +103,8 @@ namespace CudaPBRT
 		// TODO: change to pure virtual functions
 		CPU_GPU virtual float Area() const { return 0.f; }
 		CPU_GPU virtual glm::vec3 Sample(glm::vec2 xi) const { return glm::vec3(0.f); }
+
+		INLINE CPU_ONLY static BoundingBox GetWorldBounding(const ShapeData& data) { return BoundingBox(); }
 
 	public:
 		INLINE CPU_GPU static void ComputeTransforms(const glm::vec3& translate,
@@ -117,5 +137,7 @@ namespace CudaPBRT
 		}
 	public:
 		int material_id;
+
+		ShapeUnionData m_UnionData;
 	};
 }

@@ -91,16 +91,11 @@ namespace CudaPBRT
 	class Material
 	{
 	public:
-		CPU_GPU Material(const MaterialData& mData, BSDF* bsdf)
-			:m_MaterialData(mData), m_BSDF(bsdf)
+		CPU_GPU Material(const MaterialData& mData)
+			:m_MaterialData(mData)
 		{}
 
-		CPU_GPU virtual ~Material() 
-		{
-			SAFE_FREE(m_BSDF);
-		}
-
-		INLINE CPU_GPU BSDF& GetBSDF() { return *m_BSDF; }
+		INLINE CPU_GPU BSDF& GetBSDF() { return m_BSDF; }
 
 		INLINE GPU_ONLY Spectrum GetAlbedo(const glm::vec2& uv = glm::vec2(0, 0)) const
 		{
@@ -166,6 +161,6 @@ namespace CudaPBRT
 		}
 	public:
 		MaterialData m_MaterialData;
-		BSDF* m_BSDF;
+		BSDF m_BSDF;
 	};
 }

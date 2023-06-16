@@ -355,10 +355,10 @@ namespace CudaPBRT
 		CreateBoundingBox(shapeData, vertices);
 
 		// create shapes, meterials, and lights on cuda
-		CreateArrayOnCude<Material, MaterialData>(m_GPUScene.materials, m_GPUScene.material_count, materialData);
+		CreateArrayOnCuda<Material, MaterialData>(m_GPUScene.materials, m_GPUScene.material_count, materialData);
 
 		// buffer Shape datas (obtain shapes' GPU pointers)
-		CreateArrayOnCude<Shape, ShapeData>(m_GPUScene.shapes, m_GPUScene.shape_count, shapeData);
+		CreateArrayOnCuda<Shape, ShapeData>(m_GPUScene.shapes, m_GPUScene.shape_count, shapeData);
 
 		// shape lights must be emplaced after obtaining shapes' GPU pointers
 		for (LightData& shape_light_data : temp_shape_lights)
@@ -366,7 +366,7 @@ namespace CudaPBRT
 			lightData.emplace_back(shape_light_data, m_GPUScene.shapes, m_GPUScene.materials);
 		}
 		
-		CreateArrayOnCude<Light, LightData>(m_GPUScene.lights, m_GPUScene.light_count, lightData);
+		CreateArrayOnCuda<Light, LightData>(m_GPUScene.lights, m_GPUScene.light_count, lightData);
 		return true;
 	}
 
