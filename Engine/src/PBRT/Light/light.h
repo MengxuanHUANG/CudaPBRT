@@ -37,9 +37,22 @@ namespace CudaPBRT
 		CPU_GPU LightSample()
 		{}
 
+		CPU_GPU LightSample(const LightSample& other)
+			: light(other.light), pdf(other.pdf), p(other.p), wiW(other.wiW)
+		{}
+
 		CPU_GPU LightSample(const Light* light, float pdf, const glm::vec3& p, const glm::vec3& wiW)
 			: light(light), pdf(pdf), p(p), wiW(wiW)
 		{}
+
+		CPU_GPU LightSample& operator=(const LightSample& other)
+		{
+			light = other.light;
+			pdf = other.pdf;
+			p = other.p;
+			wiW = other.wiW;
+			return *this;
+		}
 	};
 
 	struct LightData

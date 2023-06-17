@@ -352,8 +352,15 @@ namespace CudaPBRT
 
 		// buffer Shape datas (obtain shapes' GPU pointers)
 		CreateArrayOnCuda<Shape, ShapeData>(m_GPUScene.shapes, m_GPUScene.shape_count, shapeData);
-		
 		CreateArrayOnCuda<Light, LightData>(m_GPUScene.lights, m_GPUScene.light_count, lightData);
+
+		// Reserviors
+		std::vector<Reservior<LightSample>> empty_reserviors;
+		empty_reserviors.resize(camera->width * camera->height);
+
+		BufferData<Reservior<LightSample>>(m_GPUScene.spatialReserviors, empty_reserviors.data(), empty_reserviors.size());
+		BufferData<Reservior<LightSample>>(m_GPUScene.temporalReserviors, empty_reserviors.data(), empty_reserviors.size());
+
 		return true;
 	}
 

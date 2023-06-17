@@ -25,6 +25,15 @@ namespace CudaPBRT
 			M = M0 + other.M;
 		}
 
+		CPU_GPU Reservior<T> operator=(const Reservior<T>& other)
+		{
+			y = other.y;
+			weightSum = other.weightSum;
+			M = other.M;
+			W = other.W;
+			return *this;
+		}
+
 	public:
 		T y;
 		float weightSum;

@@ -10,6 +10,7 @@
 
 #include "BVH/bvh.h"
 #include "texture.h"
+#include "reservior.h"
 #include "pbrt.h"
 
 namespace CudaPBRT
@@ -21,11 +22,14 @@ namespace CudaPBRT
 	{
 	public:
         GPUScene()
-            : shapes(nullptr), materials(nullptr), lights(nullptr), 
+            : M(1), N(1),
+              temporalReuse(true), 
+              shapes(nullptr), materials(nullptr), lights(nullptr), 
               vertices(nullptr), normals(nullptr), uvs(nullptr),
               shape_count(0), material_count(0), light_count(0),
               boundings(nullptr), BVH(nullptr), BVHShapeMap(nullptr),
-              envMap(0), M(1)
+              temporalReserviors(nullptr), spatialReserviors(nullptr),
+              envMap(0)
         {
         }
 
@@ -76,6 +80,12 @@ namespace CudaPBRT
             CUDA_FREE(BVHShapeMap);
             CUDA_CHECK_ERROR();
             printf("end free BVH arrays on cuda\n");
+
+            CUDA_FREE(temporalReserviors);
+            CUDA_CHECK_ERROR();
+            CUDA_FREE(spatialReserviors);
+            CUDA_CHECK_ERROR();
+
 
             printf("end free cuda\n");
         }
@@ -205,6 +215,9 @@ namespace CudaPBRT
         }
 
 	public:
+        int M, N;
+        bool temporalReuse;
+
         Shape* shapes; // shapes on device
         Material* materials; // materials on device
 		Light* lights; // lights on device
@@ -216,12 +229,14 @@ namespace CudaPBRT
         size_t material_count;
 		size_t light_count;
 
-        int M;
-
         // BVH
         BoundingBox* boundings;
         BVHNode* BVH;
         int* BVHShapeMap;
+
+        // ReSTIR DI
+        Reservior<LightSample>* temporalReserviors;
+        Reservior<LightSample>* spatialReserviors;
 
         EnvironmentMap envMap;
 	};

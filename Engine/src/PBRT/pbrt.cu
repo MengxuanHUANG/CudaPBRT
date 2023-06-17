@@ -440,18 +440,21 @@ namespace CudaPBRT
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
 				if (scene.light_count > 0 && !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
-					// spatio reuse
-					Reservior<LightSample> spatio_reservior;
-					if (scene.iteration > 0)
+					Reservior<LightSample> temporal_reservior;
+
+					// obtain previous reservior
+					Reservior<LightSample> pre_reservior;
+
+					if (iteration > 0)
 					{
 						// TODO: compute motion vector to locate current pixel in the buffer
 						int pre_index = segment.pixelId; // currently, assume there is no shifting
 
-						// TODO: get reservior from buffer
+						pre_reservior = scene.temporalReserviors[pre_index];
 					}
 
 					// standard RIS DI
-					Reservior<LightSample> light_sample_reservior;
+					Reservior<LightSample> current_reservior;
 
 					for (int i = 0; i < scene.M; ++i)
 					{
@@ -462,28 +465,75 @@ namespace CudaPBRT
 
 							Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
 
-							light_sample_reservior.Update(rng.rand(), light_sample, glm::length(scattering_f) / light_sample.pdf);
+							current_reservior.Update(rng.rand(), light_sample, glm::length(scattering_f) / light_sample.pdf);
 						}
 					}
 					
-					const LightSample& light_sample = light_sample_reservior.y;
+					const LightSample& light_sample = current_reservior.y;
 					float t = glm::length(light_sample.p - intersection.p);
-
-					if (light_sample_reservior.M > 0 && !scene.Occluded(t, light_sample.light->GetShapeId(), Ray::SpawnRay(intersection.p, light_sample.wiW)))
+					float p_hat = 0.f;
+					if (current_reservior.M > 0)
 					{
-						glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
+						if (!scene.Occluded(t, light_sample.light->GetShapeId(), Ray::SpawnRay(intersection.p, light_sample.wiW)))
+						{
+							glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
 
-						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
+							Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
 
-						// compute W
-						light_sample_reservior.W = light_sample_reservior.weightSum / (light_sample_reservior.M * glm::length(scattering_f));
-						
-						segment.throughput *= scattering_f * light_sample.light->GetLe(light_sample.p) * light_sample_reservior.W;
-						segment.radiance += segment.throughput;
+							p_hat = glm::length(scattering_f);
+							
+							current_reservior.weightSum = glm::max(0.0001f, current_reservior.weightSum);
+
+							current_reservior.W = (current_reservior.weightSum / (p_hat * current_reservior.M));
+						}
+						else
+						{
+							current_reservior.W = 0.f;
+						}
+						temporal_reservior.Merge(rng.rand(), current_reservior, p_hat);
 					}
 
-					// TODO: temporal reuse
-					Reservior<LightSample> temporal_reservior;
+					// temporal reuse
+					if (scene.temporalReuse && pre_reservior.M > 0)
+					{
+						LightSample& pre_sample = pre_reservior.y;
+						glm::vec3 wi = glm::normalize(world_to_local * pre_sample.wiW);
+						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(pre_sample.wiW, normal);
+					
+						float p_hat = glm::length(scattering_f);
+					
+						if (pre_reservior.M > 20 * current_reservior.M)
+						{
+							pre_reservior.weightSum *= static_cast<float>(20 * current_reservior.M) / static_cast<float>(pre_reservior.M);
+							pre_reservior.M = 20 * current_reservior.M;
+						}
+
+						pre_reservior.Update(rng.rand(), temporal_reservior.y, temporal_reservior.weightSum);
+						temporal_reservior = pre_reservior;
+					}
+					
+
+					// TODO: spatio reuse
+					Reservior<LightSample> spatio_reservior;
+
+					if (temporal_reservior.M > 0)
+					{
+						const LightSample& final_sample = temporal_reservior.y;
+
+						glm::vec3 wi = glm::normalize(world_to_local * final_sample.wiW);
+						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(final_sample.wiW, normal);
+						p_hat = glm::length(scattering_f);
+						
+						temporal_reservior.W = temporal_reservior.weightSum / (p_hat * temporal_reservior.M);
+						
+						scene.temporalReserviors[segment.pixelId] = temporal_reservior;
+
+						if (temporal_reservior.W > 0.f)
+						{
+							segment.throughput *= scattering_f * final_sample.light->GetLe(final_sample.p) * temporal_reservior.W;
+							segment.radiance += segment.throughput;
+						}
+					}
 				}
 			}
 		}
