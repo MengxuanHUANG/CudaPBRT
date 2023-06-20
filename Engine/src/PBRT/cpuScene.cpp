@@ -358,9 +358,6 @@ namespace CudaPBRT
 		std::vector<Reservior<LightSample>> empty_reserviors;
 		empty_reserviors.resize(camera->width * camera->height);
 
-		BufferData<Reservior<LightSample>>(m_GPUScene.spatialReserviors, empty_reserviors.data(), empty_reserviors.size());
-		BufferData<Reservior<LightSample>>(m_GPUScene.temporalReserviors, empty_reserviors.data(), empty_reserviors.size());
-
 		return true;
 	}
 

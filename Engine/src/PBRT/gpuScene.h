@@ -28,7 +28,6 @@ namespace CudaPBRT
               vertices(nullptr), normals(nullptr), uvs(nullptr),
               shape_count(0), material_count(0), light_count(0),
               boundings(nullptr), BVH(nullptr), BVHShapeMap(nullptr),
-              temporalReserviors(nullptr), spatialReserviors(nullptr),
               envMap(0)
         {
         }
@@ -80,12 +79,6 @@ namespace CudaPBRT
             CUDA_FREE(BVHShapeMap);
             CUDA_CHECK_ERROR();
             printf("end free BVH arrays on cuda\n");
-
-            CUDA_FREE(temporalReserviors);
-            CUDA_CHECK_ERROR();
-            CUDA_FREE(spatialReserviors);
-            CUDA_CHECK_ERROR();
-
 
             printf("end free cuda\n");
         }
@@ -233,10 +226,6 @@ namespace CudaPBRT
         BoundingBox* boundings;
         BVHNode* BVH;
         int* BVHShapeMap;
-
-        // ReSTIR DI
-        Reservior<LightSample>* temporalReserviors;
-        Reservior<LightSample>* spatialReserviors;
 
         EnvironmentMap envMap;
 	};

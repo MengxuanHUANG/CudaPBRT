@@ -298,7 +298,7 @@ namespace CudaPBRT
 		segment.pixelId = index;
 	}
 
-	__global__ void GlobalSceneIntersection(int max_index, PathSegment* pathSegment, GPUScene scene)
+	__global__ void GlobalSceneIntersection(int max_index, PathSegment* pathSegment, GBuffer gBuffer, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 		if (index >= max_index)
@@ -310,9 +310,13 @@ namespace CudaPBRT
 		segment.intersection.Reset();
 
 		scene.SceneIntersection(segment.ray, segment.intersection);
+		if (segment.depth == 0)
+		{
+			gBuffer.curGeometryInfos[segment.pixelId] = segment.intersection;
+		}
 	}
 
-	__global__ void GlobalDisplayNormal(int max_index, PathSegment* pathSegment, GPUScene scene)
+	__global__ void GlobalDisplayNormal(int max_index, PathSegment* pathSegment, GBuffer gBuffer, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -322,7 +326,7 @@ namespace CudaPBRT
 		}
 
 		PathSegment& segment = pathSegment[index];
-		Intersection& intersection = segment.intersection;
+		Intersection& intersection = gBuffer.curGeometryInfos[segment.pixelId];
 		if (intersection.id >= 0)
 		{
 			Material* material = scene.materials + intersection.material_id;
@@ -342,7 +346,7 @@ namespace CudaPBRT
 		segment.End();
 	}
 
-	__global__ void GlobalNaiveLi(int iteration, int max_index, PathSegment* pathSegment, GPUScene scene)
+	__global__ void GlobalNaiveLi(int iteration, int max_index, PathSegment* pathSegment, GBuffer gBuffer, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -396,7 +400,7 @@ namespace CudaPBRT
 		segment.End();
 	}
 	
-	__global__ void GlobalDirectLi(int iteration, int max_index, PathSegment* pathSegment, GPUScene scene)
+	__global__ void GlobalDirectLi(int iteration, int max_index, PathSegment* pathSegment, GBuffer gBuffer, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -440,8 +444,6 @@ namespace CudaPBRT
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
 				if (scene.light_count > 0 && !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
-					Reservior<LightSample> temporal_reservior;
-
 					// obtain previous reservior
 					Reservior<LightSample> pre_reservior;
 
@@ -450,7 +452,7 @@ namespace CudaPBRT
 						// TODO: compute motion vector to locate current pixel in the buffer
 						int pre_index = segment.pixelId; // currently, assume there is no shifting
 
-						pre_reservior = scene.temporalReserviors[pre_index];
+						pre_reservior = gBuffer.preReserviors[pre_index];
 					}
 
 					// standard RIS DI
@@ -488,9 +490,10 @@ namespace CudaPBRT
 						}
 						else
 						{
+							current_reservior.weightSum = 0.f;
 							current_reservior.W = 0.f;
+							current_reservior.y = LightSample();
 						}
-						temporal_reservior.Merge(rng.rand(), current_reservior, p_hat);
 					}
 
 					// temporal reuse
@@ -499,7 +502,7 @@ namespace CudaPBRT
 						LightSample& pre_sample = pre_reservior.y;
 						glm::vec3 wi = glm::normalize(world_to_local * pre_sample.wiW);
 						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(pre_sample.wiW, normal);
-					
+						
 						float p_hat = glm::length(scattering_f);
 					
 						if (pre_reservior.M > 20 * current_reservior.M)
@@ -508,29 +511,29 @@ namespace CudaPBRT
 							pre_reservior.M = 20 * current_reservior.M;
 						}
 
-						pre_reservior.Update(rng.rand(), temporal_reservior.y, temporal_reservior.weightSum);
-						temporal_reservior = pre_reservior;
+						current_reservior.Update(rng.rand(), pre_reservior.y, pre_reservior.weightSum);
+						current_reservior.M += pre_reservior.M - 1;
 					}
 					
 
 					// TODO: spatio reuse
 					Reservior<LightSample> spatio_reservior;
 
-					if (temporal_reservior.M > 0)
+					if (current_reservior.M > 0)
 					{
-						const LightSample& final_sample = temporal_reservior.y;
+						const LightSample& final_sample = current_reservior.y;
 
 						glm::vec3 wi = glm::normalize(world_to_local * final_sample.wiW);
 						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(final_sample.wiW, normal);
 						p_hat = glm::length(scattering_f);
 						
-						temporal_reservior.W = temporal_reservior.weightSum / (p_hat * temporal_reservior.M);
+						current_reservior.W = current_reservior.weightSum / (p_hat * current_reservior.M);
 						
-						scene.temporalReserviors[segment.pixelId] = temporal_reservior;
+						gBuffer.curReserviors[segment.pixelId] = current_reservior;
 
-						if (temporal_reservior.W > 0.f)
+						if (current_reservior.W > 0.f)
 						{
-							segment.throughput *= scattering_f * final_sample.light->GetLe(final_sample.p) * temporal_reservior.W;
+							segment.throughput *= scattering_f * final_sample.light->GetLe(final_sample.p) * current_reservior.W;
 							segment.radiance += segment.throughput;
 						}
 					}
@@ -540,7 +543,7 @@ namespace CudaPBRT
 		segment.End();
 	}
 
-	__global__ void GlobalMIS_Li(int iteration, int max_index, PathSegment* pathSegment, GPUScene scene)
+	__global__ void GlobalMIS_Li(int iteration, int max_index, PathSegment* pathSegment, GBuffer gBuffer, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -649,7 +652,7 @@ namespace CudaPBRT
 		segment.End();
 	}
 
-	__global__ void GlobalWritePixel(int iteration, int max_index, PathSegment* pathSegment, uchar4* img, float3* hdr_img)
+	__global__ void GlobalWritePixel(int iteration, int max_index, PathSegment* pathSegment, uchar4* img, float3* hdr_img, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 		
@@ -658,7 +661,7 @@ namespace CudaPBRT
 			return;
 		}
 		PathSegment& segment = pathSegment[index];
-		int& pixelId = segment.pixelId;
+		const int& pixelId = segment.pixelId;
 
 		writePixel(iteration, hdr_img[pixelId], img[pixelId], segment.radiance);
 	}
@@ -724,6 +727,17 @@ namespace CudaPBRT
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 		glBindTexture(GL_TEXTURE_2D, 0);
 
+		// create GBuffers
+		cudaMalloc((void**)&GBuffer.preReserviors, sizeof(Reservior<LightSample>) * width * height);
+		CUDA_CHECK_ERROR();
+		cudaMalloc((void**)&GBuffer.curReserviors, sizeof(Reservior<LightSample>) * width * height);
+		CUDA_CHECK_ERROR();
+
+		cudaMalloc((void**)&GBuffer.preGeometryInfos, sizeof(Intersection) * width * height);
+		CUDA_CHECK_ERROR();
+		cudaMalloc((void**)&GBuffer.curGeometryInfos, sizeof(Intersection) * width * height);
+		CUDA_CHECK_ERROR();
+
 		// create rendered image on cpu
 		host_image = new uchar4[width * height];
 
@@ -759,6 +773,15 @@ namespace CudaPBRT
 		CUDA_FREE(device_hdr_image);
 		CUDA_FREE(device_pathSegment);
 		CUDA_FREE(device_terminatedPathSegment);
+
+		CUDA_FREE(GBuffer.preReserviors);
+		CUDA_CHECK_ERROR();
+		CUDA_FREE(GBuffer.curReserviors);
+		CUDA_CHECK_ERROR();
+		CUDA_FREE(GBuffer.preGeometryInfos);
+		CUDA_CHECK_ERROR();
+		CUDA_FREE(GBuffer.curGeometryInfos);
+		CUDA_CHECK_ERROR();
 
 		if (host_image)
 		{
@@ -807,7 +830,7 @@ namespace CudaPBRT
 			KernalConfig intersectionConfig({ max_count, 1, 1 }, { 8, 0, 0 });
 
 			// intersection
-			GlobalSceneIntersection << < intersectionConfig.numBlocks, intersectionConfig.threadPerBlock >> > (max_count, device_pathSegment, *scene);
+			GlobalSceneIntersection << < intersectionConfig.numBlocks, intersectionConfig.threadPerBlock >> > (max_count, device_pathSegment, GBuffer, *scene);
 			cudaDeviceSynchronize();
 			CUDA_CHECK_ERROR();
 
@@ -815,11 +838,11 @@ namespace CudaPBRT
 
 			KernalConfig throughputConfig({ max_count, 1, 1 }, { 8, 0, 0 });
 			
-			//GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, *scene);
+			//GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, GBuffer, *scene);
 
-			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
-			//GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, *scene);
+			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+			GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+			//GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
 
 			cudaDeviceSynchronize();
 			CUDA_CHECK_ERROR();
@@ -828,11 +851,14 @@ namespace CudaPBRT
 			auto end = thrust::remove_if(devPathsThr, devPathsThr + max_count, RemoveInvalidPaths());
 			max_count = end - devPathsThr;
 		}
+		// swap
+		SwapGBuffer();
+
 		int numContributing = devTerminatedThr.get() - device_terminatedPathSegment;
 		KernalConfig pixelConfig({ numContributing, 1, 1 }, { 8, 0, 0 });
 		
 		GlobalWritePixel << <pixelConfig.numBlocks, pixelConfig.threadPerBlock >> > (m_Iteration, numContributing, device_terminatedPathSegment,
-																					 device_image, device_hdr_image);
+																					 device_image, device_hdr_image, *scene);
 		
 		cudaDeviceSynchronize();
 		CUDA_CHECK_ERROR();
@@ -854,5 +880,10 @@ namespace CudaPBRT
 		// Copy input vectors from host memory to GPU buffers.
 		cudaMemcpy(device_camera, &camera, sizeof(PerspectiveCamera), cudaMemcpyHostToDevice);
 		CUDA_CHECK_ERROR();
+	}
+
+	void CudaPathTracer::SwapGBuffer()
+	{
+		GBuffer.Swap();
 	}
 }

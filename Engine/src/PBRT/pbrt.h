@@ -10,9 +10,15 @@
 
 namespace CudaPBRT
 {
+	class LightSample;
+
+	template<typename T>
+	class Reservior;
+
 	class GPUScene;
 	class CudaTexture;
 	class RNG;
+	class Intersection;
 
 	CPU_GPU Ray CastRay(const PerspectiveCamera& camera, const glm::vec2& p, RNG& rng);
 
@@ -42,6 +48,28 @@ namespace CudaPBRT
 	template<typename T, typename DataType>
 	void UpdateArrayOnCuda(T*& dev_array, std::vector<DataType>& host_data, size_t start, size_t end);
 
+	struct GBuffer
+	{
+		Reservior<LightSample>* preReserviors = nullptr;
+		Reservior<LightSample>* curReserviors = nullptr;
+		Intersection* preGeometryInfos = nullptr;
+		Intersection* curGeometryInfos = nullptr;
+
+		void Swap()
+		{
+			{
+				Reservior<LightSample>* temp = preReserviors;
+				preReserviors = curReserviors;
+				curReserviors = temp;
+			}
+			{
+				Intersection* temp = preGeometryInfos;
+				preGeometryInfos = curGeometryInfos;
+				curGeometryInfos = temp;
+			}
+		}
+	};
+
 	class CudaPathTracer
 	{
 	public:
@@ -57,6 +85,8 @@ namespace CudaPBRT
 		virtual void UpdateCamera(PerspectiveCamera& camera);
 		virtual unsigned int GetDisplayTextureId() const { return m_DisplayImage; }
 
+		virtual void SwapGBuffer();
+
 		inline void ResetPRBT() { m_Iteration = 0; }
 
 	public:
@@ -66,6 +96,8 @@ namespace CudaPBRT
 
 		// texture handler
 		unsigned int m_DisplayImage = 0;
+
+		GBuffer GBuffer; // 0 for last frame, 1 for current frame
 
 		PerspectiveCamera* device_camera = nullptr;
 		uchar4* device_image = nullptr;
