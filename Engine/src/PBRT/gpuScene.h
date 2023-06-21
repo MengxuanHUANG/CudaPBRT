@@ -23,7 +23,8 @@ namespace CudaPBRT
 	public:
         GPUScene()
             : M(1), N(1),
-              temporalReuse(true), 
+              temporalReuse(false), spatialReuse(true),
+              spatialReuseCount(5), spatialReuseRadius(1.f),
               shapes(nullptr), materials(nullptr), lights(nullptr), 
               vertices(nullptr), normals(nullptr), uvs(nullptr),
               shape_count(0), material_count(0), light_count(0),
@@ -210,6 +211,12 @@ namespace CudaPBRT
 	public:
         int M, N;
         bool temporalReuse;
+        bool spatialReuse;
+
+        int spatialReuseCount;
+        float spatialReuseRadius;
+
+        glm::ivec2 dim;
 
         Shape* shapes; // shapes on device
         Material* materials; // materials on device

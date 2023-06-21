@@ -98,7 +98,10 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 		bool is_edited = false;
 		is_edited |= ImGui::Button("Reset PT");
 		is_edited |= ImGui::DragInt("M", &(m_Scene->m_GPUScene.M), 1, 1, 20);
+		is_edited |= ImGui::DragInt("SpatialReuse Count", &(m_Scene->m_GPUScene.spatialReuseCount), 1, 1, 20);
+		is_edited |= ImGui::DragFloat("SpatialReuse Radius", &(m_Scene->m_GPUScene.spatialReuseRadius), 1.f, 0.f, 30.f);
 		is_edited |= ImGui::Checkbox("Temporal Reuse", &(m_Scene->m_GPUScene.temporalReuse));
+		is_edited |= ImGui::Checkbox("Spatial Reuse", &(m_Scene->m_GPUScene.spatialReuse));
 		ImGui::Image((void*)(intptr_t)(m_CudaPBRT->GetDisplayTextureId()), ImVec2(camera.width, camera.height));
 		if (is_edited) m_CudaPBRT->ResetPRBT();
 	}

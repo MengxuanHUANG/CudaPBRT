@@ -35,6 +35,7 @@ namespace CudaPBRT
 		glm::vec3 wiW = glm::vec3(0.f);
 		
 		CPU_GPU LightSample()
+			: light(nullptr), pdf(-1.f), p(0.f), wiW(0.f)
 		{}
 
 		CPU_GPU LightSample(const LightSample& other)

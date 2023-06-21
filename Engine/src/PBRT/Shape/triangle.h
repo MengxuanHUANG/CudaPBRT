@@ -135,14 +135,14 @@ namespace CudaPBRT
         
         CPU_GPU virtual glm::vec3 Sample(glm::vec2 xi) const override
         {
-            xi = (xi.x + xi.y > 1.f ? 1.f - xi : xi);
+            xi = (xi.x + xi.y > 1.f ? glm::vec2(1.f) - xi : xi);
 
             return xi.x * *m_V[2] + xi.y * *m_V[1] + (1.f - xi.x - xi.y) * *m_V[0];
         }
 
         CPU_GPU virtual float Area() const override
         {
-            return glm::length(glm::cross(*m_V[1] - *m_V[0], *m_V[2] - *m_V[0]));
+            return 0.5f * glm::length(glm::cross(*m_V[1] - *m_V[0], *m_V[2] - *m_V[0]));
         }
 
         CPU_GPU virtual glm::vec2 GetUV(const glm::vec3& p) const override

@@ -278,7 +278,7 @@ namespace CudaPBRT
 	template void UpdateArrayOnCuda<Shape, ShapeData>(Shape*& dev_array, std::vector<ShapeData>& data, size_t start, size_t end);
 	template void UpdateArrayOnCuda<Material, MaterialData>(Material*& dev_array, std::vector<MaterialData>& data, size_t start, size_t end);
 
-	__global__ void GlobalCastRayFromCamera(int iteration, PerspectiveCamera* camera, PathSegment* pathSegment) 
+	__global__ void GlobalCastRayFromCamera(int iteration, PerspectiveCamera* camera, PathSegment* pathSegment, GBuffer gBuffer)
 	{
 		int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 		int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -292,6 +292,10 @@ namespace CudaPBRT
 		PathSegment& segment = pathSegment[index];
 
 		segment.Reset();
+		
+		gBuffer.curReserviors[index].Reset();
+		gBuffer.curGeometryInfos[index].Reset();
+		gBuffer.intermediaReserviors[index].Reset();
 
 		CudaRNG rng(iteration, index, 1);
 		segment.ray = CastRay(*camera, { x, y }, rng);
@@ -326,7 +330,11 @@ namespace CudaPBRT
 		}
 
 		PathSegment& segment = pathSegment[index];
-		Intersection& intersection = gBuffer.curGeometryInfos[segment.pixelId];
+
+		int pixel_id_x = segment.pixelId % scene.dim.x;
+		glm::vec2 pixel_id = glm::vec2(pixel_id_x, (segment.pixelId - pixel_id_x) / scene.dim.x);
+		int p_id = pixel_id.y * scene.dim.x + pixel_id.x;
+		Intersection& intersection = gBuffer.curGeometryInfos[p_id];
 		if (intersection.id >= 0)
 		{
 			Material* material = scene.materials + intersection.material_id;
@@ -400,6 +408,223 @@ namespace CudaPBRT
 		segment.End();
 	}
 	
+	__global__ void GlobalSampling(int iteration, int max_index, PathSegment* pathSegment, GBuffer gBuffer, GPUScene scene)
+	{
+		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+		if (index >= max_index || pathSegment[index].IsEnd())
+		{
+			return;
+		}
+
+		PathSegment& segment = pathSegment[index];
+		const Intersection& intersection = segment.intersection;
+		const Ray& ray = segment.ray;
+
+		if (intersection.id >= 0)
+		{
+			const Material& material = scene.materials[intersection.material_id];
+			float Lv = material.GetLv(intersection.uv);
+
+			if (Lv <= 0.f // not hit emissive part
+				&& scene.light_count > 0 // has light to sampling
+				&& !MaterialIs(segment.materialType, MaterialType::Specular)) // not hit Specular material
+			{
+				Spectrum albedo = material.GetAlbedo(intersection.uv);
+				const BSDF& bsdf = material.GetBSDF();
+				segment.materialType = material.m_MaterialData.type;
+
+				segment.surfaceNormal = material.GetNormal(intersection.normal, intersection.uv);
+				float roughness = material.GetRoughness(intersection.uv);
+				float metallic = material.GetMetallic(intersection.uv);
+
+				const glm::vec3& normal = segment.surfaceNormal;
+
+				glm::mat3 world_to_local = WorldToLocal(normal);
+				glm::vec3 wo = glm::normalize(world_to_local * -ray.DIR);
+
+				BSDFData bsdf_data(normal, roughness, metallic, segment.eta, albedo);
+
+				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
+
+				// standard RIS DI
+				Reservior<LightSample> current_reservior;
+
+				for (int i = 0; i < scene.M; ++i)
+				{
+					LightSample light_sample;
+					if (scene.Sample_Li(rng, intersection.p, normal, light_sample))
+					{
+						glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
+
+						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
+						float p_hat = glm::length(scattering_f);
+						if (p_hat > 0.f)
+						{
+							current_reservior.Update(rng.rand(), light_sample, p_hat / light_sample.pdf);
+						}
+					}
+				}
+
+				const LightSample& light_sample = current_reservior.y;
+				float t = glm::length(light_sample.p - intersection.p);
+				float p_hat = 0.f;
+				if (current_reservior.M > 0)
+				{
+					if (!scene.Occluded(t, light_sample.light->GetShapeId(), Ray::SpawnRay(intersection.p, light_sample.wiW)))
+					{
+						glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
+
+						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
+
+						p_hat = glm::length(scattering_f);
+
+						current_reservior.weightSum = glm::max(0.0001f, current_reservior.weightSum);
+
+						current_reservior.W = (current_reservior.weightSum / (p_hat * current_reservior.M));
+					}
+					else
+					{
+						current_reservior.weightSum = 0.f;
+						current_reservior.W = 0.f;
+					}
+					gBuffer.curReserviors[segment.pixelId] = current_reservior;
+				}
+			}
+			return;
+		}
+		segment.End();
+	}
+
+	__global__ void GlobalTemporalReuse(int iteration, int max_index, PathSegment* pathSegment, GBuffer gBuffer, GPUScene scene)
+	{
+		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+		if (index >= max_index || pathSegment[index].IsEnd())
+		{
+			return;
+		}
+		
+		const PathSegment& segment = pathSegment[index];
+		const Intersection& intersection = segment.intersection;
+		const Ray& ray = segment.ray;
+
+		if (!segment.IsEnd() && iteration > 0)
+		{
+			// TODO: compute motion vector to locate current pixel in the buffer
+			int pre_index = segment.pixelId; // currently, assume there is no shifting
+			Reservior<LightSample> pre_reservior = gBuffer.preReserviors[pre_index];
+
+			if (pre_reservior.M > 0)
+			{
+				Reservior<LightSample>& current_reservior = gBuffer.curReserviors[segment.pixelId];
+
+				//LightSample& pre_sample = pre_reservior.y;
+				//
+				//const Material& material = scene.materials[intersection.material_id];
+				//
+				//Spectrum albedo = material.GetAlbedo(intersection.uv);
+				//const BSDF& bsdf = material.GetBSDF();
+				//
+				//float roughness = material.GetRoughness(intersection.uv);
+				//float metallic = material.GetMetallic(intersection.uv);
+				//
+				//const glm::vec3& normal = segment.surfaceNormal;
+				//
+				//glm::mat3 world_to_local = WorldToLocal(normal);
+				//glm::vec3 wo = glm::normalize(world_to_local * -ray.DIR);
+				//
+				//BSDFData bsdf_data(normal, roughness, metallic, segment.eta, albedo);
+				//
+				//glm::vec3 wi = glm::normalize(world_to_local * pre_sample.wiW);
+				//Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(pre_sample.wiW, normal);
+				//
+				//float p_hat = glm::length(scattering_f);
+
+				if (current_reservior.M > 0 && pre_reservior.M > 20 * current_reservior.M)
+				{
+					pre_reservior.weightSum *= static_cast<float>(20 * current_reservior.M) / static_cast<float>(pre_reservior.M);
+					pre_reservior.M = 20 * current_reservior.M;
+				}
+
+				CudaRNG rng(iteration, index, 5 + segment.depth * 11);
+				
+				current_reservior.Update(rng.rand(), pre_reservior.y, pre_reservior.weightSum);
+				current_reservior.M += pre_reservior.M - 1;
+			}
+		}
+	}
+
+	__global__ void GlobalSpatialReuse(int iteration, int max_index, PathSegment* pathSegment, GBuffer gBuffer, GPUScene scene)
+	{
+		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+		if (index >= max_index || pathSegment[index].IsEnd())
+		{
+			return;
+		}
+		
+		const PathSegment& segment = pathSegment[index];
+
+		if (!segment.IsEnd() && iteration > 0)
+		{
+			CudaRNG rng(iteration, index, 7 + segment.depth * 13);
+
+			Reservior<LightSample> spatio_reservior;
+
+			int pixel_id_x = segment.pixelId % scene.dim.x;
+			glm::vec2 pixel_id = glm::vec2(pixel_id_x, (segment.pixelId - pixel_id_x) / scene.dim.x);
+
+			const Intersection& g_buffer_cur = gBuffer.curGeometryInfos[segment.pixelId];
+
+			for (int i = 0; i < scene.spatialReuseCount; ++i)
+			{
+				float radius = scene.spatialReuseRadius * rng.rand();
+				float angle = 2.f * Pi * rng.rand();
+				
+				glm::vec2 offset = radius * glm::vec2(glm::cos(angle), glm::sin(angle));
+
+				glm::ivec2 neighbor_id = glm::ivec2(pixel_id + offset);
+
+				if (neighbor_id.x < 0 || neighbor_id.x >= scene.dim.x || neighbor_id.y < 0 || neighbor_id.y >= scene.dim.y)
+				{
+					continue;
+				}
+
+				int nid = neighbor_id.y * scene.dim.x + neighbor_id.x;
+
+				const Intersection& g_buffer_neighbor = gBuffer.curGeometryInfos[nid];
+				if ((glm::dot(g_buffer_cur.normal, g_buffer_neighbor.normal)) < 0.906f)
+				{
+					continue;
+				}
+
+				if (g_buffer_cur.t > 1.1f * g_buffer_neighbor.t || g_buffer_neighbor.t < 0.9f * g_buffer_cur.t)
+				{
+					continue;
+				}
+
+				Reservior<LightSample> neighbor_reservior = gBuffer.curReserviors[nid];
+				if (neighbor_reservior.M > 0)
+				{
+					spatio_reservior.Update(rng.rand(), neighbor_reservior.y, neighbor_reservior.weightSum);
+					spatio_reservior.M += neighbor_reservior.M - 1;
+				}
+			}
+			if (spatio_reservior.M > 0)
+			{
+				const Reservior<LightSample>& current_reservior = gBuffer.curReserviors[segment.pixelId];
+				if (current_reservior.M > 0 && spatio_reservior.M > 20 * current_reservior.M)
+				{
+					spatio_reservior.weightSum *= static_cast<float>(20 * current_reservior.M) / static_cast<float>(spatio_reservior.M);
+					spatio_reservior.M = 20 * current_reservior.M;
+				}
+
+				gBuffer.intermediaReserviors[segment.pixelId] = spatio_reservior;
+			}
+		}
+	}
+
 	__global__ void GlobalDirectLi(int iteration, int max_index, PathSegment* pathSegment, GBuffer gBuffer, GPUScene scene)
 	{
 		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -428,9 +653,7 @@ namespace CudaPBRT
 			{
 				Spectrum albedo = material.GetAlbedo(intersection.uv);
 				const BSDF& bsdf = material.GetBSDF();
-				segment.materialType = material.m_MaterialData.type;
 
-				segment.surfaceNormal = material.GetNormal(intersection.normal, intersection.uv);
 				float roughness = material.GetRoughness(intersection.uv);
 				float metallic = material.GetMetallic(intersection.uv);
 
@@ -444,80 +667,14 @@ namespace CudaPBRT
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
 				if (scene.light_count > 0 && !MaterialIs(segment.materialType, MaterialType::Specular))
 				{
-					// obtain previous reservior
-					Reservior<LightSample> pre_reservior;
-
-					if (iteration > 0)
-					{
-						// TODO: compute motion vector to locate current pixel in the buffer
-						int pre_index = segment.pixelId; // currently, assume there is no shifting
-
-						pre_reservior = gBuffer.preReserviors[pre_index];
-					}
-
-					// standard RIS DI
-					Reservior<LightSample> current_reservior;
-
-					for (int i = 0; i < scene.M; ++i)
-					{
-						LightSample light_sample;
-						if (scene.Sample_Li(rng, intersection.p, normal, light_sample))
-						{
-							glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
-
-							Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
-
-							current_reservior.Update(rng.rand(), light_sample, glm::length(scattering_f) / light_sample.pdf);
-						}
-					}
+					Reservior<LightSample>& current_reservior = gBuffer.curReserviors[segment.pixelId];
+					const Reservior<LightSample>& inter_reservior = gBuffer.intermediaReserviors[segment.pixelId];
 					
-					const LightSample& light_sample = current_reservior.y;
-					float t = glm::length(light_sample.p - intersection.p);
-					float p_hat = 0.f;
-					if (current_reservior.M > 0)
+					if (inter_reservior.M > 0)
 					{
-						if (!scene.Occluded(t, light_sample.light->GetShapeId(), Ray::SpawnRay(intersection.p, light_sample.wiW)))
-						{
-							glm::vec3 wi = glm::normalize(world_to_local * light_sample.wiW);
-
-							Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
-
-							p_hat = glm::length(scattering_f);
-							
-							current_reservior.weightSum = glm::max(0.0001f, current_reservior.weightSum);
-
-							current_reservior.W = (current_reservior.weightSum / (p_hat * current_reservior.M));
-						}
-						else
-						{
-							current_reservior.weightSum = 0.f;
-							current_reservior.W = 0.f;
-							current_reservior.y = LightSample();
-						}
+						current_reservior.Update(rng.rand(), inter_reservior.y, inter_reservior.weightSum);
+						current_reservior.M += inter_reservior.M - 1;
 					}
-
-					// temporal reuse
-					if (scene.temporalReuse && pre_reservior.M > 0)
-					{
-						LightSample& pre_sample = pre_reservior.y;
-						glm::vec3 wi = glm::normalize(world_to_local * pre_sample.wiW);
-						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(pre_sample.wiW, normal);
-						
-						float p_hat = glm::length(scattering_f);
-					
-						if (pre_reservior.M > 20 * current_reservior.M)
-						{
-							pre_reservior.weightSum *= static_cast<float>(20 * current_reservior.M) / static_cast<float>(pre_reservior.M);
-							pre_reservior.M = 20 * current_reservior.M;
-						}
-
-						current_reservior.Update(rng.rand(), pre_reservior.y, pre_reservior.weightSum);
-						current_reservior.M += pre_reservior.M - 1;
-					}
-					
-
-					// TODO: spatio reuse
-					Reservior<LightSample> spatio_reservior;
 
 					if (current_reservior.M > 0)
 					{
@@ -525,15 +682,13 @@ namespace CudaPBRT
 
 						glm::vec3 wi = glm::normalize(world_to_local * final_sample.wiW);
 						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(final_sample.wiW, normal);
-						p_hat = glm::length(scattering_f);
+						float p_hat = glm::length(scattering_f);
 						
 						current_reservior.W = current_reservior.weightSum / (p_hat * current_reservior.M);
-						
-						gBuffer.curReserviors[segment.pixelId] = current_reservior;
 
 						if (current_reservior.W > 0.f)
 						{
-							segment.throughput *= scattering_f * final_sample.light->GetLe(final_sample.p) * current_reservior.W;
+							segment.throughput *= scattering_f * current_reservior.W * final_sample.light->GetLe(final_sample.p);
 							segment.radiance += segment.throughput;
 						}
 					}
@@ -732,6 +887,8 @@ namespace CudaPBRT
 		CUDA_CHECK_ERROR();
 		cudaMalloc((void**)&GBuffer.curReserviors, sizeof(Reservior<LightSample>) * width * height);
 		CUDA_CHECK_ERROR();
+		cudaMalloc((void**)&GBuffer.intermediaReserviors, sizeof(Reservior<LightSample>) * width * height);
+		CUDA_CHECK_ERROR();
 
 		cudaMalloc((void**)&GBuffer.preGeometryInfos, sizeof(Intersection) * width * height);
 		CUDA_CHECK_ERROR();
@@ -778,6 +935,9 @@ namespace CudaPBRT
 		CUDA_CHECK_ERROR();
 		CUDA_FREE(GBuffer.curReserviors);
 		CUDA_CHECK_ERROR();
+		CUDA_FREE(GBuffer.intermediaReserviors);
+		CUDA_CHECK_ERROR();
+
 		CUDA_FREE(GBuffer.preGeometryInfos);
 		CUDA_CHECK_ERROR();
 		CUDA_FREE(GBuffer.curGeometryInfos);
@@ -816,11 +976,13 @@ namespace CudaPBRT
 	{
 		int max_count = width * height;
 		
+		scene->dim = glm::ivec2(width, height);
+
 		auto devTerminatedThr = devTerminatedPathsThr;
 		
 		// cast ray from camera
 		KernalConfig CamConfig({ width, height, 1 }, { 3, 3, 0 });
-		GlobalCastRayFromCamera << < CamConfig.numBlocks, CamConfig.threadPerBlock >> > (m_Iteration, device_camera, device_pathSegment);
+		GlobalCastRayFromCamera << < CamConfig.numBlocks, CamConfig.threadPerBlock >> > (m_Iteration, device_camera, device_pathSegment, GBuffer);
 		cudaDeviceSynchronize();
 		CUDA_CHECK_ERROR();
 
@@ -841,6 +1003,22 @@ namespace CudaPBRT
 			//GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, GBuffer, *scene);
 
 			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+			GlobalSampling << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+			
+			if (scene->temporalReuse)
+			{
+				//GlobalTemporalReuse << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+				//cudaDeviceSynchronize();
+				//CUDA_CHECK_ERROR();
+			}
+			
+			if(scene->spatialReuse)
+			{
+				GlobalSpatialReuse << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+				cudaDeviceSynchronize();
+				CUDA_CHECK_ERROR();
+			}
+
 			GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
 			//GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
 

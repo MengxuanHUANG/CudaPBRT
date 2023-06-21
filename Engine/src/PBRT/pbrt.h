@@ -52,6 +52,9 @@ namespace CudaPBRT
 	{
 		Reservior<LightSample>* preReserviors = nullptr;
 		Reservior<LightSample>* curReserviors = nullptr;
+		
+		Reservior<LightSample>* intermediaReserviors = nullptr;
+
 		Intersection* preGeometryInfos = nullptr;
 		Intersection* curGeometryInfos = nullptr;
 
