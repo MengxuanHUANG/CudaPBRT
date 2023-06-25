@@ -10,6 +10,8 @@
 #include "PBRT/Shape/shape.h"
 #include "PBRT/Material/material.h"
 
+#include "PBRT/texture.h"
+
 namespace CudaPBRT
 {
 	class Light;
@@ -22,7 +24,8 @@ namespace CudaPBRT
 		None = 0,
 		ShapeLight,
 		PointLight,
-		SpotLight
+		SpotLight,
+		EnvironmentLight
 	};
 	
 	LightType Str2LightType(const char* str);
@@ -56,18 +59,45 @@ namespace CudaPBRT
 		}
 	};
 
-	struct LightData
+	struct ShapeLightData
 	{
-		LightType type;
-		ShapeData shape_data;
 		MaterialData material_data;
+		ShapeData shape_data;
 		int shapeId;
 		bool doubleSide;
 		Spectrum irradiance;
+	};
 
-		LightData(LightType type, const ShapeData& shape_data,  const MaterialData& material_data, int shape_id, const Spectrum& irradiance, bool doubleSide = false)
-			: type(type), shape_data(shape_data), material_data(material_data), shapeId(shape_id), doubleSide(doubleSide), irradiance(irradiance)
-		{}
+	union LightDataUnion
+	{
+		LightDataUnion() {}
+
+		ShapeLightData shape_light;
+		CudaTexObj environment_map;
+	};
+
+	struct LightData
+	{
+		LightType type;
+
+		LightDataUnion union_data;
+
+		LightData(const ShapeData& shape_data,  const MaterialData& material_data, int shape_id, const Spectrum& irradiance, bool doubleSide = false)
+			: type(LightType::ShapeLight)
+		{
+
+			union_data.shape_light.shape_data = shape_data;
+			union_data.shape_light.material_data = material_data;
+			union_data.shape_light.shapeId = shape_id;
+			union_data.shape_light.doubleSide = doubleSide;
+			union_data.shape_light.irradiance = irradiance;
+		}
+
+		LightData(const CudaTexObj& env_map)
+			: type(LightType::EnvironmentLight)
+		{
+			union_data.environment_map = env_map;
+		}
 	};
 
 	struct ShapeLightUnionData
@@ -76,23 +106,37 @@ namespace CudaPBRT
 		Shape shape;
 		Material material;
 		bool doubleSide;
+
+		ShapeLightUnionData() {}
 	};
 
 	struct PointLightUnionData
 	{
-		Spectrum irradiance = Spectrum(0.f);
+		Spectrum irradiance;
+
+		PointLightUnionData() {}
+	};
+
+	struct EnvironmentLightUnionData
+	{
+		EnvironmentMap envMap;
+
+		EnvironmentLightUnionData() {}
 	};
 
 	union UnionLightData
 	{
+		CPU_GPU UnionLightData() {}
+
 		ShapeLightUnionData shapeLightData;
-		PointLightUnionData pointLightData;
+		EnvironmentLightUnionData envLightData;
 	};
 
 	class Light
 	{
 	public:
 		CPU_GPU Light() {}
+
 		GPU_ONLY virtual Spectrum GetLe(const glm::vec3& p = glm::vec3(0.f)) const = 0;
 		CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const { return false; }
 		CPU_GPU virtual int GetShapeId() const { return -1; }
@@ -101,24 +145,24 @@ namespace CudaPBRT
 		GPU_ONLY virtual float PDF(const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal) const = 0;
 	
 	public:
-		ShapeLightUnionData shapeLightData;
+		UnionLightData unionLightData;
 	};
 
 	class ShapeLight : public Light 
 	{
-#define m_ShapeId shapeLightData.shapeId
-#define m_Shape shapeLightData.shape
-#define m_Material shapeLightData.material
-#define m_DoubleSide shapeLightData.doubleSide
+#define m_ShapeId unionLightData.shapeLightData.shapeId
+#define m_Shape unionLightData.shapeLightData.shape
+#define m_Material unionLightData.shapeLightData.material
+#define m_DoubleSide unionLightData.shapeLightData.doubleSide
 	public:
 		// AreaLight Interface
 		CPU_GPU ShapeLight(const LightData& data)
 		{
-			m_ShapeId = data.shapeId;
-			Create(&m_Shape, data.shape_data);
-			Create(&m_Material, data.material_data);
+			m_ShapeId = data.union_data.shape_light.shapeId;
+			Create(&m_Shape, data.union_data.shape_light.shape_data);
+			Create(&m_Material, data.union_data.shape_light.material_data);
 
-			m_DoubleSide = data.doubleSide;
+			m_DoubleSide = data.union_data.shape_light.doubleSide;
 		}
 
 		GPU_ONLY virtual Spectrum GetLe(const glm::vec3& p = glm::vec3(0.f)) const override

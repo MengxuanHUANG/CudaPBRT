@@ -56,7 +56,7 @@ TestLayer::~TestLayer()
 
 void TestLayer::OnAttach()
 {
-	m_CurrentFile = "CornellBox.json";
+	m_CurrentFile = "CornellBox_Env.json";
 
 	m_Scene->LoadSceneFromJsonFile((JSON_PATH + m_CurrentFile).c_str());
 	m_Scene->m_GPUScene.M = 1;
@@ -107,7 +107,7 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 	}
 	ImGui::End();
 	
-	ImGui::Begin("Save Image");
+	ImGui::Begin("Save Image", &open, window_flags);
 	{
 		ImGui::Checkbox("Auto Save", &auto_save);
 		ImGui::InputInt("AUto Save Iteration", &auto_save_it);

@@ -242,7 +242,7 @@ namespace CudaPBRT
 					bool double_side = false;
 					SafeGet(double_side, light, "doubleSide", bool);
 
-					lightData.emplace_back(type, shapeData.back(), materialData[shapeData.back().material_id], shapeData.size() - 1, Spectrum(Lv), double_side);
+					lightData.emplace_back(shapeData.back(), materialData[shapeData.back().material_id], shapeData.size(), Spectrum(Lv), double_side);
 				}
 			}
 			return true;
@@ -295,6 +295,9 @@ namespace CudaPBRT
 
 			m_Textures.emplace_back(CudaTexture::CreateCudaTexture(env_map_path.c_str(), true));
 			m_GPUScene.envMap.SetTexObj(m_Textures.back()->GetTextureObject());
+
+			// add environment light for direct light sampling
+			lightData.emplace_back(m_Textures.back()->GetTextureObject());
 		}
 
 		if (scene_data.contains("objects"))
@@ -342,7 +345,7 @@ namespace CudaPBRT
 		{
 			for (int i = objectData[tri_light.obj_id].start_id; i < objectData[tri_light.obj_id].end_id; ++i)
 			{
-				lightData.emplace_back(LightType::ShapeLight, shapeData[i], materialData[shapeData[i].material_id], i, Spectrum(tri_light.Lv), tri_light.double_side);
+				lightData.emplace_back(shapeData[i], materialData[shapeData[i].material_id], i, Spectrum(tri_light.Lv), tri_light.double_side);
 			}
 		}
 

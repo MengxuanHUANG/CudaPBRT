@@ -17,6 +17,7 @@
 #include "Material/bsdf.h"
 #include "Sampler/rng.h"
 #include "Light/light.h"
+#include "Light/environmentLight.h"
 
 #include <GL/glew.h>
 
@@ -101,6 +102,9 @@ namespace CudaPBRT
 		{
 		case LightType::ShapeLight:
 			new (light_ptr) ShapeLight(data);
+			break;
+		case LightType::EnvironmentLight:
+			new (light_ptr) EnvironmentLight(data);
 			break;
 		default:
 			printf("Unknown LightType!\n");
@@ -493,7 +497,6 @@ namespace CudaPBRT
 			}
 			return;
 		}
-		segment.End();
 	}
 
 	__global__ void GlobalTemporalReuse(int iteration, int max_index, PathSegment* pathSegment, GBuffer gBuffer, GPUScene scene)
@@ -699,6 +702,12 @@ namespace CudaPBRT
 					}
 				}
 			}
+		}
+		else if (scene.envMap.GetTexObj() > 0)
+		{
+			float4 irradiance = scene.envMap.GetIrradiance(ray.DIR);
+			segment.throughput *= Spectrum(irradiance.x, irradiance.y, irradiance.z);
+			segment.radiance += segment.throughput;
 		}
 		segment.End();
 	}

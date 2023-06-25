@@ -6,7 +6,7 @@ namespace CudaPBRT
 	class Sampler
 	{
 	public:
-		CPU_GPU static glm::vec2 SquareToDiskConcentric(const glm::vec2& xi)
+		INLINE CPU_GPU static glm::vec2 SquareToDiskConcentric(const glm::vec2& xi)
 		{
             glm::vec2 offset = xi * 2.f - 1.f;
 
@@ -36,6 +36,20 @@ namespace CudaPBRT
 
 			return result;
 		 }
+
+		INLINE CPU_GPU static glm::vec3 SquareToSphereUniform(const glm::vec2& xi)
+		{
+			float z = 1.f - 2.f * xi.x;
+
+			return glm::vec3(glm::cos(2 * Pi * xi.y) * glm::sqrt(1.f - z * z),
+							 glm::sin(2 * Pi * xi.y) * glm::sqrt(1.f - z * z),
+							 z);
+		}
+
+		INLINE CPU_GPU static float SquareToSphereUniformPDF(const glm::vec3& sample)
+		{
+			return Inv4Pi;
+		}
 
 		INLINE CPU_GPU static float SquareToHemisphereCosinePDF(const glm::vec3& sample)
 		{

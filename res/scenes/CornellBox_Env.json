@@ -1,0 +1,75 @@
+{
+    "camera" : {
+        "ref" : [0, 2.5, 0],
+        "pos" : [0, 5.5, -30],
+        "up" : [0, 1, 0],
+        "fovy" : 19.5,
+        "width" : 680,
+        "height": 680
+    },
+  "scene": {
+    "objects": [
+      {
+        "type": "obj",
+        "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
+        "name": "Floor",
+        "translation": [ 0, -2.5, 0 ],
+        "rotation": [ -90, 0, 0 ],
+        "scale": [ 10, 10, 1 ]
+      },
+      {
+        "type": "obj",
+        "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
+        "name": "Back Wall",
+        "translation": [ 0, 2.5, 5 ],
+        "rotation": [ 0, 180, 0 ],
+        "scale": [ 10, 10, 1 ],
+        "material": "metallic workflow"
+      },
+      {
+        "type": "Cube",
+        "name": "Long Cube",
+        "translation": [ 2, 0, 3 ],
+        "rotation": [ 0, 27.5, 0 ],
+        "scale": [ 3, 6, 3 ]
+      },
+      {
+        "type": "Cube",
+        "name": "Short Cube",
+        "translation": [ -2, -1, 0.75 ],
+        "rotation": [ 0, -17.5, 0 ],
+        "scale": [ 3, 3, 3 ]
+      }
+    ],
+    "materials": [
+      {
+        "type": "LambertianReflection",
+        "name": "light_material",
+        "albedo": [ 1, 1, 1 ],
+        "Lv": 40,
+        "lightMaterial": true
+      },
+      {
+        "type": "LambertianReflection",
+        "name": "matteRed",
+        "albedo": [ 0.63, 0.065, 0.05 ]
+      },
+      {
+        "type": "LambertianReflection",
+        "name": "matteGreen",
+        "albedo": [ 0.14, 0.45, 0.091 ]
+      },
+      {
+        "type": "MetallicWorkflow",
+        "name": "metallic workflow",
+        "albedo": [ 0.8, 0.8, 0.8 ],
+        "metallic": 1.0,
+        "roughness": 0.0
+      }
+    ],
+    "environment map": {
+      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//fireplace_4k.hdr"
+    }
+  }
+}
+  

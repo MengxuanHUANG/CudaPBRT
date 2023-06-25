@@ -30,6 +30,8 @@ namespace CudaPBRT
 	class GPUTexture
 	{
 	public:
+		CPU_GPU GPUTexture() {}
+
 		CPU_GPU GPUTexture(CudaTexObj tex_obj);
 		INLINE GPU_ONLY CudaTexObj GetTexObj() const { return m_TexObj; }
 		INLINE CPU_ONLY void SetTexObj(CudaTexObj texObj) { m_TexObj = texObj; }
@@ -38,13 +40,15 @@ namespace CudaPBRT
 			return ReadTexture(m_TexObj, uv);
 		}
 
-	protected:
+	public:
 		CudaTexObj m_TexObj;
 	};
 
 	class EnvironmentMap : public GPUTexture
 	{
 	public:
+		CPU_GPU EnvironmentMap() {}
+
 		CPU_GPU EnvironmentMap(CudaTexObj tex_obj);
 
 		INLINE GPU_ONLY float4 GetIrradiance(const glm::vec3 wiW) const
