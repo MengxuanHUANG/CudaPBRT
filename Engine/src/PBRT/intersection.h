@@ -36,6 +36,19 @@ namespace CudaPBRT
 			uv = glm::vec2(0.f);
 		}
 
+		INLINE CPU_GPU Intersection& operator=(const Intersection& other)
+		{
+			id = other.id;;
+			material_id = other.material_id;
+
+			t = other.t;
+			p = other.p;
+			normal = other.normal;
+			uv = other.uv;
+
+			return *this;
+		}
+
 		INLINE CPU_GPU bool operator<(const Intersection& other) const
 		{
 			return t < other.t;

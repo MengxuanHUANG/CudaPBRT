@@ -43,6 +43,11 @@ namespace CudaPBRT
 		int n_offset = normals.size();
 		int uv_offset = uvs.size();
 
+		int uv_count = 0;
+		int normal_count = 0;
+
+		int line_count = 1;
+		
 		for (std::string line; std::getline(in, line);)
 		{
 			if (line.starts_with("vn"))
@@ -50,12 +55,14 @@ namespace CudaPBRT
 				std::vector<std::string> result = StringUtility::Split(line, " ");
 
 				normals.emplace_back(std::stof(result[1]), std::stof(result[2]), std::stof(result[3]));
+				++normal_count;
 			}
 			else if (line.starts_with("vt"))
 			{
 				std::vector<std::string> result = StringUtility::Split(line, " ");
 
 				uvs.emplace_back(std::stof(result[1]), std::stof(result[2]));
+				++uv_count;
 			}
 			else if (line.starts_with("v"))
 			{
@@ -73,16 +80,23 @@ namespace CudaPBRT
 				std::vector<int> n_id;
 				std::vector<int> uv_id;
 
-				v_id.resize(result.size() - 1);
-				n_id.resize(result.size() - 1);
-				uv_id.resize(result.size() - 1);
+				v_id.resize(result.size() - 1, -1);
+				n_id.resize(result.size() - 1, -1);
+				uv_id.resize(result.size() - 1, -1);
 
 				for (int i = 0; i < result.size() - 1; ++i)
 				{
 					std::vector<std::string> ids = StringUtility::Split(result[i + 1], "/");
 					v_id[i]		= v_offset + std::stoi(ids[0]) - f_start;
-					uv_id[i]	= uv_offset + std::stoi(ids[1]) - f_start;
-					n_id[i]		= n_offset + std::stoi(ids[2]) - f_start;
+					int index = 1;
+					if (uv_count > 0)
+					{
+						uv_id[i] = uv_offset + std::stoi(ids[index++]) - f_start;
+					}
+					if (normal_count)
+					{
+						n_id[i] = n_offset + std::stoi(ids[index++]) - f_start;
+					}
 				}
 				// naive triangulation
 				for (int i = 1; i < result.size() - 2; ++i)

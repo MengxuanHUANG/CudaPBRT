@@ -169,9 +169,11 @@ namespace CudaPBRT
 			{
 				obj_data.material_id = materials_map[material_name];
 			}
-			ASSERT(!materialData[objectData.back().material_id].lightMaterial);
-			LoadMeshFromFile(path.c_str(), obj_data);
+			ASSERT(!materialData[obj_data.material_id].lightMaterial);
 
+			LoadMeshFromFile(path.c_str(), obj_data);
+			
+			printf("Successfully load %s\n", path.c_str());
 			objectData.push_back(obj_data);
 			return (obj_data.end_id - obj_data.start_id);
 		}

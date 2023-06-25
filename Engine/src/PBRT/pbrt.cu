@@ -509,7 +509,7 @@ namespace CudaPBRT
 		const Intersection& intersection = segment.intersection;
 		const Ray& ray = segment.ray;
 
-		if (!segment.IsEnd() && iteration > 0)
+		if (!segment.IsEnd())
 		{
 			// TODO: compute motion vector to locate current pixel in the buffer
 			int pre_index = segment.pixelId; // currently, assume there is no shifting
@@ -566,7 +566,7 @@ namespace CudaPBRT
 		
 		const PathSegment& segment = pathSegment[index];
 
-		if (!segment.IsEnd() && iteration > 0)
+		if (!segment.IsEnd())
 		{
 			CudaRNG rng(iteration, index, 7 + segment.depth * 13);
 
@@ -574,6 +574,8 @@ namespace CudaPBRT
 
 			int pixel_id_x = segment.pixelId % scene.dim.x;
 			glm::vec2 pixel_id = glm::vec2(pixel_id_x, (segment.pixelId - pixel_id_x) / scene.dim.x);
+
+			const glm::vec3& cur_normal = segment.surfaceNormal;
 
 			const Intersection& g_buffer_cur = gBuffer.curGeometryInfos[segment.pixelId];
 
@@ -593,17 +595,20 @@ namespace CudaPBRT
 
 				int nid = neighbor_id.y * scene.dim.x + neighbor_id.x;
 
-				const Intersection& g_buffer_neighbor = gBuffer.curGeometryInfos[nid];
-				if ((glm::dot(g_buffer_cur.normal, g_buffer_neighbor.normal)) < 0.906f)
+				const Intersection& neighbor = gBuffer.curGeometryInfos[nid];
+				
+				glm::vec3 neighbor_normal = scene.materials[neighbor.material_id].GetNormal(neighbor.normal, neighbor.uv);
+
+				if (glm::dot(cur_normal, neighbor_normal) < 0.906f)
 				{
 					continue;
 				}
 
-				if (g_buffer_cur.t > 1.1f * g_buffer_neighbor.t || g_buffer_neighbor.t < 0.9f * g_buffer_cur.t)
+				if (g_buffer_cur.t > 1.07f * neighbor.t || neighbor.t < 1.07f * g_buffer_cur.t)
 				{
 					continue;
 				}
-
+				
 				Reservior<LightSample> neighbor_reservior = gBuffer.curReserviors[nid];
 				if (neighbor_reservior.M > 0)
 				{

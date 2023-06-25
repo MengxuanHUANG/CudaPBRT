@@ -24,7 +24,7 @@ namespace CudaPBRT
         GPUScene()
             : M(1), N(1),
               temporalReuse(false), spatialReuse(true),
-              spatialReuseCount(5), spatialReuseRadius(1.f),
+              spatialReuseCount(5), spatialReuseRadius(30.f),
               shapes(nullptr), materials(nullptr), lights(nullptr), 
               vertices(nullptr), normals(nullptr), uvs(nullptr),
               shape_count(0), material_count(0), light_count(0),

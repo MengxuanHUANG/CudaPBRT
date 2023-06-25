@@ -19,14 +19,32 @@ namespace CudaPBRT
             m_V[0] = (data.vertices + data.triangle.vId[0]);
             m_V[1] = (data.vertices + data.triangle.vId[1]);
             m_V[2] = (data.vertices + data.triangle.vId[2]);
+            
+            if (data.triangle.nId[0] > 0
+                && data.triangle.nId[1] > 0
+                && data.triangle.nId[2])
+            {
+                m_N[0] = data.normals + data.triangle.nId[0];
+                m_N[1] = data.normals + data.triangle.nId[1];
+                m_N[2] = data.normals + data.triangle.nId[2];
+            }
+            else
+            {
+                m_N[0] = m_N[1] = m_N[2] = nullptr;
+            }
 
-            m_N[0] = data.normals + data.triangle.nId[0];
-            m_N[1] = data.normals + data.triangle.nId[1];
-            m_N[2] = data.normals + data.triangle.nId[2];
-
-            m_UV[0] = data.uvs + data.triangle.uvId[0];
-            m_UV[1] = data.uvs + data.triangle.uvId[1];
-            m_UV[2] = data.uvs + data.triangle.uvId[2];
+            if (data.triangle.uvId[0] > 0
+                && data.triangle.uvId[1] > 0
+                && data.triangle.uvId[2])
+            {
+                m_UV[0] = data.uvs + data.triangle.uvId[0];
+                m_UV[1] = data.uvs + data.triangle.uvId[1];
+                m_UV[2] = data.uvs + data.triangle.uvId[2];
+            }
+            else
+            {
+                m_UV[0] = m_UV[1] = m_UV[2] = nullptr;
+            }
         }
 
         CPU_GPU virtual bool IntersectionP(const Ray& ray, Intersection& intersection) const override
@@ -71,12 +89,14 @@ namespace CudaPBRT
 
             if (t > 0.f)
             {
-                intersection.normal = glm::normalize(BarycentricInterpolation<glm::vec3>(*m_N[1], *m_N[2], *m_N[0], uv.x, uv.y));
+                intersection.normal = m_N[0] != nullptr ? glm::normalize(BarycentricInterpolation<glm::vec3>(*m_N[1], *m_N[2], *m_N[0], uv.x, uv.y)) :
+                                                          glm::normalize(glm::cross(edge02, edge01));
 
                 intersection.t = t;
                 intersection.p = ray * t;
 
-                intersection.uv = BarycentricInterpolation<glm::vec2>(*m_UV[1], *m_UV[2], *m_UV[0], uv.x, uv.y);
+                intersection.uv = m_UV[0] != nullptr ? BarycentricInterpolation<glm::vec2>(*m_UV[1], *m_UV[2], *m_UV[0], uv.x, uv.y) :
+                                                       uv;
 
                 return true;
             }
@@ -130,7 +150,8 @@ namespace CudaPBRT
 
         CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const override
         {
-            return glm::normalize(GetBarycentricInterpolation<glm::vec3>(*m_N[0], *m_N[1], *m_N[2], p));
+            return (m_N[0] != nullptr ? glm::normalize(GetBarycentricInterpolation<glm::vec3>(*m_N[0], *m_N[1], *m_N[2], p)) :
+                                        glm::normalize(glm::cross(*m_V[2] - *m_V[0], *m_V[1] - *m_V[0])));
         }
         
         CPU_GPU virtual glm::vec3 Sample(glm::vec2 xi) const override
