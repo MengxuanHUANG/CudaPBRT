@@ -15,16 +15,7 @@
         "name": "Floor",
         "translation": [ 0, -2.5, 0 ],
         "rotation": [ -90, 0, 0 ],
-        "scale": [ 10, 10, 1 ]
-      },
-      {
-        "type": "obj",
-        "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
-        "name": "Back Wall",
-        "translation": [ 0, 2.5, 5 ],
-        "rotation": [ 0, 180, 0 ],
-        "scale": [ 10, 10, 1 ],
-        "material": "metallic workflow"
+        "scale": [ 20, 20, 1 ]
       },
       {
         "type": "Cube",
@@ -68,7 +59,7 @@
       }
     ],
     "environment map": {
-      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//fireplace_4k.hdr"
+      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//interior_atelier_soft_daylight.hdr"
     }
   }
 }

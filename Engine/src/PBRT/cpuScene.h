@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gpuScene.h"
+#include "Sampler/alias.h"
 #include "Camera/CameraController.h"
 
 #include <json/json.hpp>
@@ -54,6 +55,8 @@ namespace CudaPBRT
             shapeData.clear();
             materialData.clear();
             lightData.clear();
+
+            m_AliasSamplers_1D.clear();
         }
 
         bool LoadCameraFromJSON(const JSON& json_data);
@@ -88,6 +91,9 @@ namespace CudaPBRT
 
         // lights' data
         std::vector<LightData> lightData;
+
+        // alias sampler
+        std::vector<uPtr<Cuda_AlaisSampler_1D>> m_AliasSamplers_1D;
 
     protected:
         // shapes' data

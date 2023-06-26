@@ -15,6 +15,7 @@
 #define INLINE __forceinline__
 
 #define CUDA_FREE(ptr) if(ptr != nullptr) { cudaFree(ptr); ptr = nullptr; }
+#define CUDA_FREE_ARRAY(ptr) if(ptr != nullptr) { cudaFreeArray(ptr); ptr = nullptr; }
 #define SAFE_FREE(ptr) if(ptr != nullptr) { delete ptr; ptr = nullptr; }
 #define USE_BVH 1
 

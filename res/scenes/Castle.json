@@ -1,11 +1,11 @@
 {
     "camera" : {
-        "ref" : [17, 34, 7],
-        "pos" : [0, 5.5, -30],
+        "ref" : [0, 30, 0],
+        "pos" : [0, 30, 70],
         "up" : [0, 1, 0],
         "fovy" : 19.5,
-        "width" : 680,
-        "height": 680
+        "width" : 1080,
+        "height": 960
     },
   "scene": {
     "objects": [
@@ -14,7 +14,7 @@
         "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//mc_castle.obj",
         "translation": [ 0, 0, 0 ],
         "rotation": [ 0, 0, 0 ],
-        "scale": [ 10, 10, 10 ],
+        "scale": [ 7, 7, 7 ],
         "material": "castle material"
       }
     ],
@@ -63,23 +63,8 @@
         "lightMaterial": true
       }
     ],
-    "lights" : [
-        {
-          "type": "ShapeLight",
-          "shape": {
-            "type": "obj",
-            "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
-            "name": "Light",
-            "translation": [ 0, 100, 0 ],
-            "rotation": [ 90, 0, 0 ],
-            "scale": [ 50, 50, 1 ],
-            "material": "light_material"
-          },
-          "doubleSide": true
-        }
-      ],
     "environment map": {
-      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//interior_atelier_soft_daylight.hdr"
+      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//kloofendal_48d_partly_cloudy_puresky_4k.hdr"
     }
   }
 }

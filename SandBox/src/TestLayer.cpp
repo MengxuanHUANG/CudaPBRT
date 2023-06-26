@@ -56,7 +56,7 @@ TestLayer::~TestLayer()
 
 void TestLayer::OnAttach()
 {
-	m_CurrentFile = "CornellBox_Env.json";
+	m_CurrentFile = "Castle.json";
 
 	m_Scene->LoadSceneFromJsonFile((JSON_PATH + m_CurrentFile).c_str());
 	m_Scene->m_GPUScene.M = 1;

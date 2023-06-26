@@ -12,6 +12,9 @@ namespace CudaPBRT
 
 	CudaTexture::~CudaTexture()
 	{
+        // free image array
+        stbi_image_free(raw_data);
+
 		FreeTexture();
 	}
 
@@ -26,8 +29,8 @@ namespace CudaPBRT
         // read image from file       
         stbi_set_flip_vertically_on_load(flip_v);
 
-        float* image_data = stbi_loadf(path, &m_Width, &m_Height, NULL, 4);
-        if (!image_data)
+        raw_data = stbi_loadf(path, &m_Width, &m_Height, NULL, 4);
+        if (!raw_data)
         {
             printf("Cannot open %s!\n", path);
         }
@@ -40,7 +43,7 @@ namespace CudaPBRT
         // to by src, including padding), we dont have any padding
         const size_t spitch = m_Width * sizeof(float4);
         // Copy data located at address h_data in host memory to device memory
-        cudaMemcpy2DToArray(m_CudaArray, 0, 0, image_data, spitch, m_Width * sizeof(float4), m_Height, cudaMemcpyHostToDevice);
+        cudaMemcpy2DToArray(m_CudaArray, 0, 0, raw_data, spitch, m_Width * sizeof(float4), m_Height, cudaMemcpyHostToDevice);
         CUDA_CHECK_ERROR();
 
         // Specify texture
@@ -60,9 +63,6 @@ namespace CudaPBRT
 
         // Create texture object
         cudaCreateTextureObject(&m_TexObj, &resDesc, &texDesc, NULL);
-
-        // free image array
-        stbi_image_free(image_data);
 	}
 
 	void CudaTexture::FreeTexture()
@@ -71,7 +71,7 @@ namespace CudaPBRT
 		cudaDestroyTextureObject(m_TexObj);
 
 		// Free device memory
-		cudaFreeArray(m_CudaArray);
+        CUDA_FREE_ARRAY(m_CudaArray);
 	}
 
     uPtr <CudaTexture> CudaTexture::CreateCudaTexture(const char* path, bool flip_v)

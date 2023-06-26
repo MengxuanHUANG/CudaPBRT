@@ -24,7 +24,7 @@ namespace CudaPBRT
 
 	struct PathSegment;
 	template<typename T>
-	void BufferData(T*& device_ptr, T* host_ptr, size_t size)
+	void BufferData(T*& device_ptr, const T* host_ptr, size_t size)
 	{
 		ASSERT(device_ptr == nullptr);
 		if (size > 0)

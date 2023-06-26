@@ -67,13 +67,23 @@ namespace CudaPBRT
 		bool doubleSide;
 		Spectrum irradiance;
 	};
+	
+	struct EnvironmentLightData
+	{
+		int width, height;
+		float* distribution;
+		float* accept;
+		int* alias;
+
+		CudaTexObj env_map;
+	};
 
 	union LightDataUnion
 	{
 		LightDataUnion() {}
 
 		ShapeLightData shape_light;
-		CudaTexObj environment_map;
+		EnvironmentLightData env_light;
 	};
 
 	struct LightData
@@ -85,7 +95,6 @@ namespace CudaPBRT
 		LightData(const ShapeData& shape_data,  const MaterialData& material_data, int shape_id, const Spectrum& irradiance, bool doubleSide = false)
 			: type(LightType::ShapeLight)
 		{
-
 			union_data.shape_light.shape_data = shape_data;
 			union_data.shape_light.material_data = material_data;
 			union_data.shape_light.shapeId = shape_id;
@@ -93,10 +102,16 @@ namespace CudaPBRT
 			union_data.shape_light.irradiance = irradiance;
 		}
 
-		LightData(const CudaTexObj& env_map)
+		LightData(const CudaTexObj& env_map, int w, int h, float* distribution, float* accept, int* alias)
 			: type(LightType::EnvironmentLight)
 		{
-			union_data.environment_map = env_map;
+			union_data.env_light.width = w;
+			union_data.env_light.height = h;
+			
+			union_data.env_light.distribution = distribution;
+			union_data.env_light.accept = accept;
+			union_data.env_light.alias = alias;
+			union_data.env_light.env_map = env_map;
 		}
 	};
 
@@ -120,6 +135,11 @@ namespace CudaPBRT
 	struct EnvironmentLightUnionData
 	{
 		EnvironmentMap envMap;
+
+		int width, height;
+		float* distribution;
+		float* accept;
+		int* alias;
 
 		EnvironmentLightUnionData() {}
 	};

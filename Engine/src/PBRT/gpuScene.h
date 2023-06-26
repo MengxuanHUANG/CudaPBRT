@@ -41,7 +41,7 @@ namespace CudaPBRT
             sample = lights[light_id].Sample_Li(p, normal, { rng.rand() , rng.rand() });
             sample.pdf /= light_count_f;
 
-            return (sample.pdf > 0.01f);// && !Occluded(sample.t, light->GetShapeId(), sample.shadowRay);
+            return (sample.pdf > 0.001f);// && !Occluded(sample.t, light->GetShapeId(), sample.shadowRay);
         }
 
         INLINE GPU_ONLY float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)

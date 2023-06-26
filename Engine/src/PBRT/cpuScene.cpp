@@ -295,9 +295,34 @@ namespace CudaPBRT
 
 			m_Textures.emplace_back(CudaTexture::CreateCudaTexture(env_map_path.c_str(), true));
 			m_GPUScene.envMap.SetTexObj(m_Textures.back()->GetTextureObject());
+			
+			const float* raw_img = m_Textures.back()->GetRawData();
+			std::pair<int, int> dim = m_Textures.back()->GetDim();
+			
+			int N = dim.first * dim.second;
+
+			float* img = new float[N];
+
+			for (int i = 0; i < N; i++)
+			{
+				float pixel = 0.f;
+				for (int j = 4 * i; j < 4 * i + 4; ++j)
+				{
+					pixel += raw_img[j] * raw_img[j];
+				}
+				img[i] = glm::sqrt(pixel);
+			}
+
+			m_AliasSamplers_1D.emplace_back(mkU<Cuda_AlaisSampler_1D>(N, img));
+			
+			delete[] img;
 
 			// add environment light for direct light sampling
-			lightData.emplace_back(m_Textures.back()->GetTextureObject());
+			lightData.emplace_back(m_Textures.back()->GetTextureObject(), 
+									dim.first, dim.second, 
+									m_AliasSamplers_1D.back()->device_distribution,
+									m_AliasSamplers_1D.back()->device_accept, 
+									m_AliasSamplers_1D.back()->device_alias);
 		}
 
 		if (scene_data.contains("objects"))
