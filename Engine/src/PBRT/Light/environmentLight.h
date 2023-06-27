@@ -27,7 +27,7 @@ namespace CudaPBRT
 		GPU_ONLY virtual Spectrum GetLe(const glm::vec3& p = glm::vec3(0.f)) const
 		{
 			float4 value = m_EnvMap.GetIrradiance(p);
-			return 80.f * Spectrum(value.x, value.y, value.z);
+			return 5.f * glm::clamp(Spectrum(value.x, value.y, value.z), 0.f, 50.f);
 		}
 
 		CPU_GPU virtual int GetShapeId() const 
@@ -39,13 +39,24 @@ namespace CudaPBRT
 		{
 			int sampled_index = AlaisSampler_1D::Sample(xi, m_Width * m_Height, m_Accept, m_Alias);
 
-			glm::ivec2 iuv = glm::ivec2(sampled_index / m_Width, sampled_index % m_Width);
-			glm::vec2 uv = glm::vec2(iuv) / glm::vec2(m_Width, m_Height);
+			glm::ivec2 iuv = glm::ivec2(sampled_index % m_Width, 
+										glm::floor(static_cast<float>(sampled_index) / static_cast<float>(m_Width)));
 
-			glm::vec3 sampled_p = m_EnvMap.GetWiWFromUV(uv);
+			glm::vec2 uv = glm::vec2(iuv) / glm::vec2(m_Width, m_Height);
 			
+			glm::vec3 sampled_p = m_EnvMap.GetWiWFromUV(uv);
+
+			float theta = uv.x * Pi;
+			float sinTheta = glm::sin(theta);
+			float pdf = m_Distribution[sampled_index] / (2.f * Pi * Pi);
+
+			if (sinTheta > 0.00001f)
+			{
+				pdf /= sinTheta;
+			}
+
 			return { this,
-					 m_Distribution[sampled_index],
+					 pdf,
 					 sampled_p,
 					 sampled_p};
 		}

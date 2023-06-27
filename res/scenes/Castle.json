@@ -1,11 +1,11 @@
 {
     "camera" : {
         "ref" : [0, 30, 0],
-        "pos" : [0, 30, 70],
+        "pos" : [0, 30, -100],
         "up" : [0, 1, 0],
         "fovy" : 19.5,
-        "width" : 1080,
-        "height": 960
+        "width" : 1280,
+        "height": 720
     },
   "scene": {
     "objects": [
@@ -64,7 +64,7 @@
       }
     ],
     "environment map": {
-      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//kloofendal_48d_partly_cloudy_puresky_4k.hdr"
+      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//syferfontein_18d_clear_puresky_4k.hdr"
     }
   }
 }

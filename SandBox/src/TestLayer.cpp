@@ -65,6 +65,7 @@ void TestLayer::OnAttach()
 	m_CudaPBRT->InitCuda(*(m_Scene->camera));
 
 	m_SelectedMaterial = m_Scene->materialData.size() - 1;
+	//m_CudaPBRT->DisplayTexture(*(m_Scene->m_Textures[0]));
 }
 void TestLayer::OnDetach()
 {
@@ -139,7 +140,7 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 		bool cam_is_edited = false;
 		cam_is_edited |= ImGui::DragFloat3("Ref position", reinterpret_cast<float*>(&(camera.ref)), 0.1f);
 		cam_is_edited |= ImGui::DragFloat("Len Radius", &(camera.lensRadius), 0.01f, 0.f, 0.5f);
-		cam_is_edited |= ImGui::DragFloat("Focal Distance", &(camera.focalDistance), 0.1f, 1.f, 100.f);
+		cam_is_edited |= ImGui::DragFloat("Focal Distance", &(camera.focalDistance), 0.1f, 1.f, 1000.f);
 
 		if (cam_is_edited)
 		{

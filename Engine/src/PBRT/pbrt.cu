@@ -696,7 +696,9 @@ namespace CudaPBRT
 
 						if (current_reservior.W > 0.f)
 						{
-							segment.throughput *= scattering_f * current_reservior.W * final_sample.light->GetLe(final_sample.p);
+							Spectrum Le = final_sample.light->GetLe(final_sample.p);
+							
+							segment.throughput *= scattering_f * current_reservior.W * Le;
 							segment.radiance += segment.throughput;
 						}
 					}
@@ -849,6 +851,7 @@ namespace CudaPBRT
 		float4 albedo = ReadTexture(tex, { u, v });
 		
 		glm::vec3 color(albedo.x, albedo.y, albedo.z);
+
 		color = color / (1.f + color);
 		color = glm::pow(color, glm::vec3(1.f / 2.2f));
 		color = glm::mix(glm::vec3(0.f), glm::vec3(255.f), color);
@@ -856,13 +859,9 @@ namespace CudaPBRT
 		
 		float a = static_cast<float>(x) / static_cast<float>(width);
 
-		hdr_img[index].x = glm::mix(0.f, 40.f, 1.f - a);
-		hdr_img[index].y = glm::mix(0.f, 40.f, 1.f - a);
-		hdr_img[index].z = glm::mix(0.f, 40.f, 1.f - a);
-
-		img[index].x = 255;//static_cast<int>(color.r);
-		img[index].y = 255;//static_cast<int>(color.g);
-		img[index].z = 255;//static_cast<int>(color.b);
+		img[index].x = static_cast<int>(color.r);
+		img[index].y = static_cast<int>(color.g);
+		img[index].z = static_cast<int>(color.b);
 		img[index].w = 255;
 	}
 

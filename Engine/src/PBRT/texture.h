@@ -58,19 +58,19 @@ namespace CudaPBRT
 			return ReadTexture(m_TexObj, GetUVFromWiW(wiW));
 		}
 
-		INLINE GPU_ONLY glm::vec2 GetUVFromWiW(const glm::vec3 wiW) const
+		INLINE GPU_ONLY static glm::vec2 GetUVFromWiW(const glm::vec3 wiW)
 		{
-			return glm::vec2(glm::atan(wiW.z, wiW.x), glm::asin(wiW.y)) * glm::vec2(0.1591, 0.3183) + 0.5f;
+			return glm::vec2(glm::atan(wiW.z, wiW.x), glm::asin(wiW.y)) * glm::vec2(Inv2Pi, InvPi) + glm::vec2(0.5f);
 		}
 
-		INLINE CPU_GPU glm::vec3 GetWiWFromUV(const glm::vec2& uv) const 
+		INLINE CPU_GPU static glm::vec3 GetWiWFromUV(const glm::vec2& uv) 
 		{
-			glm::vec2 temp = (uv - 0.5f) / glm::vec2(0.1591, 0.3183);
+			glm::vec2 temp = (uv - glm::vec2(0.5f)) * glm::vec2(2.f * Pi, Pi);
+
+			float y = glm::cos(temp.y);
+			float x = glm::sin(temp.y) * glm::cos(temp.x);
+			float z = glm::sin(temp.y) * glm::sin(temp.x);
 			
-			float y = glm::sin(temp.y);
-			float len = glm::sqrt(1.f - y * y);
-			float x = len * glm::cos(temp.x);
-			float z = len * glm::sin(temp.x);
 			return { x, y, z };
 		}
 	};

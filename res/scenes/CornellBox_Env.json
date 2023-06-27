@@ -59,7 +59,7 @@
       }
     ],
     "environment map": {
-      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//interior_atelier_soft_daylight.hdr"
+      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//kiara_7_late-afternoon_4k.hdr"
     }
   }
 }
