@@ -78,6 +78,7 @@ namespace CudaPBRT
 		case MaterialType::Glass:
 			new (material_ptr) Material(data);
 			new (&material_ptr->m_BSDF) FresnelBSDF();
+			material_ptr->m_BSDF.m_GeneralData.etaB = data.eta;
 			new (&(material_ptr->m_BSDF.m_GeneralData.bxdfs[0])) SpecularReflection();
 			new (&(material_ptr->m_BSDF.m_GeneralData.bxdfs[1])) SpecularTransmission(data.eta);
 			break;
@@ -370,6 +371,7 @@ namespace CudaPBRT
 		PathSegment& segment = pathSegment[index];
 		Intersection& intersection = segment.intersection;
 		Ray& ray = segment.ray;
+		const EnvironmentMap& env_map = scene.envMap;
 		if (intersection.id >= 0)
 		{
 			const Material& material = scene.materials[intersection.material_id];
@@ -412,6 +414,12 @@ namespace CudaPBRT
 					return;
 				}
 			}
+		}
+		else if (env_map.GetTexObj() > 0)
+		{
+			float4 irradiance = env_map.GetIrradiance(ray.DIR);
+			segment.throughput *= 5.f * glm::clamp(Spectrum(irradiance.x, irradiance.y, irradiance.z), glm::vec3(0.f), glm::vec3(50.f));
+			segment.radiance += segment.throughput;
 		}
 		segment.End();
 	}
@@ -713,7 +721,7 @@ namespace CudaPBRT
 		else if (scene.envMap.GetTexObj() > 0)
 		{
 			float4 irradiance = scene.envMap.GetIrradiance(ray.DIR);
-			segment.throughput *= Spectrum(irradiance.x, irradiance.y, irradiance.z);
+			segment.throughput *= 5.f * Spectrum(irradiance.x, irradiance.y, irradiance.z);
 			segment.radiance += segment.throughput;
 		}
 		segment.End();
@@ -800,7 +808,7 @@ namespace CudaPBRT
 						Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
 
 						light_sample_reservior.W = light_sample_reservior.weightSum / (light_sample_reservior.M * glm::length(scattering_f));
-						if (light_sample_reservior.W > 0.01f)
+						if (light_sample_reservior.W > 0.f)
 						{
 							segment.radiance += scattering_f * light_sample.light->GetLe(light_sample.p) * segment.throughput * light_sample_reservior.W;
 						}
@@ -823,7 +831,7 @@ namespace CudaPBRT
 		else if(env_map.GetTexObj() > 0)
 		{
 			float4 irradiance = env_map.GetIrradiance(ray.DIR);
-			segment.throughput *= Spectrum(irradiance.x, irradiance.y, irradiance.z);
+			segment.throughput *= 5.f * glm::clamp(Spectrum(irradiance.x, irradiance.y, irradiance.z), glm::vec3(0.f), glm::vec3(50.f));
 			segment.radiance += segment.throughput;
 		}
 		segment.End();

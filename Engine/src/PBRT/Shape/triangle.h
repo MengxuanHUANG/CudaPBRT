@@ -22,7 +22,7 @@ namespace CudaPBRT
             
             if (data.triangle.nId[0] > 0
                 && data.triangle.nId[1] > 0
-                && data.triangle.nId[2])
+                && data.triangle.nId[2] > 0)
             {
                 m_N[0] = data.normals + data.triangle.nId[0];
                 m_N[1] = data.normals + data.triangle.nId[1];
@@ -35,7 +35,7 @@ namespace CudaPBRT
 
             if (data.triangle.uvId[0] > 0
                 && data.triangle.uvId[1] > 0
-                && data.triangle.uvId[2])
+                && data.triangle.uvId[2] > 0)
             {
                 m_UV[0] = data.uvs + data.triangle.uvId[0];
                 m_UV[1] = data.uvs + data.triangle.uvId[1];
@@ -90,7 +90,7 @@ namespace CudaPBRT
             if (t > 0.f)
             {
                 intersection.normal = m_N[0] != nullptr ? glm::normalize(BarycentricInterpolation<glm::vec3>(*m_N[1], *m_N[2], *m_N[0], uv.x, uv.y)) :
-                                                          glm::normalize(glm::cross(edge02, edge01));
+                                                          glm::normalize(glm::cross(edge01, edge02));
 
                 intersection.t = t;
                 intersection.p = ray * t;
@@ -151,7 +151,7 @@ namespace CudaPBRT
         CPU_GPU virtual glm::vec3 GetNormal(const glm::vec3& p) const override
         {
             return (m_N[0] != nullptr ? glm::normalize(GetBarycentricInterpolation<glm::vec3>(*m_N[0], *m_N[1], *m_N[2], p)) :
-                                        glm::normalize(glm::cross(*m_V[2] - *m_V[0], *m_V[1] - *m_V[0])));
+                                        glm::normalize(glm::cross(*m_V[1] - *m_V[0], *m_V[2] - *m_V[0])));
         }
         
         CPU_GPU virtual glm::vec3 Sample(glm::vec2 xi) const override

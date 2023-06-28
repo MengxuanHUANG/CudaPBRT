@@ -1,0 +1,85 @@
+{
+    "camera" : {
+        "ref" : [0, 2.5, 0],
+        "pos" : [0, 5.5, 70],
+        "up" : [0, 1, 0],
+        "fovy" : 19.5,
+        "width" : 960,
+        "height": 680
+    },
+  "scene": {
+    "objects": [
+      {
+        "type": "obj",
+        "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
+        "name": "Floor",
+        "translation": [ 0, -2.5, 0 ],
+        "rotation": [ -90, 0, 0 ],
+        "scale": [ 50, 50, 1 ],
+        "material": "matteColor"
+      },
+      {
+        "type": "obj",
+        "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//suzanne.obj",
+        "name": "Suzanne_1",
+        "translation": [ 10, -0.5, 20 ],
+        "rotation": [ -30, 0, 0 ],
+        "scale": [ 3, 3, 3 ],
+        "material": "metallic workflow"
+      },
+      {
+        "type": "obj",
+        "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//suzanne.obj",
+        "name": "Suzanne_1",
+        "translation": [ 0, -0.5, 0 ],
+        "rotation": [ -30, 0, 0 ],
+        "scale": [ 3, 3, 3 ],
+        "material": "metallic workflow"
+      },
+      {
+        "type": "obj",
+        "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//suzanne.obj",
+        "name": "Suzanne_1",
+        "translation": [ -10, -0.5, -20 ],
+        "rotation": [ -30, 0, 0 ],
+        "scale": [ 3, 3, 3 ],
+        "material": "metallic workflow"
+      }
+    ],
+    "materials": [
+      {
+        "type": "LambertianReflection",
+        "name": "light_material",
+        "albedo": [ 1, 1, 1 ],
+        "Lv": 40,
+        "lightMaterial": true
+      },
+      {
+        "type": "LambertianReflection",
+        "name": "matteRed",
+        "albedo": [ 0.63, 0.065, 0.05 ]
+      },
+      {
+        "type": "LambertianReflection",
+        "name": "matteGreen",
+        "albedo": [ 0.14, 0.45, 0.091 ]
+      },
+      {
+        "type": "MetallicWorkflow",
+        "name": "metallic workflow",
+        "albedo": [ 0.8, 0.8, 0.8 ],
+        "metallic": 0.0,
+        "roughness": 0.0
+      },
+      {
+        "type": "LambertianReflection",
+        "name": "matteColor",
+        "albedo": [ 0.63, 0.065, 0.05 ]
+      }
+    ],
+    "environment map": {
+      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//bonifacio_street.hdr"
+    }
+  }
+}
+  

@@ -1,0 +1,56 @@
+{
+    "camera" : {
+        "ref" : [0, 2.5, 0],
+        "pos" : [0, 5.5, -30],
+        "up" : [0, 1, 0],
+        "fovy" : 19.5,
+        "width" : 680,
+        "height": 680
+    },
+  "scene": {
+    "objects": [
+      {
+        "type": "obj",
+        "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//stanford_bunny.obj",
+        "translation": [ 0, 0, 0 ],
+        "rotation": [ 0, 0, 0 ],
+        "scale": [ 2, 2, 2 ],
+        "material": "glass"
+      }
+    ],
+    "materials": [
+      {
+        "type": "LambertianReflection",
+        "name": "matteRed",
+        "albedo": [ 0.63, 0.065, 0.05 ]
+      },
+      {
+        "type": "LambertianReflection",
+        "name": "matteGreen",
+        "albedo": [ 0.14, 0.45, 0.091 ]
+      },
+      {
+        "type": "SpecularReflection",
+        "name": "mirror",
+        "albedo": [ 1.0, 1.0, 1.0 ]
+      },
+      {
+        "type": "MetallicWorkflow",
+        "name": "metallic workflow",
+        "albedo": [ 0.8, 0.8, 0.8 ],
+        "metallic": 1.0,
+        "roughness": 0.0
+      },
+      {
+        "type": "Glass",
+        "name": "glass",
+        "albedo": [ 1.0, 1.0, 1.0 ],
+        "eta": 1.55
+      }
+    ],
+    "environment map": {
+      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//kiara_7_late-afternoon_4k.hdr"
+    }
+  }
+}
+  

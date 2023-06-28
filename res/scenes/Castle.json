@@ -64,7 +64,7 @@
       }
     ],
     "environment map": {
-      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//syferfontein_18d_clear_puresky_4k.hdr"
+      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//bonifacio_street.hdr"
     }
   }
 }

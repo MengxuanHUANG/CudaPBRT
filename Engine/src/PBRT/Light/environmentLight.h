@@ -27,7 +27,7 @@ namespace CudaPBRT
 		GPU_ONLY virtual Spectrum GetLe(const glm::vec3& p = glm::vec3(0.f)) const
 		{
 			float4 value = m_EnvMap.GetIrradiance(p);
-			return 5.f * glm::clamp(Spectrum(value.x, value.y, value.z), 0.f, 50.f);
+			return 5.f * Spectrum(value.x, value.y, value.z);
 		}
 
 		CPU_GPU virtual int GetShapeId() const 

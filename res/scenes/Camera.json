@@ -79,23 +79,8 @@
         "lightMaterial": true
       }
     ],
-    "lights" : [
-        {
-          "type": "ShapeLight",
-          "shape": {
-            "type": "obj",
-            "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane_50x50.obj",
-            "name": "Light",
-            "translation": [ 0, 15, 0 ],
-            "rotation": [ 0, 0, 0 ],
-            "scale": [ 5, 1, 5 ],
-            "material": "light_material"
-          },
-          "doubleSide": true
-        }
-      ],
     "environment map": {
-      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//interior_atelier_soft_daylight.hdr"
+      "path": "E://Projects//CUDA_Projects//CudaPBRT//res//environment_maps//Footprint_Court_2k.hdr"
     }
   }
 }

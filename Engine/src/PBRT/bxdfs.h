@@ -115,8 +115,8 @@ namespace CudaPBRT
 
 		CPU_GPU virtual BSDFSample Sample_f(const BSDFData& data, const glm::vec3& wo, RNG& rng) const override
 		{
-			const float etaA = data.eta;
-
+			const float& etaA = data.eta;
+			
 			bool entering = CosTheta(wo) > 0.f;
 			float etaI = entering ? etaA : etaB;
 			float etaT = entering ? etaB : etaA;

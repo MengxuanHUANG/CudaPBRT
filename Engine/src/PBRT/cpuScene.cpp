@@ -286,7 +286,7 @@ namespace CudaPBRT
 				LoadMaterialFromJSON(material);
 			}
 		}
-
+		printf("Successfully load materials\n");
 		// load environment map
 		if (scene_data.contains("environment map"))
 		{
@@ -324,7 +324,7 @@ namespace CudaPBRT
 									m_AliasSamplers_1D.back()->device_accept, 
 									m_AliasSamplers_1D.back()->device_alias);
 		}
-
+		printf("Successfully load Environment Map\n");
 		if (scene_data.contains("objects"))
 		{
 			JSON objects_list = scene_data["objects"];
@@ -333,7 +333,7 @@ namespace CudaPBRT
 				LoadShapeFromJSON(object);
 			}
 		}
-
+		printf("Successfully load meshes\n");
 		// load lights
 		std::vector<TempTriangleLight> temp_triangles_lights; // temp array for triangles shape lights
 		
