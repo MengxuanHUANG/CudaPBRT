@@ -6,10 +6,16 @@ A Cuda Path Tracer by Mengxuan Huang
 # Features
 
 ## BVH Acceleration
+The bounding volume hierachy is flatten while creating so that it can be used in GPU directly without any extra process.
 
 ## Physically Based Materials
+### Dielectric Reflection/Transmission
+Standford_Bunny Scene (glass material)
 
-### Standford_Bunny Scene
+![Stanford_Bunny json_M1_it109](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/578aa449-829a-4773-aca1-8179e603a94b)
+
+### Metallic workflow
+Standford_Bunny Scene (metallic workflow material)
 | |Roughness = 0 | Roughness = 0.3 | Roughness = 0.6 | Roughness = 1 |
 | ------------- |------------- |------------- | ------------- | ------------- |
 | Metallic = 0|![Stanford_Bunny json_M20_it300](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/abae57bf-3fff-4cb2-9728-a0b083815650)|![Stanford_Bunny json_M20_it300](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/e84e729f-a58e-4a09-803d-13b3eb932c83)|![Stanford_Bunny json_M20_it300](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/f9d5d053-d53c-4e03-916b-618fd898e1d1)|![Stanford_Bunny json_M20_it300](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/7c8e6074-9ec1-47d6-baa3-6c18bdcbaf69)|
@@ -18,18 +24,14 @@ A Cuda Path Tracer by Mengxuan Huang
 | Metallic = 1|![Stanford_Bunny json_M20_it300](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/79bf23e1-0650-4bc4-8278-7353b91aa5b6)|![Stanford_Bunny json_M20_it300](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/63761814-b4a6-4234-bd4b-4fdc31fbde5a)|![Stanford_Bunny json_M20_it300](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/72791439-6589-4719-ae0e-94dc9d7ae512)|![Stanford_Bunny json_M20_it300](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/728b536f-be8b-4f0b-bd9e-a337dda3b1c3)|
 
 ## Len Camera
+Suzanne Scene
+||||
+| ------------- |------------- |------------- |
+|![suzanne json_M1_it240](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/ec322241-f522-42be-b891-90d409ad4010)|![suzanne json_M1_it275](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/0d8843d4-a322-4c6e-96f5-ef4fdef9538b)|![suzanne json_M1_it341](https://github.com/MengxuanHUANG/CudaPBRT/assets/53021701/8e37d639-4331-4a03-8696-028f60079a58)|
 
 ## Importance Sampling
-
-## BRDF Importance
-
-## Light Source Importance Sampling
-
-## Resampled Importance Sampling
-
-## Multiple Importance Sampling
-
-## ReSTIR DI
+### Environment Map Importance Sampling
+Use Alias method to do importance sampling for Environment Map lighting at O(1) time complexity.
 
 # Results:
 ### CornellBox Scene (50 iterations)
