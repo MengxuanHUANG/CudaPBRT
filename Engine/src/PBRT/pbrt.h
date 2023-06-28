@@ -73,6 +73,15 @@ namespace CudaPBRT
 		}
 	};
 
+	enum class PT_Mode : unsigned char
+	{
+		None = 0, // Do nothing
+		DisplayGBuffer, // Normal
+		Naive_PT,
+		DI, // Direct Illumination
+		MIS_PT // Multiple Importance Sampling
+	};
+
 	class CudaPathTracer
 	{
 	public:
@@ -92,7 +101,10 @@ namespace CudaPBRT
 
 		inline void ResetPRBT() { m_Iteration = 0; }
 
+		inline void SetPTMode(PT_Mode mode) { m_Mode = mode; }
 	public:
+		PT_Mode m_Mode;
+
 		int m_Iteration; // number of iteration
 
 		int width, height;

@@ -14,7 +14,7 @@
           "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
           "name": "Floor",
           "translation": [ 0, -2.5, 0 ],
-          "rotation": [ -90, 0, 0 ],
+          "rotation": [ 90, 0, 0 ],
           "scale": [ 10, 10, 1 ]
         },
         {

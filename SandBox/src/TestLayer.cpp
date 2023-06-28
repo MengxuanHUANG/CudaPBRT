@@ -56,13 +56,15 @@ TestLayer::~TestLayer()
 
 void TestLayer::OnAttach()
 {
-	m_CurrentFile = "Castle.json";
+	m_CurrentFile = "CornellBox.json";
 
 	m_Scene->LoadSceneFromJsonFile((JSON_PATH + m_CurrentFile).c_str());
 	m_Scene->m_GPUScene.M = 1;
 
 	m_CudaPBRT = mkU<CudaPathTracer>();
 	m_CudaPBRT->InitCuda(*(m_Scene->camera));
+	
+	m_CudaPBRT->SetPTMode(PT_Mode::MIS_PT);
 
 	m_SelectedMaterial = m_Scene->materialData.size() - 1;
 	//m_CudaPBRT->DisplayTexture(*(m_Scene->m_Textures[0]));
@@ -97,6 +99,37 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 		ImGui::Text("fps: %f", 1.f / m_FrameTime);
 		
 		bool is_edited = false;
+		// PT mode selection
+		{
+			static const std::string PT_Mode_Str[5]{ "None", "DisplayGBuffer", "Naive_PT", "DI", "MIS_PT" };
+
+			ImGui::Text(PT_Mode_Str[static_cast<int>(m_CudaPBRT->m_Mode)].c_str());
+			ImGui::SameLine();
+			if (ImGui::Button("Select PT Mode"))
+				ImGui::OpenPopup("PT_Mode_select_popup");
+			ImGui::NewLine();
+
+			if (ImGui::BeginPopup("PT_Mode_select_popup"))
+			{
+				ImGui::SeparatorText("PT Mode");
+				int selected_mode = -1;
+				for (int i = 0; i < 5; i++)
+				{
+					if (ImGui::Selectable(PT_Mode_Str[i].c_str()))
+					{
+						selected_mode = i;
+					}
+				}
+				ImGui::EndPopup();
+
+				if (selected_mode >= 0)
+				{
+					m_CudaPBRT->SetPTMode(static_cast<PT_Mode>(selected_mode));
+					is_edited |= true;
+				}
+			}
+		}
+
 		is_edited |= ImGui::Button("Reset PT");
 		is_edited |= ImGui::DragInt("M", &(m_Scene->m_GPUScene.M), 1, 1, 20);
 		is_edited |= ImGui::DragInt("SpatialReuse Count", &(m_Scene->m_GPUScene.spatialReuseCount), 1, 1, 20);
@@ -156,6 +189,7 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 		MaterialData& mdata = m_Scene->materialData[m_SelectedMaterial];
 
 		bool is_edited = false;
+		
 		is_edited |= ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&(mdata.albedo)));
 		is_edited |= ImGui::DragFloat("Metallic", &(mdata.metallic), 0.01f, 0.f, 1.f);
 		is_edited |= ImGui::DragFloat("Roughness", &(mdata.roughness), 0.01f, 0.f, 1.f);
@@ -169,7 +203,6 @@ void TestLayer::OnImGuiRendered(float deltaTime)
 	}
 	ImGui::End();
 	//bool show = true;
-	//
 	//ImGui::ShowDemoWindow(&show);
 }
 

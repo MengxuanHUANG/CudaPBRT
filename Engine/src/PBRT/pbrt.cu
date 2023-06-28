@@ -372,38 +372,42 @@ namespace CudaPBRT
 		Ray& ray = segment.ray;
 		if (intersection.id >= 0)
 		{
-			Material* material = scene.materials + intersection.material_id;
-			float Lv = material->GetLv(intersection.uv);
+			const Material& material = scene.materials[intersection.material_id];
+			float Lv = material.GetLv(intersection.uv);
 
-			if (Lv > 0.f)
+			if ((material.m_MaterialData.lightMaterial || material.GetLv(intersection.uv) > 0.f)
+				&& glm::dot(ray.DIR, intersection.normal) < 0.f)
 			{
 				// hit light source
-				segment.throughput *= material->GetIrradiance(intersection.uv);
+				segment.throughput *= material.GetIrradiance(intersection.uv);
 				segment.radiance += segment.throughput;
 			}
 			else
 			{
-				Spectrum albedo = material->GetAlbedo(intersection.uv);
-				segment.materialType = material->m_MaterialData.type;
+				Spectrum albedo = material.GetAlbedo(intersection.uv);
+				const BSDF& bsdf = material.GetBSDF();
+				segment.materialType = material.m_MaterialData.type;
 
-				const glm::vec3& normal = material->GetNormal(intersection.normal, intersection.uv);
-				float roughness = material->GetRoughness(intersection.uv);
-				float metallic = material->GetMetallic(intersection.uv);
+				segment.surfaceNormal = material.GetNormal(intersection.normal, intersection.uv);
+				float roughness = material.GetRoughness(intersection.uv);
+				float metallic = material.GetMetallic(intersection.uv);
+
+				const glm::vec3& normal = segment.surfaceNormal;
+
+				glm::mat3 world_to_local = WorldToLocal(normal);
+				glm::vec3 wo = glm::normalize(world_to_local * -ray.DIR);
+
 				BSDFData bsdf_data(normal, roughness, metallic, segment.eta, albedo);
 
 				CudaRNG rng(iteration, index, 4 + segment.depth * 7);
-				const BSDF& bsdf = material->GetBSDF();
-				BSDFSample bsdf_sample = bsdf.Sample_f(bsdf_data, -ray.DIR, rng);
 
-				if (bsdf_sample.pdf == 0.f && glm::length(bsdf_sample.f) == 0.f)
-				{
-					segment.End();
-				}
-				else
+				BSDFSample bsdf_sample = bsdf.Sample_f(bsdf_data, wo, rng);
+
+				if (bsdf_sample.pdf > 0.001f && glm::length(bsdf_sample.f) > 0.001f)
 				{
 					segment.bsdfPdf = bsdf_sample.pdf;
-					segment.throughput *= bsdf_sample.f * AbsDot(bsdf_sample.wiW, normal) / bsdf_sample.pdf;
-					segment.ray = Ray::SpawnRay(ray * intersection.t, bsdf_sample.wiW);
+					segment.throughput *= bsdf_sample.f * AbsDot(bsdf_sample.wiW, normal) / segment.bsdfPdf;
+					segment.ray = Ray::SpawnRay(intersection.p, bsdf_sample.wiW);
 					++segment.depth;
 					return;
 				}
@@ -651,7 +655,8 @@ namespace CudaPBRT
 			const Material& material = scene.materials[intersection.material_id];
 			float Lv = material.GetLv(intersection.uv);
 
-			if (Lv > 0.f)
+			if ((material.m_MaterialData.lightMaterial || Lv > 0.f)
+				&& glm::dot(ray.DIR, intersection.normal) < 0.f)
 			{
 				// hit light source
 				segment.throughput *= material.GetIrradiance(intersection.uv);
@@ -731,7 +736,8 @@ namespace CudaPBRT
 		{
 			const Material& material = scene.materials[intersection.material_id];
 
-			if ((material.m_MaterialData.lightMaterial) || material.GetLv(intersection.uv) > 0.f)
+			if ((material.m_MaterialData.lightMaterial || material.GetLv(intersection.uv) > 0.f)
+				&& glm::dot(ray.DIR, intersection.normal) < 0.f)
 			{
 				segment.throughput *= material.GetIrradiance(intersection.uv);
 
@@ -777,7 +783,7 @@ namespace CudaPBRT
 
 							Spectrum scattering_f = bsdf.f(bsdf_data, wo, wi) * AbsDot(light_sample.wiW, normal);
 							float scattering_pdf = bsdf.PDF(bsdf_data, wo, wi);
-							if (scattering_pdf > 0.01f)
+							if (scattering_pdf > 0.01f && glm::length(scattering_f) > 0.001f)
 							{
 								light_sample_reservior.Update(rng.rand(), light_sample, CudaPBRT::PowerHeuristic(1, light_sample.pdf, 1, scattering_pdf) * glm::length(scattering_f) / light_sample.pdf);
 							}
@@ -804,7 +810,7 @@ namespace CudaPBRT
 				// compute throughput
 				BSDFSample bsdf_sample = bsdf.Sample_f(bsdf_data, wo, rng);
 
-				if (bsdf_sample.pdf > 0.f)
+				if (bsdf_sample.pdf > 0.001f && glm::length(bsdf_sample.f) > 0.001f)
 				{
 					segment.bsdfPdf = bsdf_sample.pdf;
 					segment.throughput *= bsdf_sample.f * AbsDot(bsdf_sample.wiW, normal) / segment.bsdfPdf;
@@ -866,8 +872,8 @@ namespace CudaPBRT
 	}
 
 	CudaPathTracer::CudaPathTracer()
+		: m_Mode(PT_Mode::None)
 	{
-
 	}
 
 	CudaPathTracer::~CudaPathTracer()
@@ -987,6 +993,8 @@ namespace CudaPBRT
 
 	void CudaPathTracer::Run(GPUScene* scene)
 	{
+		if (m_Mode == PT_Mode::None) return;
+
 		int max_count = width * height;
 		
 		scene->dim = glm::ivec2(width, height);
@@ -1013,27 +1021,47 @@ namespace CudaPBRT
 
 			KernalConfig throughputConfig({ max_count, 1, 1 }, { 8, 0, 0 });
 			
-			//GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, GBuffer, *scene);
-
-			//GlobalNaiveLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
-			GlobalSampling << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
-			
-			if (scene->temporalReuse)
+			switch (m_Mode)
 			{
-				//GlobalTemporalReuse << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
-				//cudaDeviceSynchronize();
-				//CUDA_CHECK_ERROR();
-			}
-			
-			if(scene->spatialReuse)
+			case PT_Mode::DisplayGBuffer:
 			{
-				GlobalSpatialReuse << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
-				cudaDeviceSynchronize();
-				CUDA_CHECK_ERROR();
+				GlobalDisplayNormal << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (max_count, device_pathSegment, GBuffer, *scene);
+				break;
 			}
+			case PT_Mode::Naive_PT:
+			{
+				GlobalNaiveLi << < throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+				break;
+			}
+			case PT_Mode::DI:
+			{
+				GlobalSampling << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
 
-			GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
-			//GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+				if (scene->temporalReuse)
+				{
+					GlobalTemporalReuse << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+					cudaDeviceSynchronize();
+					CUDA_CHECK_ERROR();
+				}
+
+				if (scene->spatialReuse)
+				{
+					GlobalSpatialReuse << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+					cudaDeviceSynchronize();
+					CUDA_CHECK_ERROR();
+				}
+
+				GlobalDirectLi << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+				break;
+			}
+			case PT_Mode::MIS_PT:
+			{
+				GlobalMIS_Li << <throughputConfig.numBlocks, throughputConfig.threadPerBlock >> > (m_Iteration, max_count, device_pathSegment, GBuffer, *scene);
+				break;
+			}
+			default:
+				printf("Unknown PT mode!\n");
+			}
 
 			cudaDeviceSynchronize();
 			CUDA_CHECK_ERROR();
