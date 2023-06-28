@@ -14,7 +14,7 @@
           "path": "E://Projects//CUDA_Projects//CudaPBRT//res//models//plane.obj",
           "name": "Floor",
           "translation": [ 0, -2.5, 0 ],
-          "rotation": [ -90, 0, 0 ],
+          "rotation": [ 90, 0, 0 ],
           "scale": [ 10, 10, 1 ]
         },
         {
@@ -41,8 +41,7 @@
           "name": "Back Wall",
           "translation": [ 0, 2.5, 5 ],
           "rotation": [ 0, 180, 0 ],
-          "scale": [ 10, 10, 1 ],
-          "material": "metallic workflow"
+          "scale": [ 10, 10, 1 ]
         },
         {
           "type": "obj",

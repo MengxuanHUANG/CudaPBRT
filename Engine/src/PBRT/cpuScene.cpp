@@ -169,9 +169,11 @@ namespace CudaPBRT
 			{
 				obj_data.material_id = materials_map[material_name];
 			}
-			ASSERT(!materialData[objectData.back().material_id].lightMaterial);
-			LoadMeshFromFile(path.c_str(), obj_data);
+			ASSERT(!materialData[obj_data.material_id].lightMaterial);
 
+			LoadMeshFromFile(path.c_str(), obj_data);
+			
+			printf("Successfully load %s\n", path.c_str());
 			objectData.push_back(obj_data);
 			return (obj_data.end_id - obj_data.start_id);
 		}
@@ -203,7 +205,6 @@ namespace CudaPBRT
 	}
 
 	bool CPUScene::LoadLightFromJSON(const JSON& light, 
-									 std::vector<LightData>& temp_shape_lights,
 									 std::vector<TempTriangleLight>& temp_triangles_lights)
 	{
 		std::string type_str;
@@ -241,7 +242,7 @@ namespace CudaPBRT
 					bool double_side = false;
 					SafeGet(double_side, light, "doubleSide", bool);
 
-					temp_shape_lights.emplace_back(type, nullptr, nullptr, shapeData.size() - 1, Spectrum(Lv), double_side);
+					lightData.emplace_back(shapeData.back(), materialData[shapeData.back().material_id], shapeData.size(), Spectrum(Lv), double_side);
 				}
 			}
 			return true;
@@ -294,6 +295,34 @@ namespace CudaPBRT
 
 			m_Textures.emplace_back(CudaTexture::CreateCudaTexture(env_map_path.c_str(), true));
 			m_GPUScene.envMap.SetTexObj(m_Textures.back()->GetTextureObject());
+			
+			const float* raw_img = m_Textures.back()->GetRawData();
+			std::pair<int, int> dim = m_Textures.back()->GetDim();
+			
+			int N = dim.first * dim.second;
+
+			float* img = new float[N];
+
+			for (int i = 0; i < N; i++)
+			{
+				float pixel = 0.f;
+				for (int j = 4 * i; j < 4 * i + 4; ++j)
+				{
+					pixel += raw_img[j] * raw_img[j];
+				}
+				img[i] = glm::sqrt(pixel);
+			}
+
+			m_AliasSamplers_1D.emplace_back(mkU<Cuda_AlaisSampler_1D>(N, img));
+			
+			delete[] img;
+
+			// add environment light for direct light sampling
+			lightData.emplace_back(m_Textures.back()->GetTextureObject(), 
+									dim.first, dim.second, 
+									m_AliasSamplers_1D.back()->device_distribution,
+									m_AliasSamplers_1D.back()->device_accept, 
+									m_AliasSamplers_1D.back()->device_alias);
 		}
 
 		if (scene_data.contains("objects"))
@@ -306,15 +335,14 @@ namespace CudaPBRT
 		}
 
 		// load lights
-		std::vector<LightData> temp_shape_lights; // temp array for shape lights
-		std::vector<TempTriangleLight> temp_triangles_lights; // temp array for shape lights with triangles
+		std::vector<TempTriangleLight> temp_triangles_lights; // temp array for triangles shape lights
 		
 		if (scene_data.contains("lights"))
 		{
 			JSON lights_list = scene_data["lights"];
 			for (const auto& light : lights_list)
 			{
-				LoadLightFromJSON(light, temp_shape_lights, temp_triangles_lights);
+				LoadLightFromJSON(light, temp_triangles_lights);
 			}
 		}
 
@@ -337,17 +365,12 @@ namespace CudaPBRT
 			data.end_id = shapeData.size();
 		}
 
-		// emplace triangle lights
+		// triangle shape lights must be emplaced after obtaining triangles' GPU pointers
 		for (const TempTriangleLight& tri_light : temp_triangles_lights)
 		{
 			for (int i = objectData[tri_light.obj_id].start_id; i < objectData[tri_light.obj_id].end_id; ++i)
 			{
-				temp_shape_lights.emplace_back(LightType::ShapeLight, 
-											   nullptr, 
-											   nullptr,
-											   i, 
-											   Spectrum(tri_light.Lv), 
-											   tri_light.double_side);
+				lightData.emplace_back(shapeData[i], materialData[shapeData[i].material_id], i, Spectrum(tri_light.Lv), tri_light.double_side);
 			}
 		}
 
@@ -359,14 +382,12 @@ namespace CudaPBRT
 
 		// buffer Shape datas (obtain shapes' GPU pointers)
 		CreateArrayOnCuda<Shape, ShapeData>(m_GPUScene.shapes, m_GPUScene.shape_count, shapeData);
-
-		// shape lights must be emplaced after obtaining shapes' GPU pointers
-		for (LightData& shape_light_data : temp_shape_lights)
-		{
-			lightData.emplace_back(shape_light_data, m_GPUScene.shapes, m_GPUScene.materials);
-		}
-		
 		CreateArrayOnCuda<Light, LightData>(m_GPUScene.lights, m_GPUScene.light_count, lightData);
+
+		// Reserviors
+		std::vector<Reservior<LightSample>> empty_reserviors;
+		empty_reserviors.resize(camera->width * camera->height);
+
 		return true;
 	}
 

@@ -37,4 +37,9 @@ protected:
 	int m_SelectedMaterial;
 
 	float m_FrameTime;
+
+	std::string m_CurrentFile;
+
+	static std::string JSON_PATH;
+	static std::string IMG_SAVE_PATH;
 };

@@ -10,15 +10,21 @@
 
 namespace CudaPBRT
 {
+	class LightSample;
+
+	template<typename T>
+	class Reservior;
+
 	class GPUScene;
 	class CudaTexture;
 	class RNG;
+	class Intersection;
 
 	CPU_GPU Ray CastRay(const PerspectiveCamera& camera, const glm::vec2& p, RNG& rng);
 
 	struct PathSegment;
 	template<typename T>
-	void BufferData(T*& device_ptr, T* host_ptr, size_t size)
+	void BufferData(T*& device_ptr, const T* host_ptr, size_t size)
 	{
 		ASSERT(device_ptr == nullptr);
 		if (size > 0)
@@ -42,6 +48,40 @@ namespace CudaPBRT
 	template<typename T, typename DataType>
 	void UpdateArrayOnCuda(T*& dev_array, std::vector<DataType>& host_data, size_t start, size_t end);
 
+	struct GBuffer
+	{
+		Reservior<LightSample>* preReserviors = nullptr;
+		Reservior<LightSample>* curReserviors = nullptr;
+		
+		Reservior<LightSample>* intermediaReserviors = nullptr;
+
+		Intersection* preGeometryInfos = nullptr;
+		Intersection* curGeometryInfos = nullptr;
+
+		void Swap()
+		{
+			{
+				Reservior<LightSample>* temp = preReserviors;
+				preReserviors = curReserviors;
+				curReserviors = temp;
+			}
+			{
+				Intersection* temp = preGeometryInfos;
+				preGeometryInfos = curGeometryInfos;
+				curGeometryInfos = temp;
+			}
+		}
+	};
+
+	enum class PT_Mode : unsigned char
+	{
+		None = 0, // Do nothing
+		DisplayGBuffer, // Normal
+		Naive_PT,
+		DI, // Direct Illumination
+		MIS_PT // Multiple Importance Sampling
+	};
+
 	class CudaPathTracer
 	{
 	public:
@@ -57,15 +97,22 @@ namespace CudaPBRT
 		virtual void UpdateCamera(PerspectiveCamera& camera);
 		virtual unsigned int GetDisplayTextureId() const { return m_DisplayImage; }
 
-		inline void ResetPRBT() { m_Iteration = 1; }
+		virtual void SwapGBuffer();
 
+		inline void ResetPRBT() { m_Iteration = 0; }
+
+		inline void SetPTMode(PT_Mode mode) { m_Mode = mode; }
 	public:
+		PT_Mode m_Mode;
+
 		int m_Iteration; // number of iteration
 
 		int width, height;
 
 		// texture handler
 		unsigned int m_DisplayImage = 0;
+
+		GBuffer GBuffer; // 0 for last frame, 1 for current frame
 
 		PerspectiveCamera* device_camera = nullptr;
 		uchar4* device_image = nullptr;

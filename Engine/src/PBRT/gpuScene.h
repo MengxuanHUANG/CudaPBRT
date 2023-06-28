@@ -10,6 +10,7 @@
 
 #include "BVH/bvh.h"
 #include "texture.h"
+#include "reservior.h"
 #include "pbrt.h"
 
 namespace CudaPBRT
@@ -21,24 +22,26 @@ namespace CudaPBRT
 	{
 	public:
         GPUScene()
-            : shapes(nullptr), materials(nullptr), lights(nullptr), 
+            : M(1), N(1),
+              temporalReuse(false), spatialReuse(true),
+              spatialReuseCount(5), spatialReuseRadius(30.f),
+              shapes(nullptr), materials(nullptr), lights(nullptr), 
               vertices(nullptr), normals(nullptr), uvs(nullptr),
               shape_count(0), material_count(0), light_count(0),
               boundings(nullptr), BVH(nullptr), BVHShapeMap(nullptr),
-              envMap(0), M(1)
+              envMap(0)
         {
         }
 
         INLINE GPU_ONLY bool Sample_Li(RNG& rng, const glm::vec3& p, const glm::vec3& normal, LightSample& sample)
         {
-            const float light_count_f = static_cast<float>(light_count);
+            float light_count_f = static_cast<float>(light_count);
+            int light_id = static_cast<int>(rng.rand() * (light_count_f - 1.f));
 
-            int light_id = static_cast<int>(glm::floor(rng.rand() * (light_count_f - 1.f)));
-
-            sample = (lights + light_id)->Sample_Li(p, normal, { rng.rand() , rng.rand() });
+            sample = lights[light_id].Sample_Li(p, normal, { rng.rand() , rng.rand() });
             sample.pdf /= light_count_f;
 
-            return (sample.pdf > 0.01f) && !Occluded(sample.t, sample.light->GetShapeId(), sample.shadowRay);
+            return (sample.pdf > 0.5f);
         }
 
         INLINE GPU_ONLY float PDF_Li(int light_id, const glm::vec3& p, const glm::vec3& wiW, float t, const glm::vec3& normal)
@@ -206,6 +209,15 @@ namespace CudaPBRT
         }
 
 	public:
+        int M, N;
+        bool temporalReuse;
+        bool spatialReuse;
+
+        int spatialReuseCount;
+        float spatialReuseRadius;
+
+        glm::ivec2 dim;
+
         Shape* shapes; // shapes on device
         Material* materials; // materials on device
 		Light* lights; // lights on device
@@ -216,8 +228,6 @@ namespace CudaPBRT
         size_t shape_count;
         size_t material_count;
 		size_t light_count;
-
-        int M;
 
         // BVH
         BoundingBox* boundings;
